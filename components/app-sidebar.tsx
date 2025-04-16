@@ -20,7 +20,6 @@ import {
   IconTruck,
   IconUsers,
 } from "@tabler/icons-react";
-import { useSession } from "next-auth/react";
 
 import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
@@ -35,15 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-
-type UserRole = "super_owner" | "admin" | "sub_admin" | "support";
-
-interface ExtendedUser {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  role?: UserRole;
-}
+import { useSession } from "next-auth/react";
 
 const data = {
   user: {
@@ -60,13 +51,19 @@ const data = {
     },
     {
       title: "Vendors",
-      url: "#",
+      url: "dashboard/vendors",
       icon: IconUsers,
       roles: ["super_owner", "admin", "sub_admin"],
     },
     {
+      title: "Categories",
+      url: "dashboard/products/categories",
+      icon: IconDatabase,
+      roles: ["super_owner", "admin", "sub_admin"],
+    },
+    {
       title: "Products",
-      url: "#",
+      url: "/dashboard/products",
       icon: IconDatabase,
       roles: ["super_owner", "admin", "sub_admin"],
     },
