@@ -1,27 +1,41 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { ArrowLeft, Upload } from "lucide-react"
-import { toast } from "sonner"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { ArrowLeft, Upload } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
-import { mockCategories } from "../../data/categories"
+import { mockCategories } from "../categories/categories";
 
 const productFormSchema = z.object({
   name: z.string().min(2, {
@@ -49,9 +63,9 @@ const productFormSchema = z.object({
   }),
   featured: z.boolean().default(false),
   status: z.enum(["draft", "active", "pending"]),
-})
+});
 
-type ProductFormValues = z.infer<typeof productFormSchema>
+type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const defaultValues: Partial<ProductFormValues> = {
   description: "",
@@ -60,17 +74,17 @@ const defaultValues: Partial<ProductFormValues> = {
   featured: false,
   status: "draft",
   quantity: 0,
-}
+};
 
 export default function AddProductPage() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("basic")
-  const [productImages, setProductImages] = useState<File[]>([])
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("basic");
+  const [productImages, setProductImages] = useState<File[]>([]);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues,
-  })
+  });
 
   function onSubmit(data: ProductFormValues) {
     // In a real application, you would:
@@ -83,29 +97,29 @@ export default function AddProductPage() {
         data.status === "active"
           ? "The product is now live on your marketplace."
           : data.status === "pending"
-            ? "The product is awaiting approval."
-            : "The product has been saved as a draft.",
-    })
+          ? "The product is awaiting approval."
+          : "The product has been saved as a draft.",
+    });
 
-    console.log("Form data:", data)
-    console.log("Product images:", productImages)
+    console.log("Form data:", data);
+    console.log("Product images:", productImages);
 
     // Redirect back to products list
     setTimeout(() => {
-      router.push("/admin/products")
-    }, 1500)
+      router.push("/admin/products");
+    }, 1500);
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files)
-      setProductImages((prev) => [...prev, ...filesArray])
+      const filesArray = Array.from(e.target.files);
+      setProductImages((prev) => [...prev, ...filesArray]);
     }
-  }
+  };
 
   const removeFile = (fileName: string) => {
-    setProductImages(productImages.filter((file) => file.name !== fileName))
-  }
+    setProductImages(productImages.filter((file) => file.name !== fileName));
+  };
 
   const renderFileList = () => {
     return productImages.length > 0 ? (
@@ -133,37 +147,47 @@ export default function AddProductPage() {
         ))}
       </div>
     ) : (
-      <p className="text-sm text-muted-foreground mt-2">No images uploaded yet.</p>
-    )
-  }
+      <p className="text-sm text-muted-foreground mt-2">
+        No images uploaded yet.
+      </p>
+    );
+  };
 
   const nextTab = () => {
     if (activeTab === "basic") {
-      form.trigger(["name", "sku", "price", "categoryId", "vendor"]).then((isValid) => {
-        if (isValid) setActiveTab("details")
-      })
+      form
+        .trigger(["name", "sku", "price", "categoryId", "vendor"])
+        .then((isValid) => {
+          if (isValid) setActiveTab("details");
+        });
     } else if (activeTab === "details") {
       form.trigger(["description", "quantity"]).then((isValid) => {
-        if (isValid) setActiveTab("images")
-      })
+        if (isValid) setActiveTab("images");
+      });
     }
-  }
+  };
 
   const prevTab = () => {
-    if (activeTab === "details") setActiveTab("basic")
-    else if (activeTab === "images") setActiveTab("details")
-  }
+    if (activeTab === "details") setActiveTab("basic");
+    else if (activeTab === "images") setActiveTab("details");
+  };
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center p-4 border-b">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/admin/products")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/admin/products")}
+        >
           <ArrowLeft className="h-4 w-4" />
           <span className="sr-only">Back</span>
         </Button>
         <div className="ml-4">
           <h1 className="text-2xl font-bold tracking-tight">Add New Product</h1>
-          <p className="text-muted-foreground">Create a new product for your marketplace</p>
+          <p className="text-muted-foreground">
+            Create a new product for your marketplace
+          </p>
         </div>
       </div>
 
@@ -171,8 +195,15 @@ export default function AddProductPage() {
         <Card>
           <CardContent className="p-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
                   <TabsList className="grid w-full grid-cols-3 mb-8">
                     <TabsTrigger value="basic">Basic Info</TabsTrigger>
                     <TabsTrigger value="details">Details</TabsTrigger>
@@ -189,7 +220,10 @@ export default function AddProductPage() {
                             <FormItem>
                               <FormLabel>Product Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Premium Wireless Headphones" {...field} />
+                                <Input
+                                  placeholder="Premium Wireless Headphones"
+                                  {...field}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -216,8 +250,16 @@ export default function AddProductPage() {
                               <FormLabel>Price</FormLabel>
                               <FormControl>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-2.5">$</span>
-                                  <Input type="number" step="0.01" min="0" className="pl-6" {...field} />
+                                  <span className="absolute left-3 top-2.5">
+                                    $
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="pl-6"
+                                    {...field}
+                                  />
                                 </div>
                               </FormControl>
                               <FormMessage />
@@ -232,7 +274,9 @@ export default function AddProductPage() {
                               <FormLabel>Compare-at Price</FormLabel>
                               <FormControl>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-2.5">$</span>
+                                  <span className="absolute left-3 top-2.5">
+                                    $
+                                  </span>
                                   <Input
                                     type="number"
                                     step="0.01"
@@ -242,14 +286,17 @@ export default function AddProductPage() {
                                     value={field.value || ""}
                                     onChange={(e) => {
                                       const value =
-                                        e.target.value === "" ? undefined : Number.parseFloat(e.target.value)
-                                      field.onChange(value)
+                                        e.target.value === ""
+                                          ? undefined
+                                          : Number.parseFloat(e.target.value);
+                                      field.onChange(value);
                                     }}
                                   />
                                 </div>
                               </FormControl>
                               <FormDescription>
-                                Original price before discount, displayed as strikethrough
+                                Original price before discount, displayed as
+                                strikethrough
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -263,7 +310,9 @@ export default function AddProductPage() {
                               <FormLabel>Cost per item</FormLabel>
                               <FormControl>
                                 <div className="relative">
-                                  <span className="absolute left-3 top-2.5">$</span>
+                                  <span className="absolute left-3 top-2.5">
+                                    $
+                                  </span>
                                   <Input
                                     type="number"
                                     step="0.01"
@@ -273,14 +322,17 @@ export default function AddProductPage() {
                                     value={field.value || ""}
                                     onChange={(e) => {
                                       const value =
-                                        e.target.value === "" ? undefined : Number.parseFloat(e.target.value)
-                                      field.onChange(value)
+                                        e.target.value === ""
+                                          ? undefined
+                                          : Number.parseFloat(e.target.value);
+                                      field.onChange(value);
                                     }}
                                   />
                                 </div>
                               </FormControl>
                               <FormDescription>
-                                Used to calculate profit margins (not shown to customers)
+                                Used to calculate profit margins (not shown to
+                                customers)
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -292,7 +344,10 @@ export default function AddProductPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Category</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a category" />
@@ -300,7 +355,10 @@ export default function AddProductPage() {
                                 </FormControl>
                                 <SelectContent>
                                   {mockCategories.map((category) => (
-                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                    <SelectItem
+                                      key={category.id}
+                                      value={category.id.toString()}
+                                    >
                                       {category.name}
                                     </SelectItem>
                                   ))}
@@ -357,7 +415,12 @@ export default function AddProductPage() {
                             <FormItem>
                               <FormLabel>Inventory Quantity</FormLabel>
                               <FormControl>
-                                <Input type="number" min="0" step="1" {...field} />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  {...field}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -369,13 +432,19 @@ export default function AddProductPage() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                               <div className="space-y-0.5">
-                                <FormLabel className="text-base">Featured Product</FormLabel>
+                                <FormLabel className="text-base">
+                                  Featured Product
+                                </FormLabel>
                                 <FormDescription>
-                                  Featured products are displayed prominently on your marketplace.
+                                  Featured products are displayed prominently on
+                                  your marketplace.
                                 </FormDescription>
                               </div>
                               <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
                               </FormControl>
                             </FormItem>
                           )}
@@ -388,8 +457,8 @@ export default function AddProductPage() {
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Product Images</h3>
                       <p className="text-sm text-muted-foreground">
-                        Upload high-quality images of your product. The first image will be used as the product
-                        thumbnail.
+                        Upload high-quality images of your product. The first
+                        image will be used as the product thumbnail.
                       </p>
                       <div className="grid w-full max-w-sm items-center gap-1.5">
                         <Label htmlFor="product-images">Upload Images</Label>
@@ -417,28 +486,41 @@ export default function AddProductPage() {
                     <Separator />
 
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Publishing Options</h3>
+                      <h3 className="text-lg font-medium">
+                        Publishing Options
+                      </h3>
                       <FormField
                         control={form.control}
                         name="status"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Product Status</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="draft">Draft - Save for later</SelectItem>
-                                <SelectItem value="pending">Pending - Submit for approval</SelectItem>
-                                <SelectItem value="active">Active - Publish immediately</SelectItem>
+                                <SelectItem value="draft">
+                                  Draft - Save for later
+                                </SelectItem>
+                                <SelectItem value="pending">
+                                  Pending - Submit for approval
+                                </SelectItem>
+                                <SelectItem value="active">
+                                  Active - Publish immediately
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              {field.value === "draft" && "Save as draft to continue editing later."}
-                              {field.value === "pending" && "Submit for review by marketplace administrators."}
+                              {field.value === "draft" &&
+                                "Save as draft to continue editing later."}
+                              {field.value === "pending" &&
+                                "Submit for review by marketplace administrators."}
                               {field.value === "active" &&
                                 "Make this product immediately available on your marketplace."}
                             </FormDescription>
@@ -471,5 +553,5 @@ export default function AddProductPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

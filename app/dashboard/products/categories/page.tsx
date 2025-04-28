@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import data from "./../data.json";
-import { CategoryForm } from "@/app/features/product/category-form";
+import { CategoryForm } from "@/features/product/category-form";
 
 export default function CategoriesPage() {
   const router = useRouter();

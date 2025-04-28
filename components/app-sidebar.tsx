@@ -69,7 +69,7 @@ const data = {
     },
     {
       title: "Orders",
-      url: "#",
+      url: "/dashboard/orders",
       icon: IconListDetails,
       roles: ["super_owner", "admin", "sub_admin", "support"],
     },

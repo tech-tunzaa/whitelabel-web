@@ -1,4 +1,4 @@
-import RegisterViewPage from "@/app/features/register/components/register-view";
+import RegisterViewPage from "@/features/register/components/register-view";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 

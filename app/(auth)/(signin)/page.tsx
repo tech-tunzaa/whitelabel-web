@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { LoginForm } from "@/app/features/auth/components/login-form";
+import { LoginForm } from "@/features/auth/components/login-form";
 import { GalleryVerticalEnd } from "lucide-react";
 
 export const metadata: Metadata = {
