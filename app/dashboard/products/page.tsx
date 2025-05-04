@@ -32,15 +32,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useProductStore } from "@/features/product/store/product-store";
-import { useProductOperations } from "@/features/product/hooks/use-product-operations";
-import { Product } from "@/features/product/types/product";
-import { ProductTable } from "@/features/product/components/product-table";
+import { useProductStore } from "@/features/products/store/product-store";
+import { Product } from "@/features/products/types/product";
+import { ProductTable } from "@/features/products/components/product-table";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { products, loading, error } = useProductStore();
-  const { fetchProducts, removeProduct } = useProductOperations();
+  const { products, loading, error, fetchProducts, deleteProduct } = useProductStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -78,7 +76,7 @@ export default function ProductsPage() {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     try {
-      await removeProduct(productToDelete._id.toString());
+      await deleteProduct(productToDelete._id);
       setIsDeleteDialogOpen(false);
       setProductToDelete(null);
       toast.success("Product deleted successfully");
@@ -164,69 +162,59 @@ export default function ProductsPage() {
               </Badge>
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="all" className="space-y-4">
-            {loading ? (
-              <div>Loading...</div>
-            ) : (
-              <ProductTable
-                products={filteredProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}/edit`)
-                }
-                onDelete={openDeleteDialog}
-              />
-            )}
+          <TabsContent value="all">
+            <ProductTable
+              products={filteredProducts}
+              onEdit={(product) =>
+                router.push(`/dashboard/products/${product._id}/edit`)
+              }
+              onDelete={openDeleteDialog}
+            />
           </TabsContent>
-
-          <TabsContent value="active" className="space-y-4">
-            {loading ? (
-              <div>Loading...</div>
-            ) : (
-              <ProductTable
-                products={activeProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}/edit`)
-                }
-                onDelete={openDeleteDialog}
-              />
-            )}
+          <TabsContent value="active">
+            <ProductTable
+              products={activeProducts}
+              onEdit={(product) =>
+                router.push(`/dashboard/products/${product._id}/edit`)
+              }
+              onDelete={openDeleteDialog}
+            />
           </TabsContent>
-
-          <TabsContent value="draft" className="space-y-4">
-            {loading ? (
-              <div>Loading...</div>
-            ) : (
-              <ProductTable
-                products={pendingProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}/edit`)
-                }
-                onDelete={openDeleteDialog}
-              />
-            )}
+          <TabsContent value="draft">
+            <ProductTable
+              products={pendingProducts}
+              onEdit={(product) =>
+                router.push(`/dashboard/products/${product._id}/edit`)
+              }
+              onDelete={openDeleteDialog}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Product</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the product "
-              {productToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete this product? This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex justify-end space-x-4">
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProduct}
+            >
               Delete
             </Button>
           </div>
