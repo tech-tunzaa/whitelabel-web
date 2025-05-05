@@ -102,6 +102,11 @@ const data = {
           url: "/dashboard/orders/delivery",
           icon: IconTruck,
         },
+        {
+          title: "Refunds",
+          url: "/dashboard/orders/refunds",
+          icon: IconCreditCard,
+        },
       ],
     },
     // {
