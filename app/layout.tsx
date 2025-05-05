@@ -6,7 +6,7 @@ import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import Providers from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
-import { GrammarlyFix } from "./components/grammarly-fix";
+import { GrammarlyFix } from "../components/grammarly-fix";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
