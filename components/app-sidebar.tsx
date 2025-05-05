@@ -19,6 +19,9 @@ import {
   IconSettings,
   IconTruck,
   IconUsers,
+  IconCategory,
+  IconPackage,
+  IconMail,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -33,8 +36,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { useSession } from "next-auth/react";
+import { Button } from "./ui/button";
+import { NotificationTrigger } from "@/components/notification-trigger";
+
+type ExtendedUser = {
+  role: string;
+};
 
 const data = {
   user: {
@@ -45,55 +57,73 @@ const data = {
   navMain: [
     {
       title: "Tenants",
-      url: "#",
+      url: "/dashboard/tenants",
       icon: IconUsers,
       roles: ["super_owner"],
     },
     {
       title: "Vendors",
-      url: "dashboard/vendors",
+      url: "/dashboard/vendors",
       icon: IconUsers,
       roles: ["super_owner", "admin", "sub_admin"],
     },
     {
-      title: "Categories",
-      url: "dashboard/products/categories",
-      icon: IconDatabase,
+      title: "Delivery Partners",
+      url: "/dashboard/delivery-partners",
+      icon: IconTruck,
       roles: ["super_owner", "admin", "sub_admin"],
     },
     {
-      title: "Products",
-      url: "/dashboard/products",
-      icon: IconDatabase,
-      roles: ["super_owner", "admin", "sub_admin"],
+      title: "Catalog",
+      url: "#",
+      icon: IconPackage,
+      roles: ["super_owner", "admin", "sub_admin", "support"],
+      items: [
+        {
+          title: "Products",
+          url: "/dashboard/products",
+          icon: IconPackage,
+        },
+        {
+          title: "Categories",
+          url: "/dashboard/products/categories",
+          icon: IconCategory,
+        },
+      ],
     },
     {
       title: "Orders",
       url: "/dashboard/orders",
       icon: IconListDetails,
       roles: ["super_owner", "admin", "sub_admin", "support"],
+      items: [
+        {
+          title: "Delivery",
+          url: "/dashboard/orders/delivery",
+          icon: IconTruck,
+        },
+        {
+          title: "Refunds",
+          url: "/dashboard/orders/refunds",
+          icon: IconCreditCard,
+        },
+      ],
     },
-    {
-      title: "Refunds",
-      url: "#",
-      icon: IconCreditCard,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-    },
-    {
-      title: "Delivery",
-      url: "#",
-      icon: IconTruck,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-    },
+    // {
+    //   title: "Refunds",
+    //   url: "#",
+    //   icon: IconCreditCard,
+    //   roles: ["super_owner", "admin", "sub_admin", "support"],
+    // },
     {
       title: "Support Tickets",
-      url: "#",
+      url: "/dashboard/support",
       icon: IconHelp,
       roles: ["super_owner", "admin", "sub_admin", "support"],
     },
     {
       title: "Settings",
-      url: "#",
+      url: "/dashboard/settings",
       icon: IconSettings,
       roles: ["super_owner", "admin"],
     },
@@ -197,7 +227,11 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  onNotificationClick?: () => void;
+}
+
+export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
   const { data: session } = useSession();
 
   const user = session?.user
@@ -237,9 +271,73 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={filteredNavMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <SidebarMenu>
+          <SidebarMenuItem className="flex items-center gap-2">
+            <SidebarMenuButton
+              asChild
+              tooltip="Dashboard"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+            >
+              <a href="/dashboard">
+                <IconDashboard />
+                <span>Dashboard</span>
+              </a>
+            </SidebarMenuButton>
+            <NotificationTrigger>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8 group-data-[collapsible=icon]:opacity-0"
+                onClick={onNotificationClick}
+              >
+                <IconMail className="h-5 w-5" />
+              </Button>
+            </NotificationTrigger>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <SidebarMenu>
+          {filteredNavMain.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              {item.items ? (
+                <>
+                  <SidebarMenuButton
+                    asChild
+                    className="data-[slot=sidebar-menu-button]:!p-1.5"
+                  >
+                    <a href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                  <SidebarMenuSub>
+                    {item.items.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubButton asChild>
+                          <a href={subItem.url}>
+                            <subItem.icon />
+                            <span>{subItem.title}</span>
+                          </a>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </>
+              ) : (
+                <SidebarMenuButton
+                  asChild
+                  className="data-[slot=sidebar-menu-button]:!p-1.5"
+                >
+                  <a href={item.url}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              )}
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+        {/* <NavDocuments items={data.documents} />
+        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

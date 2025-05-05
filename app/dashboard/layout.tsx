@@ -1,13 +1,20 @@
+"use client";
+
 import { AppSidebar } from "@/components/app-sidebar";
 
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { NotificationSheet } from "@/components/notification-sheet";
+import { useState } from "react";
+import React from "react";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
   return (
     <SidebarProvider
       style={
@@ -17,11 +24,22 @@ export default function DashboardLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar 
+        variant="inset" 
+        onNotificationClick={() => setIsNotificationOpen(true)} 
+      />
       <SidebarInset>
-        <SiteHeader />
-        {children}
+        <React.Fragment key="header">
+          <SiteHeader />
+        </React.Fragment>
+        <React.Fragment key="content">
+          {children}
+        </React.Fragment>
       </SidebarInset>
+      <NotificationSheet 
+        open={isNotificationOpen} 
+        onOpenChange={setIsNotificationOpen} 
+      />
     </SidebarProvider>
   );
 }

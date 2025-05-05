@@ -6,6 +6,7 @@ import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import Providers from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
+import { GrammarlyFix } from "./components/grammarly-fix";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,14 +30,16 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <NextTopLoader showSpinner={false} />
         <NuqsAdapter>
           <Providers session={session}>
             <Toaster />
+            <GrammarlyFix />
             {children}
           </Providers>
         </NuqsAdapter>

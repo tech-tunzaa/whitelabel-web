@@ -25,19 +25,19 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { signOut } from "next-auth/react";
+import { NotificationTrigger } from "@/components/notification-trigger";
 
-export function NavUser({
-  user,
-}: {
+interface NavUserProps {
   user: {
     name: string;
     email: string;
     avatar: string;
   };
-}) {
-  const { isMobile } = useSidebar();
+  onNotificationClick?: () => void;
+}
 
-  console.log("The user: ", user);
+export function NavUser({ user, onNotificationClick }: NavUserProps) {
+  const { isMobile } = useSidebar();
 
   return (
     <SidebarMenu>
@@ -94,8 +94,12 @@ export function NavUser({
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <IconNotification />
-                Notifications
+                <NotificationTrigger>
+                  <span className="flex items-center gap-2 me-4">
+                    <IconNotification />
+                    <span>Notifications</span>
+                  </span>
+                </NotificationTrigger>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

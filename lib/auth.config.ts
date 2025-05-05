@@ -22,16 +22,16 @@ const authConfig = {
       async authorize(credentials, req) {
         try {
           //Call the server for login
-          const response = await fetch(`${process.env.API_URL}/auth/signin`, {
-            method: "POST",
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
-            headers: { "Content-Type": "application/json" },
-          });
+          // const response = await fetch(`${process.env.API_URL}/auth/signin`, {
+          //   method: "POST",
+          //   body: JSON.stringify({
+          //     email: credentials.email,
+          //     password: credentials.password,
+          //   }),
+          //   headers: { "Content-Type": "application/json" },
+          // });
 
-          const data = await response.json();
+          // const data = await response.json();
 
           let role = "admin";
           let name = "The Manager";
