@@ -52,7 +52,7 @@ export function VendorDialog({ vendor, isOpen, onClose, onApprove, onReject }: V
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Vendor Application</DialogTitle>
           <DialogDescription>Review the vendor's information and documents</DialogDescription>
