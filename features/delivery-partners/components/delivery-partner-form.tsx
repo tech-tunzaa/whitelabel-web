@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -32,6 +32,9 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
+import { RequiredField } from "@/components/ui/required-field"
+import { DocumentUpload } from "@/components/ui/document-upload"
+import { PhoneInput } from "@/components/ui/phone-input"
 
 const deliveryPartnerFormSchema = z.object({
   // Common fields
@@ -78,9 +81,14 @@ const deliveryPartnerFormSchema = z.object({
   dateOfBirth: z.string().optional(),
   nationalId: z.string().optional(),
   vehicleType: z.string().optional(),
-  vehicleDetails: z.string().optional(),
+  plateNumber: z.string().optional(),
   licenseNumber: z.string().optional(),
-  serviceRadius: z.string().optional(),
+  // Vehicle information fields
+  vehicleMake: z.string().optional(),
+  vehicleModel: z.string().optional(),
+  vehicleYear: z.string().optional(),
+  vehicleInsurance: z.string().optional(),
+  vehicleRegistration: z.string().optional(),
 
   // Business specific fields
   businessName: z.string().optional(),
@@ -88,10 +96,17 @@ const deliveryPartnerFormSchema = z.object({
   drivers: z.array(z.object({
     name: z.string(),
     phone: z.string(),
+    countryCode: z.string().optional(),
     email: z.string(),
     licenseNumber: z.string(),
     vehicleType: z.string(),
-    vehicleDetails: z.string(),
+    plateNumber: z.string(),
+    // Vehicle information fields
+    vehicleMake: z.string().optional(),
+    vehicleModel: z.string().optional(),
+    vehicleYear: z.string().optional(),
+    vehicleInsurance: z.string().optional(),
+    vehicleRegistration: z.string().optional(),
   })).optional(),
 
   // Pickup point specific fields
@@ -103,14 +118,26 @@ type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>
 const defaultValues: Partial<DeliveryPartnerFormValues> = {
   type: 'individual',
   description: "",
-  serviceRadius: "5",
+  // Individual section default values
+  plateNumber: "",
+  vehicleMake: "",
+  vehicleModel: "",
+  vehicleYear: "",
+  vehicleInsurance: "",
+  vehicleRegistration: "",
+  // Drivers array default values
   drivers: [{
     name: "",
     phone: "",
     email: "",
     licenseNumber: "",
     vehicleType: "",
-    vehicleDetails: "",
+    plateNumber: "",
+    vehicleMake: "",
+    vehicleModel: "",
+    vehicleYear: "",
+    vehicleInsurance: "",
+    vehicleRegistration: "",
   }],
 }
 
@@ -144,11 +171,25 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
   const [identityDocs, setIdentityDocs] = useState<File[]>([])
   const [vehicleDocs, setVehicleDocs] = useState<File[]>([])
   const [bankDocs, setBankDocs] = useState<File[]>([])
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verificationSuccess, setVerificationSuccess] = useState(false)
+
+  // Add state for document expiry dates
+  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<Record<string, string>>({})
+  const [vehicleDocsExpiry, setVehicleDocsExpiry] = useState<Record<string, string>>({})
+  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>({})
 
   const form = useForm<DeliveryPartnerFormValues>({
     resolver: zodResolver(deliveryPartnerFormSchema),
     defaultValues,
+    mode: "onChange",
   })
+
+  // Reset verification states when form type changes
+  useEffect(() => {
+    setVerificationSuccess(false)
+    setVerifiedDrivers([])
+  }, [form.watch("type")])
 
   const selectedType = form.watch("type")
   const drivers = form.watch("drivers") || []
@@ -160,20 +201,31 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
       {
         name: "",
         phone: "",
+        countryCode: "+255",
         email: "",
         licenseNumber: "",
         vehicleType: "",
-        vehicleDetails: "",
+        plateNumber: "",
+        vehicleMake: "",
+        vehicleModel: "",
+        vehicleYear: "",
+        vehicleInsurance: "",
+        vehicleRegistration: "",
       },
     ])
   }
 
   const removeDriver = (index: number) => {
-    const currentDrivers = form.getValues("drivers") || []
-    form.setValue(
-      "drivers",
-      currentDrivers.filter((_, i) => i !== index)
-    )
+    const drivers = form.getValues("drivers") || []
+    form.setValue("drivers", drivers.filter((_, i) => i !== index))
+    
+    // Update verifiedDrivers to remove the deleted driver and reindex
+    setVerifiedDrivers(prev => {
+      // Remove the driver at the specified index
+      const filtered = prev.filter(i => i !== index)
+      // Adjust indices for drivers that came after the removed one
+      return filtered.map(i => i > index ? i - 1 : i)
+    })
   }
 
   const handleFileChange = (
@@ -192,6 +244,64 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
     setFiles: React.Dispatch<React.SetStateAction<File[]>>
   ) => {
     setFiles(files.filter((file) => file.name !== fileName))
+  }
+
+  // State to track verification status for drivers
+  const [verifiedDrivers, setVerifiedDrivers] = useState<number[]>([])
+  
+  const verifyVehicle = async (plateNumber: string, isDriver = false, driverIndex?: number) => {
+    if (!plateNumber) {
+      toast.error("Please enter a plate number")
+      return
+    }
+    
+    setIsVerifying(true)
+    
+    // Simulate API call with timeout
+    try {
+      // This simulates an API call to fetch vehicle details
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Demo data - in real implementation, this would come from the API
+      const vehicleDetails = {
+        make: "Toyota",
+        model: "Corolla",
+        year: "2020",
+        insurance: "Comprehensive - Valid until Dec 2025",
+        registration: "Registered to John Doe",
+      }
+      
+      // Update form values with the retrieved data
+      if (isDriver && typeof driverIndex === 'number') {
+        form.setValue(`drivers.${driverIndex}.vehicleMake`, vehicleDetails.make)
+        form.setValue(`drivers.${driverIndex}.vehicleModel`, vehicleDetails.model)
+        form.setValue(`drivers.${driverIndex}.vehicleYear`, vehicleDetails.year)
+        form.setValue(`drivers.${driverIndex}.vehicleInsurance`, vehicleDetails.insurance)
+        form.setValue(`drivers.${driverIndex}.vehicleRegistration`, vehicleDetails.registration)
+        
+        // Add this driver to the verified list
+        setVerifiedDrivers(prev => {
+          if (!prev.includes(driverIndex)) {
+            return [...prev, driverIndex]
+          }
+          return prev
+        })
+      } else {
+        form.setValue("vehicleMake", vehicleDetails.make)
+        form.setValue("vehicleModel", vehicleDetails.model)
+        form.setValue("vehicleYear", vehicleDetails.year)
+        form.setValue("vehicleInsurance", vehicleDetails.insurance)
+        form.setValue("vehicleRegistration", vehicleDetails.registration)
+        setVerificationSuccess(true)
+      }
+      
+      toast.success("Vehicle details verified successfully")
+    } catch (error) {
+      toast.error("Failed to verify vehicle details")
+      console.error("Error verifying vehicle:", error)
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   const renderFileList = (
@@ -235,8 +345,12 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
           "nationalId",
           "licenseNumber",
           "vehicleType",
-          "vehicleDetails",
-          "serviceRadius",
+          "plateNumber",
+          "vehicleMake",
+          "vehicleModel",
+          "vehicleYear",
+          "vehicleInsurance",
+          "vehicleRegistration",
           "operatingHours",
         ])
         .then((isValid) => {
@@ -283,7 +397,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                       name="type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Type</FormLabel>
+                          <FormLabel>Type <RequiredField /></FormLabel>
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
@@ -328,7 +442,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Full Name</FormLabel>
+                              <FormLabel>Full Name <RequiredField /></FormLabel>
                               <FormControl>
                                 <Input placeholder="John Doe" {...field} />
                               </FormControl>
@@ -421,46 +535,106 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                           />
                           <FormField
                             control={form.control}
-                            name="vehicleDetails"
+                            name="plateNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Vehicle Details</FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    placeholder="Enter vehicle make, model, year, and any other relevant details..."
-                                    className="min-h-[100px]"
-                                    {...field}
-                                  />
-                                </FormControl>
+                                <FormLabel>Vehicle Plate Number</FormLabel>
+                                <div className="flex space-x-2">
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Enter vehicle plate number..."
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => verifyVehicle(field.value)}
+                                    disabled={isVerifying || !field.value}
+                                  >
+                                    {isVerifying ? "Verifying..." : "Verify"}
+                                  </Button>
+                                </div>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      <div>
-                        <h3 className="text-lg font-medium mb-4">Service Area</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <FormField
-                            control={form.control}
-                            name="serviceRadius"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Service Radius (km)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    placeholder="5"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          
+                          {/* Vehicle information fields (readonly) - only show after verification */}
+                          {verificationSuccess && (
+                            <div className="grid gap-4 mt-4 border border-green-200 rounded-md p-4 bg-green-50">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium text-green-700">Vehicle Details (Verified)</h4>
+                              </div>
+                              
+                              <FormField
+                                control={form.control}
+                                name="vehicleMake"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Make</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} readOnly className="bg-muted" />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={form.control}
+                                  name="vehicleModel"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Model</FormLabel>
+                                      <FormControl>
+                                        <Input {...field} readOnly className="bg-muted" />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                                
+                                <FormField
+                                  control={form.control}
+                                  name="vehicleYear"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Year</FormLabel>
+                                      <FormControl>
+                                        <Input {...field} readOnly className="bg-muted" />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              
+                              <FormField
+                                control={form.control}
+                                name="vehicleInsurance"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Insurance Info</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} readOnly className="bg-muted" />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={form.control}
+                                name="vehicleRegistration"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Registration</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} readOnly className="bg-muted" />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -523,7 +697,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                 name={`drivers.${index}.name`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Driver Name</FormLabel>
+                                    <FormLabel>Driver Name <RequiredField /></FormLabel>
                                     <FormControl>
                                       <Input placeholder="John Doe" {...field} />
                                     </FormControl>
@@ -536,9 +710,17 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                 name={`drivers.${index}.phone`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Driver Phone</FormLabel>
+                                    <FormLabel>Driver Phone <RequiredField /></FormLabel>
                                     <FormControl>
-                                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                                      <PhoneInput
+                                        countryCode={form.getValues(`drivers.${index}.countryCode`) || "+255"}
+                                        onChange={(value) => {
+                                          form.setValue(`drivers.${index}.countryCode`, value.countryCode);
+                                          field.onChange(value.phoneNumber);
+                                        }}
+                                        value={field.value}
+                                        onBlur={field.onBlur}
+                                      />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -549,7 +731,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                 name={`drivers.${index}.email`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Driver Email</FormLabel>
+                                    <FormLabel>Driver Email <RequiredField /></FormLabel>
                                     <FormControl>
                                       <Input placeholder="driver@example.com" {...field} />
                                     </FormControl>
@@ -562,7 +744,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                 name={`drivers.${index}.licenseNumber`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Driver's License Number</FormLabel>
+                                    <FormLabel>Driver's License Number <RequiredField /></FormLabel>
                                     <FormControl>
                                       <Input placeholder="DL-123456" {...field} />
                                     </FormControl>
@@ -574,8 +756,8 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                 control={form.control}
                                 name={`drivers.${index}.vehicleType`}
                                 render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Vehicle Type</FormLabel>
+                                  <FormItem className="flex flex-col gap-2">
+                                    <FormLabel>Vehicle Type <RequiredField /></FormLabel>
                                     <FormControl>
                                       <RadioGroup
                                         onValueChange={field.onChange}
@@ -607,23 +789,112 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                                   </FormItem>
                                 )}
                               />
-                              <FormField
-                                control={form.control}
-                                name={`drivers.${index}.vehicleDetails`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Vehicle Details</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Enter vehicle make, model, year, and any other relevant details..."
-                                        className="min-h-[100px]"
-                                        {...field}
+                              <div className="space-y-4">
+                                <FormField
+                                  control={form.control}
+                                  name={`drivers.${index}.plateNumber`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Vehicle Plate Number <RequiredField /></FormLabel>
+                                      <div className="flex space-x-2">
+                                        <FormControl>
+                                          <Input
+                                            placeholder="Enter vehicle plate number..."
+                                            {...field}
+                                          />
+                                        </FormControl>
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          onClick={() => verifyVehicle(field.value, true, index)}
+                                          disabled={isVerifying || !field.value}
+                                        >
+                                          {isVerifying ? "Verifying..." : "Verify"}
+                                        </Button>
+                                      </div>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                {/* Vehicle information fields (readonly) - only show after verification */}
+                                {verifiedDrivers.includes(index) && (
+                                  <div className="border border-green-200 rounded-md p-4 bg-green-50">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h4 className="text-sm font-medium text-green-700">Vehicle Details (Verified)</h4>
+                                    </div>
+                                    
+                                    <div className="grid gap-4">
+                                      <FormField
+                                        control={form.control}
+                                        name={`drivers.${index}.vehicleMake`}
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Make</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} readOnly className="bg-muted" />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
                                       />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
+                                      
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                          control={form.control}
+                                          name={`drivers.${index}.vehicleModel`}
+                                          render={({ field }) => (
+                                            <FormItem>
+                                              <FormLabel>Model</FormLabel>
+                                              <FormControl>
+                                                <Input {...field} readOnly className="bg-muted" />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                        
+                                        <FormField
+                                          control={form.control}
+                                          name={`drivers.${index}.vehicleYear`}
+                                          render={({ field }) => (
+                                            <FormItem>
+                                              <FormLabel>Year</FormLabel>
+                                              <FormControl>
+                                                <Input {...field} readOnly className="bg-muted" />
+                                              </FormControl>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      </div>
+                                      
+                                      <FormField
+                                        control={form.control}
+                                        name={`drivers.${index}.vehicleInsurance`}
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Insurance Info</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} readOnly className="bg-muted" />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
+                                      />
+                                      
+                                      <FormField
+                                        control={form.control}
+                                        name={`drivers.${index}.vehicleRegistration`}
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Registration</FormLabel>
+                                            <FormControl>
+                                              <Input {...field} readOnly className="bg-muted" />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
+                                  </div>
                                 )}
-                              />
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -643,7 +914,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Location Name</FormLabel>
+                              <FormLabel>Location Name <RequiredField /></FormLabel>
                               <FormControl>
                                 <Input placeholder="Acme Pickup Point" {...field} />
                               </FormControl>
@@ -656,7 +927,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                           name="operatingHours"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Operating Hours</FormLabel>
+                              <FormLabel>Operating Hours <RequiredField /></FormLabel>
                               <FormControl>
                                 <Input placeholder="9:00 AM - 5:00 PM" {...field} />
                               </FormControl>
@@ -678,7 +949,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Email <RequiredField /></FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="contact@example.com"
@@ -694,13 +965,21 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone</FormLabel>
+                            <FormLabel>Phone <RequiredField /></FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="+1 (555) 123-4567"
-                                {...field}
+                              <PhoneInput
+                                countryCode={form.getValues("countryCode") || "+255"}
+                                onChange={(value) => {
+                                  form.setValue("countryCode", value.countryCode);
+                                  field.onChange(value.phoneNumber);
+                                }}
+                                value={field.value}
+                                onBlur={field.onBlur}
                               />
                             </FormControl>
+                            <FormDescription>
+                              Your phone number for contact purposes.
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -718,7 +997,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="street"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Street Address</FormLabel>
+                            <FormLabel>Street Address <RequiredField /></FormLabel>
                             <FormControl>
                               <Input placeholder="123 Main St" {...field} />
                             </FormControl>
@@ -731,7 +1010,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="city"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>City</FormLabel>
+                            <FormLabel>City <RequiredField /></FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="San Francisco"
@@ -747,7 +1026,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="state"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>State / Province</FormLabel>
+                            <FormLabel>State / Province <RequiredField /></FormLabel>
                             <FormControl>
                               <Input placeholder="California" {...field} />
                             </FormControl>
@@ -760,7 +1039,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="zip"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>ZIP / Postal Code</FormLabel>
+                            <FormLabel>ZIP / Postal Code <RequiredField /></FormLabel>
                             <FormControl>
                               <Input placeholder="94103" {...field} />
                             </FormControl>
@@ -773,7 +1052,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="country"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Country</FormLabel>
+                            <FormLabel>Country <RequiredField /></FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="United States"
@@ -797,7 +1076,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                         name="commissionPercent"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Commission Percentage</FormLabel>
+                            <FormLabel>Commission Percentage <RequiredField /></FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               defaultValue={field.value}
@@ -824,108 +1103,45 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                 </div>
               </TabsContent>
 
-              <TabsContent value="documents" className="space-y-8">
+              <TabsContent value="documents" className="space-y-6 pt-4">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Identity Documents
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload government-issued identification documents (e.g.,
-                    passport, driver's license, ID card).
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="identity-documents">
-                      Upload ID Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="identity-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="identity-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) =>
-                            handleFileChange(e, setIdentityDocs)
-                          }
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(identityDocs, setIdentityDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Identity Documents</h3>
+                  <DocumentUpload
+                    label="National ID, Passport, Driver's License, etc."
+                    description="Upload clear images of relevant identity documents. You may add an expiry date for any document that requires renewal."
+                    files={identityDocs}
+                    setFiles={setIdentityDocs}
+                    expiryDates={identityDocsExpiry}
+                    setExpiryDates={setIdentityDocsExpiry}
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Vehicle Documents
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload vehicle registration, insurance, and other relevant documents.
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="vehicle-documents">
-                      Upload Vehicle Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="vehicle-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="vehicle-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) =>
-                            handleFileChange(e, setVehicleDocs)
-                          }
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(vehicleDocs, setVehicleDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Vehicle Information</h3>
+                  <DocumentUpload
+                    label="Vehicle Registration, Insurance, Photos, etc."
+                    description="Upload clear images of all vehicle-related documents. Set expiry dates for your vehicle insurance, license, or registration that require renewal."
+                    files={vehicleDocs}
+                    setFiles={setVehicleDocs}
+                    expiryDates={vehicleDocsExpiry}
+                    setExpiryDates={setVehicleDocsExpiry}
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Banking Information
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload bank account information for payment processing
-                    (e.g., void check, bank statement).
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="bank-documents">
-                      Upload Banking Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="bank-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="bank-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) => handleFileChange(e, setBankDocs)}
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(bankDocs, setBankDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Banking Information</h3>
+                  <DocumentUpload
+                    label="Bank Statements, Account Information, etc."
+                    description="Upload bank account information and financial records. You may set expiry dates for documents like statements that need to be renewed."
+                    files={bankDocs}
+                    setFiles={setBankDocs}
+                    expiryDates={bankDocsExpiry}
+                    setExpiryDates={setBankDocsExpiry}
+                  />
                 </div>
               </TabsContent>
 
@@ -1032,14 +1248,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                           {form.watch("longitude") || "—"}
                         </p>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-muted-foreground">
-                          Service Radius
-                        </h4>
-                        <p className="text-base">
-                          {form.watch("serviceRadius") || "—"} km
-                        </p>
-                      </div>
                     </div>
                   </div>
 
@@ -1060,12 +1268,37 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-muted-foreground">
-                          Vehicle Details
+                          Vehicle Plate Number
                         </h4>
                         <p className="text-base">
-                          {form.watch("vehicleDetails") || "—"}
+                          {form.watch("plateNumber") || "—"}
                         </p>
                       </div>
+                      {verificationSuccess && (
+                        <div className="mt-2 border-t pt-2">
+                          <h4 className="text-sm font-medium text-green-700">
+                            Verified Vehicle Details
+                          </h4>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+                            <div>
+                              <span className="text-xs text-muted-foreground">Make:</span>
+                              <p className="text-sm">{form.watch("vehicleMake") || "—"}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Model:</span>
+                              <p className="text-sm">{form.watch("vehicleModel") || "—"}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Year:</span>
+                              <p className="text-sm">{form.watch("vehicleYear") || "—"}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Insurance:</span>
+                              <p className="text-sm">{form.watch("vehicleInsurance") || "—"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -32,6 +32,9 @@ export default function OrdersPage() {
   const refundedOrders = filteredOrders.filter(
     (order) => order.status === "refunded"
   );
+  const issuedRefundOrders = filteredOrders.filter(
+    (order) => order.status === "Issued Refund"
+  );
   const flaggedOrders = filteredOrders.filter((order) => order.flagged);
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function OrdersPage() {
         <OrderFilters />
 
         <Tabs defaultValue="all" className="">
-          <TabsList className="grid grid-cols-4 md:grid-cols-8 mb-4 w-full">
+          <TabsList className="grid grid-cols-3 md:grid-cols-9 mb-4 w-full">
             <TabsTrigger value="all">
               All
               <Badge variant="secondary" className="ml-2">
@@ -93,6 +96,12 @@ export default function OrdersPage() {
                 {cancelledOrders.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="issued-refund">
+              Issued Refund
+              <Badge variant="secondary" className="ml-2">
+                {issuedRefundOrders.length}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="refunded">
               Refunded
               <Badge variant="secondary" className="ml-2">
@@ -121,6 +130,7 @@ export default function OrdersPage() {
             "shipped",
             "delivered",
             "cancelled",
+            "issued-refund",
             "refunded",
             "flagged",
           ].map((status) => (
@@ -131,9 +141,11 @@ export default function OrdersPage() {
                     orders={
                       status === "flagged"
                         ? flaggedOrders
-                        : filteredOrders.filter(
-                            (order) => order.status === status
-                          )
+                        : status === "issued-refund"
+                          ? issuedRefundOrders
+                          : filteredOrders.filter(
+                              (order) => order.status === status
+                            )
                     }
                   />
                 </CardContent>

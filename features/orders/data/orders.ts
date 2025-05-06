@@ -1,5 +1,179 @@
 export const mockOrders = [
   {
+    id: 2001,
+    orderDate: "2023-12-04T08:15:00",
+    customer: {
+      name: "Thomas Anderson",
+      email: "thomas.anderson@example.com",
+      phone: "+1 (555) 123-7890",
+      avatar: "/placeholder.svg?height=40&width=40",
+      since: "Feb 2023",
+      orderCount: 7,
+    },
+    items: [
+      {
+        id: 101,
+        name: "Smart Watch Pro",
+        price: 249.99,
+        quantity: 1,
+        image: "/placeholder.svg?height=64&width=64",
+      },
+      {
+        id: 102,
+        name: "Wireless Earbuds",
+        price: 89.99,
+        quantity: 1,
+        options: {
+          Color: "Black",
+        },
+        image: "/placeholder.svg?height=64&width=64",
+      },
+    ],
+    subtotal: 339.98,
+    tax: 27.20,
+    shippingCost: 0,
+    total: 367.18,
+    status: "Issued Refund",
+    payment: {
+      method: "Credit Card (Visa ****1234)",
+      status: "paid",
+      transactionId: "txn_78901234",
+    },
+    shipping: {
+      name: "Thomas Anderson",
+      address: {
+        street: "789 Tech Blvd",
+        city: "Seattle",
+        state: "WA",
+        zip: "98101",
+        country: "United States",
+      },
+      method: "Express Shipping (1-2 business days)",
+    },
+    vendor: {
+      name: "ElectroTech",
+      address: "456 Tech Avenue, Seattle, WA 98101",
+    },
+    timeline: [
+      {
+        status: "Order Placed",
+        timestamp: "2023-12-04T08:15:00",
+        note: "Order received and payment confirmed",
+      },
+      {
+        status: "Processing",
+        timestamp: "2023-12-04T09:30:00",
+        note: "Order is being prepared for shipping",
+      },
+      {
+        status: "shipped",
+        timestamp: "2023-12-05T10:45:00",
+        note: "Order has been shipped via FedEx",
+      },
+      {
+        status: "delivered",
+        timestamp: "2023-12-06T14:20:00",
+        note: "Package delivered and signed for by recipient",
+      },
+      {
+        status: "Return Requested",
+        timestamp: "2023-12-07T16:30:00",
+        note: "Customer requested return. Reason: Smart watch has defective heart rate sensor and earbuds have sound quality issues.",
+      },
+      {
+        status: "Issued Refund",
+        timestamp: "2023-12-08T10:15:00",
+        note: "Refund request reviewed and approved pending return of items.",
+      },
+    ],
+    flagged: false,
+    rider: null,
+  },
+  {
+    id: 2002,
+    orderDate: "2023-12-03T14:45:00",
+    customer: {
+      name: "Olivia Johnson",
+      email: "olivia.johnson@example.com",
+      phone: "+1 (555) 987-6543",
+      avatar: "/placeholder.svg?height=40&width=40",
+      since: "Apr 2023",
+      orderCount: 3,
+    },
+    items: [
+      {
+        id: 203,
+        name: "Designer Handbag",
+        price: 399.99,
+        quantity: 1,
+        options: {
+          Color: "Brown",
+          Material: "Leather",
+        },
+        image: "/placeholder.svg?height=64&width=64",
+      },
+    ],
+    subtotal: 399.99,
+    tax: 32.00,
+    shippingCost: 12.99,
+    total: 444.98,
+    status: "Issued Refund",
+    payment: {
+      method: "PayPal",
+      status: "paid",
+      transactionId: "txn_87654321",
+    },
+    shipping: {
+      name: "Olivia Johnson",
+      address: {
+        street: "123 Fashion St",
+        city: "New York",
+        state: "NY",
+        zip: "10001",
+        country: "United States",
+      },
+      method: "Standard Shipping (3-5 business days)",
+    },
+    vendor: {
+      name: "Luxury Boutique",
+      address: "789 Fashion Avenue, New York, NY 10001",
+    },
+    timeline: [
+      {
+        status: "Order Placed",
+        timestamp: "2023-12-03T14:45:00",
+        note: "Order received and payment confirmed",
+      },
+      {
+        status: "Processing",
+        timestamp: "2023-12-03T16:30:00",
+        note: "Order is being prepared for shipping",
+      },
+      {
+        status: "shipped",
+        timestamp: "2023-12-04T11:15:00",
+        note: "Order has been shipped via UPS",
+      },
+      {
+        status: "delivered",
+        timestamp: "2023-12-07T13:45:00",
+        note: "Package delivered and left at front door",
+      },
+      {
+        status: "Return Requested",
+        timestamp: "2023-12-08T09:30:00",
+        note: "Customer requested return. Reason: Product does not match description, color is different than shown on website.",
+      },
+      {
+        status: "Issued Refund",
+        timestamp: "2023-12-08T15:45:00",
+        note: "Refund request approved pending return of item. Customer will ship item back within 7 business days.",
+      },
+    ],
+    flagged: false,
+    rider: null,
+  },
+  {
     id: 1001,
     orderDate: "2023-12-01T10:30:00",
     customer: {

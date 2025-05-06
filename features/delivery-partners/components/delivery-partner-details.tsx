@@ -2,16 +2,15 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Check, X } from "lucide-react"
 import { DeliveryPartner } from "../types/delivery-partner"
 import { CheckedState } from "@radix-ui/react-checkbox"
+import { DocumentGrid } from "@/components/ui/document-grid"
 
 interface DeliveryPartnerDetailsProps {
   partner: DeliveryPartner
@@ -93,42 +92,11 @@ export function DeliveryPartnerDetails({
 
         <TabsContent value="documents" className="space-y-4 pt-4">
           <div className="space-y-4">
-            <h3 className="text-base font-medium">KYC Documents</h3>
-            {isMobile ? (
-              <ScrollArea className="whitespace-nowrap pb-4">
-                <div className="flex gap-4">
-                  {partner.kyc.documents.map((doc, index) => (
-                    <Card key={index} className="min-w-[200px]">
-                      <CardContent className="p-2">
-                        <img
-                          src={doc.link || "/placeholder.svg"}
-                          alt={doc.type}
-                          className="h-32 w-full object-cover rounded-md"
-                        />
-                        <p className="text-xs mt-2 truncate">{doc.type}</p>
-                        <p className="text-xs text-muted-foreground truncate">{doc.number}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {partner.kyc.documents.map((doc, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-2">
-                      <img
-                        src={doc.link || "/placeholder.svg"}
-                        alt={doc.type}
-                        className="h-32 w-full object-cover rounded-md"
-                      />
-                      <p className="text-xs mt-2 truncate">{doc.type}</p>
-                      <p className="text-xs text-muted-foreground truncate">{doc.number}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <DocumentGrid 
+              documents={partner.kyc.documents} 
+              isMobile={isMobile} 
+              title="KYC Documents" 
+            />
           </div>
         </TabsContent>
 
@@ -182,4 +150,4 @@ export function DeliveryPartnerDetails({
       </Tabs>
     </div>
   )
-} 
+}

@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { DeliveryPartner } from '../types/delivery-partner'
+import { DeliveryPartner, DeliveryPartnerStatus } from '../types/delivery-partner'
+import { deliveryPartners as mockDeliveryPartners } from '../data/delivery-partners'
 
 interface DeliveryPartnerStore {
-    deliveryPartners: DeliveryPartner[]
+    deliveryPartners: (DeliveryPartner & { status: DeliveryPartnerStatus })[]
     addDeliveryPartner: (partner: DeliveryPartner) => void
     updateDeliveryPartner: (id: string, partner: Partial<DeliveryPartner>) => void
     deleteDeliveryPartner: (id: string) => void
@@ -11,7 +12,7 @@ interface DeliveryPartnerStore {
 }
 
 export const useDeliveryPartnerStore = create<DeliveryPartnerStore>((set) => ({
-    deliveryPartners: [],
+    deliveryPartners: mockDeliveryPartners,
     addDeliveryPartner: (partner) =>
         set((state) => ({
             deliveryPartners: [...state.deliveryPartners, partner]

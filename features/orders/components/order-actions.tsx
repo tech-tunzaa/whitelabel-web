@@ -43,8 +43,21 @@ export function OrderActions({ order, onOrderUpdate }: OrderActionsProps) {
   };
 
   const handleRefund = () => {
-    onOrderUpdate({ ...order, status: "refunded" });
-    toast.success("Refund processed successfully");
+    // Update to add a timeline event and set status to 'Issued Refund' instead of 'refunded'
+    const now = new Date().toISOString();
+    onOrderUpdate({ 
+      ...order, 
+      status: "Issued Refund",
+      timeline: [
+        ...order.timeline,
+        {
+          status: "Issued Refund",
+          timestamp: now,
+          note: "Refund request initiated. Pending review and customer return of items.",
+        }
+      ]
+    });
+    toast.success("Refund request processed successfully");
     setIsRefundDialogOpen(false);
   };
 
@@ -88,7 +101,7 @@ export function OrderActions({ order, onOrderUpdate }: OrderActionsProps) {
               <Select
                 value={order.status}
                 onValueChange={handleStatusChange}
-                disabled={order.status === "cancelled" || order.status === "refunded"}
+                disabled={order.status === "cancelled" || order.status === "refunded" || order.status === "Issued Refund"}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -99,13 +112,14 @@ export function OrderActions({ order, onOrderUpdate }: OrderActionsProps) {
                   <SelectItem value="shipped">Shipped</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="Issued Refund">Issued Refund</SelectItem>
                   <SelectItem value="refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
             </TabsContent>
             <TabsContent value="actions" className="space-y-4 pt-4">
               <div className="grid grid-cols-1 gap-2">
-                {order.status !== "cancelled" && order.status !== "refunded" && (
+                {order.status !== "cancelled" && order.status !== "refunded" && order.status !== "Issued Refund" && (
                   <>
                     <Button
                       variant="outline"
@@ -215,7 +229,7 @@ export function OrderActions({ order, onOrderUpdate }: OrderActionsProps) {
                   .filter((rider) => rider.status === "available")
                   .map((rider) => (
                     <SelectItem key={rider.id} value={rider.id.toString()}>
-                      {rider.name} - {rider.distance} miles away
+                      {rider.name}
                     </SelectItem>
                   ))}
               </SelectContent>

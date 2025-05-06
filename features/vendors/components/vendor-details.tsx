@@ -2,16 +2,15 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Check, X } from "lucide-react"
 import { Vendor, VendorDocument } from "../types/vendor"
 import { CheckedState } from "@radix-ui/react-checkbox"
+import { DocumentGrid } from "@/components/ui/document-grid"
 
 interface VendorDetailsProps {
   vendor: Vendor
@@ -86,118 +85,31 @@ export function VendorDetails({ vendor, onApprove, onReject, isMobile = false }:
 
         <TabsContent value="documents" className="space-y-4 pt-4">
           <div className="space-y-4">
-            <h3 className="text-base font-medium">Identity Documents</h3>
-            {isMobile ? (
-              <ScrollArea className="whitespace-nowrap pb-4">
-                <div className="flex gap-4">
-                  {vendor.documents.identity.map((doc: VendorDocument, index: number) => (
-                    <Card key={index} className="min-w-[200px]">
-                      <CardContent className="p-2">
-                        <img
-                          src={doc.url || "/placeholder.svg"}
-                          alt={doc.name}
-                          className="h-32 w-full object-cover rounded-md"
-                        />
-                        <p className="text-xs mt-2 truncate">{doc.name}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {vendor.documents.identity.map((doc: VendorDocument, index: number) => (
-                  <Card key={index}>
-                    <CardContent className="p-2">
-                      <img
-                        src={doc.url || "/placeholder.svg"}
-                        alt={doc.name}
-                        className="h-32 w-full object-cover rounded-md"
-                      />
-                      <p className="text-xs mt-2 truncate">{doc.name}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <DocumentGrid 
+              documents={vendor.documents.identity} 
+              isMobile={isMobile} 
+              title="Identity Documents" 
+            />
           </div>
 
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="text-base font-medium">Business Certificates</h3>
-            {isMobile ? (
-              <ScrollArea className="whitespace-nowrap pb-4">
-                <div className="flex gap-4">
-                  {vendor.documents.business.map((doc: VendorDocument, index: number) => (
-                    <Card key={index} className="min-w-[200px]">
-                      <CardContent className="p-2">
-                        <img
-                          src={doc.url || "/placeholder.svg"}
-                          alt={doc.name}
-                          className="h-32 w-full object-cover rounded-md"
-                        />
-                        <p className="text-xs mt-2 truncate">{doc.name}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {vendor.documents.business.map((doc: VendorDocument, index: number) => (
-                  <Card key={index}>
-                    <CardContent className="p-2">
-                      <img
-                        src={doc.url || "/placeholder.svg"}
-                        alt={doc.name}
-                        className="h-32 w-full object-cover rounded-md"
-                      />
-                      <p className="text-xs mt-2 truncate">{doc.name}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <DocumentGrid 
+              documents={vendor.documents.business} 
+              isMobile={isMobile} 
+              title="Business Certificates" 
+            />
           </div>
 
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="text-base font-medium">Bank Information</h3>
-            {isMobile ? (
-              <ScrollArea className="whitespace-nowrap pb-4">
-                <div className="flex gap-4">
-                  {vendor.documents.bank.map((doc: VendorDocument, index: number) => (
-                    <Card key={index} className="min-w-[200px]">
-                      <CardContent className="p-2">
-                        <img
-                          src={doc.url || "/placeholder.svg"}
-                          alt={doc.name}
-                          className="h-32 w-full object-cover rounded-md"
-                        />
-                        <p className="text-xs mt-2 truncate">{doc.name}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {vendor.documents.bank.map((doc: VendorDocument, index: number) => (
-                  <Card key={index}>
-                    <CardContent className="p-2">
-                      <img
-                        src={doc.url || "/placeholder.svg"}
-                        alt={doc.name}
-                        className="h-32 w-full object-cover rounded-md"
-                      />
-                      <p className="text-xs mt-2 truncate">{doc.name}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <DocumentGrid 
+              documents={vendor.documents.bank} 
+              isMobile={isMobile} 
+              title="Bank Information" 
+            />
           </div>
         </TabsContent>
 
@@ -251,4 +163,4 @@ export function VendorDetails({ vendor, onApprove, onReject, isMobile = false }:
       </Tabs>
     </div>
   )
-} 
+}

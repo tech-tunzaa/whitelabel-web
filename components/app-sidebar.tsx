@@ -122,10 +122,11 @@ const data = {
       roles: ["super_owner", "admin", "sub_admin", "support"],
     },
     {
-      title: "Settings",
-      url: "/dashboard/settings",
+      title: "Marketplace Settings",
+      url: "/dashboard/marketplace-settings",
       icon: IconSettings,
       roles: ["super_owner", "admin"],
+
     },
   ],
   navClouds: [

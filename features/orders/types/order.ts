@@ -1,4 +1,4 @@
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded";
+export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded" | "Issued Refund" | "Refunded" | "Rejected Refund" | "Return Requested";
 
 export type PaymentMethod = "Credit Card" | "PayPal" | "Bank Transfer" | "Cash on Delivery";
 

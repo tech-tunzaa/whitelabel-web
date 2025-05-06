@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -34,8 +34,15 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
 import { useCategoryStore } from "@/features/products/categories/store/category-store";
+import { useVendorStore } from "@/features/vendors/stores/vendor-store";
 import { Product } from "../types/product";
 import { Category } from "../types/category";
+
+const ProductVariantSchema = z.object({
+  type: z.string().min(1, { message: "Variant type is required." }),
+  value: z.string().min(1, { message: "Variant value is required." }),
+  price: z.coerce.number().min(0).optional(),
+});
 
 const productFormSchema = z.object({
   name: z.string().min(2, {
@@ -61,6 +68,7 @@ const productFormSchema = z.object({
   vendor: z.string().min(1, {
     message: "Vendor is required.",
   }),
+  variants: z.array(ProductVariantSchema).optional().default([]),
   featured: z.boolean().default(false),
   status: z.enum(["draft", "active", "pending"]),
 });
@@ -76,6 +84,7 @@ const defaultValues: Partial<ProductFormValues> = {
   featured: false,
   status: "draft",
   quantity: 0,
+  variants: [],
 };
 
 interface ProductFormProps {
@@ -96,6 +105,7 @@ export function ProductForm({
   const [activeTab, setActiveTab] = useState("basic");
   const [productImages, setProductImages] = useState<File[]>([]);
   const { categories, fetchCategories } = useCategoryStore();
+  const { vendors } = useVendorStore();
 
   useEffect(() => {
     fetchCategories();
@@ -206,6 +216,34 @@ export function ProductForm({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-6"
               >
+
+                <FormField
+                  control={form.control}
+                  name="vendor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center">Vendor <span className="text-destructive ml-1">*</span></FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl className="w-full">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a vendor" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {vendors.map((vendor) => (
+                            <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                              {vendor.businessName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Tabs
                   value={activeTab}
                   onValueChange={setActiveTab}
@@ -225,7 +263,7 @@ export function ProductForm({
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Product Name</FormLabel>
+                              <FormLabel className="flex items-center">Product Name <span className="text-destructive ml-1">*</span></FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="Premium Wireless Headphones"
@@ -241,7 +279,7 @@ export function ProductForm({
                           name="sku"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>SKU</FormLabel>
+                              <FormLabel className="flex items-center">SKU <span className="text-destructive ml-1">*</span></FormLabel>
                               <FormControl>
                                 <Input placeholder="WH-1000XM4" {...field} />
                               </FormControl>
@@ -254,7 +292,7 @@ export function ProductForm({
                           name="price"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Price</FormLabel>
+                              <FormLabel className="flex items-center">Price <span className="text-destructive ml-1">*</span></FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
@@ -314,7 +352,7 @@ export function ProductForm({
                           name="categoryId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Category</FormLabel>
+                              <FormLabel className="flex items-center">Category <span className="text-destructive ml-1">*</span></FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
@@ -339,19 +377,6 @@ export function ProductForm({
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={form.control}
-                          name="vendor"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Vendor</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Sony" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
                       </div>
                     </div>
                     <div className="flex justify-end">
@@ -368,7 +393,7 @@ export function ProductForm({
                         name="description"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel className="flex items-center">Description <span className="text-destructive ml-1">*</span></FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="Product description..."
@@ -397,6 +422,127 @@ export function ProductForm({
                           </FormItem>
                         )}
                       />
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="text-base">Product Variants</FormLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentVariants = form.getValues("variants") || [];
+                              form.setValue("variants", [
+                                ...currentVariants,
+                                { type: "", value: "", price: undefined },
+                              ]);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Variant
+                          </Button>
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="variants"
+                          render={() => (
+                            <FormItem>
+                              <div className="space-y-4">
+                                {form.watch("variants")?.map((_, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-end gap-4 rounded-lg border p-4 shadow-sm"
+                                  >
+                                    <FormField
+                                      control={form.control}
+                                      name={`variants.${index}.type`}
+                                      render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                          <FormLabel className="flex items-center">Variant Type <span className="text-destructive ml-1">*</span></FormLabel>
+                                          <Select
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                          >
+                                            <FormControl className="w-full">
+                                              <SelectTrigger>
+                                                <SelectValue placeholder="Select type" />
+                                              </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                              <SelectItem value="color">Color</SelectItem>
+                                              <SelectItem value="size">Size</SelectItem>
+                                              <SelectItem value="material">Material</SelectItem>
+                                              <SelectItem value="package">Package</SelectItem>
+                                              <SelectItem value="style">Style</SelectItem>
+                                              <SelectItem value="weight">Weight</SelectItem>
+                                              <SelectItem value="custom">Custom</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={form.control}
+                                      name={`variants.${index}.value`}
+                                      render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                          <FormLabel className="flex items-center">Variant Value <span className="text-destructive ml-1">*</span></FormLabel>
+                                          <FormControl>
+                                            <Input
+                                              placeholder="Red, XL, Plastic, Bundle..."
+                                              {...field}
+                                            />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={form.control}
+                                      name={`variants.${index}.price`}
+                                      render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                          <FormLabel>Price (Optional)</FormLabel>
+                                          <FormControl>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              placeholder="0"
+                                              {...field}
+                                            />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="self-end"
+                                      onClick={() => {
+                                        const currentVariants = form.getValues("variants") || [];
+                                        form.setValue(
+                                          "variants",
+                                          currentVariants.filter((_, i) => i !== index)
+                                        );
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                {(!form.watch("variants") || form.watch("variants").length === 0) && (
+                                  <p className="text-sm text-muted-foreground">
+                                    No variants added. Add variants if your product comes in different options like colors, sizes, or packages.
+                                  </p>
+                                )}
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <Button type="button" variant="outline" onClick={prevTab}>

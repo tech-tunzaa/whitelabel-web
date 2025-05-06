@@ -167,7 +167,7 @@ export function DeliveryPartnerTable({
                             : "Pending"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -264,7 +264,7 @@ export function DeliveryPartnerTable({
                         <Badge variant="outline">{partner.type}</Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{partner.commissionPercent}%</TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -347,7 +347,7 @@ export function DeliveryPartnerTable({
                         <Badge variant="outline">{partner.type}</Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{partner.commissionPercent}%</TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

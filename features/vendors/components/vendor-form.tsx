@@ -4,7 +4,7 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,6 +30,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
+import { DocumentUpload } from "@/components/ui/document-upload"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { RequiredField } from "@/components/ui/required-field"
 
 const vendorFormSchema = z.object({
   businessName: z.string().min(2, {
@@ -41,6 +44,7 @@ const vendorFormSchema = z.object({
   phone: z.string().min(10, {
     message: "Please enter a valid phone number.",
   }),
+  countryCode: z.string().optional(),
   category: z.string({
     required_error: "Please select a business category.",
   }),
@@ -76,6 +80,7 @@ type VendorFormValues = z.infer<typeof vendorFormSchema>
 
 const defaultValues: Partial<VendorFormValues> = {
   description: "",
+  countryCode: "+255",
 }
 
 const businessCategories = [
@@ -101,420 +106,375 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
   const [identityDocs, setIdentityDocs] = useState<File[]>([])
   const [businessDocs, setBusinessDocs] = useState<File[]>([])
   const [bankDocs, setBankDocs] = useState<File[]>([])
+  
+  // Add state for document expiry dates
+  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<Record<string, string>>({})
+  const [businessDocsExpiry, setBusinessDocsExpiry] = useState<Record<string, string>>({})
+  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>({})
 
   const form = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
     defaultValues,
   })
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setFiles: React.Dispatch<React.SetStateAction<File[]>>
-  ) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files)
-      setFiles((prev) => [...prev, ...filesArray])
-    }
-  }
-
-  const removeFile = (
-    fileName: string,
-    files: File[],
-    setFiles: React.Dispatch<React.SetStateAction<File[]>>
-  ) => {
-    setFiles(files.filter((file) => file.name !== fileName))
-  }
-
-  const renderFileList = (
-    files: File[],
-    setFiles: React.Dispatch<React.SetStateAction<File[]>>
-  ) => {
-    return files.length > 0 ? (
-      <div className="mt-2 space-y-2">
-        {files.map((file) => (
-          <div
-            key={file.name}
-            className="flex items-center justify-between bg-muted p-2 rounded-md"
-          >
-            <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => removeFile(file.name, files, setFiles)}
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <p className="text-sm text-muted-foreground mt-2">No files uploaded yet.</p>
-    )
-  }
-
   const nextTab = () => {
     if (activeTab === "business") {
-      // Validate business info fields before proceeding
-      form
-        .trigger([
-          "businessName",
-          "email",
-          "phone",
-          "category",
-          "taxId",
-          "description",
-          "street",
-          "city",
-          "state",
-          "zip",
-          "country",
-        ])
-        .then((isValid) => {
-          if (isValid) setActiveTab("documents")
-        })
-    } else if (activeTab === "documents") {
-      // Check if at least one document is uploaded
-      if (
-        identityDocs.length === 0 &&
-        businessDocs.length === 0 &&
-        bankDocs.length === 0
-      ) {
-        toast("Document required", {
-          description: "Please upload at least one document before proceeding.",
-        })
-        return
+      const businessFields = [
+        "businessName",
+        "email",
+        "phone",
+        "category",
+        "taxId",
+        "description",
+      ]
+
+      const result = businessFields.every((field) =>
+        form.trigger(field as keyof VendorFormValues)
+      )
+
+      if (result) {
+        setActiveTab("address")
+      } else {
+        toast.error("Please complete all required fields.")
       }
+    } else if (activeTab === "address") {
+      const addressFields = ["street", "city", "state", "zip", "country"]
+
+      const result = addressFields.every((field) =>
+        form.trigger(field as keyof VendorFormValues)
+      )
+
+      if (result) {
+        setActiveTab("documents")
+      } else {
+        toast.error("Please complete all required fields.")
+      }
+    } else if (activeTab === "documents") {
       setActiveTab("review")
     }
   }
 
   const prevTab = () => {
-    if (activeTab === "documents") setActiveTab("business")
+    if (activeTab === "address") setActiveTab("business")
+    else if (activeTab === "documents") setActiveTab("address")
     else if (activeTab === "review") setActiveTab("documents")
   }
 
+  const handleSubmit = form.handleSubmit((data) => {
+    const formData = {
+      ...data,
+      documents: {
+        identity: identityDocs,
+        identityExpiryDates: identityDocsExpiry,
+        business: businessDocs,
+        businessExpiryDates: businessDocsExpiry,
+        bank: bankDocs,
+        bankExpiryDates: bankDocsExpiry,
+      },
+    }
+    onSubmit(formData as VendorFormValues)
+  })
+
   return (
-    <Card>
+    <Card className="w-full">
       <CardContent className="p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-8">
-                <TabsTrigger value="business">Business Info</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="review">Review & Submit</TabsTrigger>
+          <form onSubmit={handleSubmit}>
+            <Tabs value={activeTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger
+                  value="business"
+                  onClick={() => setActiveTab("business")}
+                  disabled={activeTab === "business"}
+                >
+                  Business
+                </TabsTrigger>
+                <TabsTrigger
+                  value="address"
+                  onClick={() => setActiveTab("address")}
+                  disabled={activeTab === "address"}
+                >
+                  Address
+                </TabsTrigger>
+                <TabsTrigger
+                  value="documents"
+                  onClick={() => setActiveTab("documents")}
+                  disabled={activeTab === "documents"}
+                >
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger
+                  value="review"
+                  onClick={() => setActiveTab("review")}
+                  disabled={activeTab === "review"}
+                >
+                  Review
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="business" className="space-y-6">
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="businessName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Name</FormLabel>
+              <TabsContent value="business" className="space-y-6 pt-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Business Information</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Provide your business details to get started.
+                  </p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="businessName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Name <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your business name" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        The official name of your business.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Email address" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Your business email address.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone <RequiredField /></FormLabel>
+                        <FormControl>
+                          <PhoneInput
+                            countryCode={form.getValues("countryCode") || "+255"}
+                            onChange={(value) => {
+                              form.setValue("countryCode", value.countryCode);
+                              field.onChange(value.phoneNumber);
+                            }}
+                            value={field.value}
+                            onBlur={field.onBlur}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Your business phone number.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Category <RequiredField /></FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Input placeholder="Acme Inc." {...field} />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="contact@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Phone</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="+1 (555) 123-4567"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {businessCategories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  {category}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="taxId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Tax ID / Business Registration Number
-                          </FormLabel>
-                          <FormControl>
-                            <Input placeholder="XX-XXXXXXX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe your business, products, and services..."
-                              className="min-h-[120px]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Provide a brief description of your business and
-                            the products or services you offer.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">
-                      Business Address
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="street"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Street Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="123 Main St" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="San Francisco"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="state"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State / Province</FormLabel>
-                            <FormControl>
-                              <Input placeholder="California" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="zip"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>ZIP / Postal Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="94103" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="United States"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                          <SelectContent>
+                            {businessCategories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The category that best describes your business.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="taxId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax ID <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Tax ID" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Your business tax identification number.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Description <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell us about your business..."
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Briefly describe what your business offers.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+              
+              <TabsContent value="address" className="space-y-6 pt-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Business Address</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Provide your business location information.
+                  </p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="street"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Street Address <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input placeholder="123 Main St" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="City" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State/Province <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="State or Province" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="zip"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP/Postal Code <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="ZIP or Postal code" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Country" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </TabsContent>
 
-              <TabsContent value="documents" className="space-y-8">
+              <TabsContent value="documents" className="space-y-6 pt-4">
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Identity Documents
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload government-issued identification documents (e.g.,
-                    passport, driver's license, ID card).
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="identity-documents">
-                      Upload ID Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="identity-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="identity-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) =>
-                            handleFileChange(e, setIdentityDocs)
-                          }
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(identityDocs, setIdentityDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Identity Documents</h3>
+                  <DocumentUpload
+                    label="National ID, Passport, Driver's License, etc."
+                    description="Upload clear images of relevant identity documents. You may add an expiry date for any document that requires renewal."
+                    files={identityDocs}
+                    setFiles={setIdentityDocs}
+                    expiryDates={identityDocsExpiry}
+                    setExpiryDates={setIdentityDocsExpiry}
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Business Documents
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload business registration documents (e.g., business
-                    license, certificate of incorporation, tax
-                    registration).
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="business-documents">
-                      Upload Business Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="business-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="business-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) =>
-                            handleFileChange(e, setBusinessDocs)
-                          }
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(businessDocs, setBusinessDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Business Documents</h3>
+                  <DocumentUpload
+                    label="Business Registration, License, Certificates, etc."
+                    description="Upload clear images of all required business documents. Set expiry dates for any licenses or certificates that require renewal."
+                    files={businessDocs}
+                    setFiles={setBusinessDocs}
+                    expiryDates={businessDocsExpiry}
+                    setExpiryDates={setBusinessDocsExpiry}
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">
-                    Banking Information
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload bank account information for payment processing
-                    (e.g., void check, bank statement).
-                  </p>
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="bank-documents">
-                      Upload Banking Documents
-                    </Label>
-                    <div className="flex items-center gap-4">
-                      <Label
-                        htmlFor="bank-documents"
-                        className="cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        <span>Choose files</span>
-                        <Input
-                          id="bank-documents"
-                          type="file"
-                          multiple
-                          className="sr-only"
-                          onChange={(e) => handleFileChange(e, setBankDocs)}
-                        />
-                      </Label>
-                    </div>
-                    {renderFileList(bankDocs, setBankDocs)}
-                  </div>
+                  <h3 className="text-lg font-medium">Banking Information</h3>
+                  <DocumentUpload
+                    label="Bank Statements, Financial Records, etc."
+                    description="Upload bank account information and financial records. You may set expiry dates for documents like statements that need to be renewed."
+                    files={bankDocs}
+                    setFiles={setBankDocs}
+                    expiryDates={bankDocsExpiry}
+                    setExpiryDates={setBankDocsExpiry}
+                  />
                 </div>
               </TabsContent>
 
-              <TabsContent value="review" className="space-y-6">
+              <TabsContent value="review" className="space-y-6 pt-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Review Your Information</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Review your information before submitting.
+                  </p>
+                </div>
+
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-medium mb-4">
@@ -585,8 +545,8 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
                       {form.watch("street") || "—"}
                     </p>
                     <p className="text-base">
-                      {form.watch("city") || "—"},{" "}
-                      {form.watch("state") || "—"}{" "}
+                      {form.watch("city") || "—"},{
+                        form.watch("state") || "—"}{" "}
                       {form.watch("zip") || "—"}
                     </p>
                     <p className="text-base">
@@ -610,6 +570,9 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
                             {identityDocs.map((file) => (
                               <li key={file.name} className="text-sm">
                                 {file.name}
+                                {identityDocsExpiry[file.name] && (
+                                  <span className="text-muted-foreground"> - Expires: {identityDocsExpiry[file.name]}</span>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -628,6 +591,9 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
                             {businessDocs.map((file) => (
                               <li key={file.name} className="text-sm">
                                 {file.name}
+                                {businessDocsExpiry[file.name] && (
+                                  <span className="text-muted-foreground"> - Expires: {businessDocsExpiry[file.name]}</span>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -646,6 +612,9 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
                             {bankDocs.map((file) => (
                               <li key={file.name} className="text-sm">
                                 {file.name}
+                                {bankDocsExpiry[file.name] && (
+                                  <span className="text-muted-foreground"> - Expires: {bankDocsExpiry[file.name]}</span>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -670,7 +639,7 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
               </TabsContent>
             </Tabs>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
               {activeTab !== "business" && (
                 <Button type="button" variant="outline" onClick={prevTab}>
                   Previous
@@ -690,4 +659,4 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
       </CardContent>
     </Card>
   )
-} 
+}

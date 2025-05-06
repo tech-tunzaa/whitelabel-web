@@ -33,12 +33,14 @@ import {
 } from "@/components/ui/select";
 
 import { useProductStore } from "@/features/products/store/product-store";
+import { useCategoryStore } from "@/features/products/categories/store/category-store";
 import { Product } from "@/features/products/types/product";
 import { ProductTable } from "@/features/products/components/product-table";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { products, loading, error, fetchProducts, deleteProduct } = useProductStore();
+  const { products, loading: productsLoading, error: productsError, fetchProducts, deleteProduct } = useProductStore();
+  const { categories, fetchCategories } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -47,7 +49,8 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -90,10 +93,10 @@ export default function ProductsPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  if (error) {
+  if (productsError) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-destructive">Error: {error}</p>
+        <p className="text-destructive">Error: {productsError}</p>
       </div>
     );
   }
@@ -135,7 +138,11 @@ export default function ProductsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {/* TODO: Add categories from API */}
+                {categories.map((category) => (
+                  <SelectItem key={category._id} value={category._id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
