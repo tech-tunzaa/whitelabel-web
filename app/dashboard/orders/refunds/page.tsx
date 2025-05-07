@@ -2,70 +2,42 @@
 
 import { useState } from "react";
 import { useOrderStore } from "@/features/orders/stores/order-store";
+import { useRouter } from "next/navigation";
 import { RefundHeader } from "@/features/orders/refunds/components/refund-header";
-import { RefundTabs } from "@/features/orders/refunds/components/refund-tabs";
-import { RefundDetailsDialog } from "@/features/orders/refunds/components/refund-details-dialog";
+import { RefundTable } from "@/features/orders/refunds/components/refund-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Order } from "@/features/orders/types/order";
 
 export default function RefundPage() {
-  const { orders, updateOrder } = useOrderStore();
+  const router = useRouter();
+  const { orders } = useOrderStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
-  // Filter orders with status "Issued Refund" or "Return Requested" for the requests tab
-  const refundRequests = orders.filter(
+  // Filter orders with refundStatus "pending" for the pending tab
+  const pendingRefunds = orders.filter(
     (order) =>
-      (order.status === "Issued Refund" || order.status === "Return Requested") &&
+      order.refundStatus === "pending" &&
       order.id.toString().includes(searchQuery)
   );
 
-  // Filter orders with status "Refunded" for the approved tab
+  // Filter orders with refundStatus "approved" for the approved tab
   const approvedRefunds = orders.filter(
     (order) =>
-      order.status === "Refunded" &&
+      order.refundStatus === "approved" &&
       order.id.toString().includes(searchQuery)
   );
 
-  const handleViewDetails = (order: Order) => {
-    setSelectedOrder(order);
-    setIsDetailsDialogOpen(true);
-  };
+  // Filter orders with refundStatus "rejected" for the rejected tab
+  const rejectedRefunds = orders.filter(
+    (order) =>
+      order.refundStatus === "rejected" &&
+      order.id.toString().includes(searchQuery)
+  );
 
-  const handleApproveRefund = (orderId: number) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
-
-    updateOrder({
-      ...order,
-      status: "Refunded",
-      timeline: [
-        ...order.timeline,
-        {
-          status: "Refunded",
-          timestamp: new Date().toISOString(),
-          note: "Refund approved and processed to original payment method",
-        },
-      ],
-    });
-  };
-
-  const handleRejectRefund = (orderId: number) => {
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
-
-    updateOrder({
-      ...order,
-      status: "Rejected Refund",
-      timeline: [
-        ...order.timeline,
-        {
-          status: "Rejected Refund",
-          timestamp: new Date().toISOString(),
-          note: "Refund request has been rejected",
-        },
-      ],
-    });
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
   };
 
   return (
@@ -82,26 +54,55 @@ export default function RefundPage() {
       </div>
 
       <div className="p-4 space-y-4">
-        <RefundHeader />
-        <RefundTabs
-          refundRequests={refundRequests}
-          approvedRefunds={approvedRefunds}
-          onViewDetails={handleViewDetails}
-        />
-      </div>
+        <RefundHeader onSearchChange={handleSearchChange} />
 
-      {selectedOrder && (
-        <RefundDetailsDialog
-          isOpen={isDetailsDialogOpen}
-          onClose={() => {
-            setIsDetailsDialogOpen(false);
-            setSelectedOrder(null);
-          }}
-          order={selectedOrder}
-          onApprove={handleApproveRefund}
-          onReject={handleRejectRefund}
-        />
-      )}
+        <Tabs defaultValue="pending" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="pending">
+              Pending Refunds
+              <Badge variant="secondary" className="ml-2">
+                {pendingRefunds.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="approved">
+              Approved Refunds
+              <Badge variant="secondary" className="ml-2">
+                {approvedRefunds.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected Refunds
+              <Badge variant="secondary" className="ml-2">
+                {rejectedRefunds.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="space-y-4">
+            <Card>
+              <CardContent className="p-0">
+                <RefundTable orders={pendingRefunds} refundStatus="pending" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="approved" className="space-y-4">
+            <Card>
+              <CardContent className="p-0">
+                <RefundTable orders={approvedRefunds} refundStatus="approved" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="rejected" className="space-y-4">
+            <Card>
+              <CardContent className="p-0">
+                <RefundTable orders={rejectedRefunds} refundStatus="rejected" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

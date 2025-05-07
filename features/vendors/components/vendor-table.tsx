@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react"
 import { Vendor } from "../types/vendor"
+import { useRouter } from "next/navigation";
 
 interface VendorTableProps {
   vendors: Vendor[]
@@ -36,6 +37,7 @@ interface VendorTableProps {
 
 export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectVendor }: VendorTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter();
   const isMobile = useIsMobile()
 
   const filteredVendors = vendors.filter(
@@ -167,6 +169,14 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/dashboard/vendors/${vendor.id}/edit`)
+                              }}
+                            >
+                              Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation()

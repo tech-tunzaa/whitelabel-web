@@ -98,10 +98,11 @@ const businessCategories = [
 
 interface VendorFormProps {
   onSubmit: (data: VendorFormValues) => void
-  onCancel: () => void
+  onCancel?: () => void
+  initialData?: Partial<VendorFormValues> & { id?: number }
 }
 
-export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
+export function VendorForm({ onSubmit, onCancel, initialData }: VendorFormProps) {
   const [activeTab, setActiveTab] = useState("business")
   const [identityDocs, setIdentityDocs] = useState<File[]>([])
   const [businessDocs, setBusinessDocs] = useState<File[]>([])
@@ -114,7 +115,7 @@ export function VendorForm({ onSubmit, onCancel }: VendorFormProps) {
 
   const form = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
-    defaultValues,
+    defaultValues: initialData ? { ...defaultValues, ...initialData } : defaultValues,
   })
 
   const nextTab = () => {

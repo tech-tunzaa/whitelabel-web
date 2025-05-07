@@ -58,7 +58,7 @@ export function DeliveryPartnerDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Delivery Partner Application</DialogTitle>
                     <DialogDescription>Review the delivery partner's information and documents</DialogDescription>
@@ -67,4 +67,4 @@ export function DeliveryPartnerDialog({
             </DialogContent>
         </Dialog>
     )
-} 
+}

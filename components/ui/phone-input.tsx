@@ -18,7 +18,7 @@ type CountryCode = {
 }
 
 // East African country codes
-const eastAfricanCountries: CountryCode[] = [
+const countryCodes: CountryCode[] = [
   {
     country: "Tanzania",
     code: "+255",
@@ -58,13 +58,15 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ countryCode: initialCountryCode = "+255", onChange, value = "", onBlur, ...props }, ref) => {
     // Parse the initial value if it's a complete phone number with country code
     const parseInitialValue = () => {
-      if (!value) return { countryCode: initialCountryCode, phoneNumber: "" }
+      // Make sure value is a string to prevent 'startsWith is not a function' error
+      const phoneValue = typeof value === 'string' ? value : '';
+      if (!phoneValue) return { countryCode: initialCountryCode, phoneNumber: "" }
       
       // Check if the value starts with a + (has country code)
-      if (value.startsWith("+")) {
+      if (phoneValue.startsWith("+")) {
         // Find the country code that matches the beginning of the value
-        const matchedCountry = eastAfricanCountries.find(country => 
-          value.startsWith(country.code)
+        const matchedCountry = countryCodes.find(country => 
+          phoneValue.startsWith(country.code)
         )
         
         if (matchedCountry) {
@@ -104,7 +106,7 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             <SelectValue placeholder="Code" />
           </SelectTrigger>
           <SelectContent>
-            {eastAfricanCountries.map((country) => (
+            {countryCodes.map((country) => (
               <SelectItem key={country.code} value={country.code}>
                 <div className="flex items-center gap-2">
                   <span>{country.flag}</span>

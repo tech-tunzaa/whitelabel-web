@@ -1,5 +1,93 @@
 export const mockOrders = [
   {
+    id: 2003,
+    orderDate: "2023-12-05T09:20:00",
+    customer: {
+      name: "James Wilson",
+      email: "james.wilson@example.com",
+      phone: "+1 (555) 456-7890",
+      avatar: "/placeholder.svg?height=40&width=40",
+      since: "May 2023",
+      orderCount: 2,
+    },
+    items: [
+      {
+        id: 301,
+        name: "Gaming Console Pro",
+        price: 499.99,
+        quantity: 1,
+        image: "/placeholder.svg?height=64&width=64",
+      },
+      {
+        id: 302,
+        name: "Controller",
+        price: 59.99,
+        quantity: 2,
+        image: "/placeholder.svg?height=64&width=64",
+      },
+    ],
+    subtotal: 619.97,
+    tax: 49.60,
+    shippingCost: 0,
+    total: 669.57,
+    status: "delivered",
+    refundStatus: "rejected",
+    payment: {
+      method: "Credit Card (Mastercard ****4321)",
+      status: "paid",
+      transactionId: "txn_12349876",
+    },
+    shipping: {
+      name: "James Wilson",
+      address: {
+        street: "456 Gaming Street",
+        city: "Chicago",
+        state: "IL",
+        zip: "60007",
+        country: "United States",
+      },
+      method: "Express Shipping (1-2 business days)",
+    },
+    vendor: {
+      name: "GameStop Electronics",
+      address: "789 Electronics Ave, Chicago, IL 60007",
+    },
+    timeline: [
+      {
+        status: "Order Placed",
+        timestamp: "2023-12-05T09:20:00",
+        note: "Order received and payment confirmed",
+      },
+      {
+        status: "processing",
+        timestamp: "2023-12-05T10:45:00",
+        note: "Order is being prepared for shipping",
+      },
+      {
+        status: "shipped",
+        timestamp: "2023-12-05T14:30:00",
+        note: "Order has been shipped via Express Delivery",
+      },
+      {
+        status: "delivered",
+        timestamp: "2023-12-06T13:20:00",
+        note: "Package delivered and signed for by recipient",
+      },
+      {
+        status: "returned",
+        timestamp: "2023-12-07T11:45:00",
+        note: "Customer requested return. Reason: Gaming console arrived with scratches and controller buttons were sticking.",
+      },
+      {
+        status: "cancelled",
+        timestamp: "2023-12-08T15:30:00",
+        note: "Refund request rejected. Inspection found damage was caused after delivery, not a manufacturing defect.",
+      },
+    ],
+    flagged: true,
+    rider: null,
+  },
+  {
     id: 2001,
     orderDate: "2023-12-04T08:15:00",
     customer: {
@@ -33,7 +121,8 @@ export const mockOrders = [
     tax: 27.20,
     shippingCost: 0,
     total: 367.18,
-    status: "Issued Refund",
+    status: "delivered",
+    refundStatus: "pending",
     payment: {
       method: "Credit Card (Visa ****1234)",
       status: "paid",
@@ -117,7 +206,8 @@ export const mockOrders = [
     tax: 32.00,
     shippingCost: 12.99,
     total: 444.98,
-    status: "Issued Refund",
+    status: "delivered",
+    refundStatus: "approved",
     payment: {
       method: "PayPal",
       status: "paid",
@@ -209,6 +299,7 @@ export const mockOrders = [
     shippingCost: 9.99,
     total: 441.96,
     status: "delivered",
+    refundStatus: "pending",
     payment: {
       method: "Credit Card (Visa ****4567)",
       status: "paid",
@@ -309,6 +400,7 @@ export const mockOrders = [
     shippingCost: 4.99,
     total: 91.38,
     status: "shipped",
+    refundStatus: "pending",
     payment: {
       method: "PayPal",
       status: "paid",
@@ -397,6 +489,7 @@ export const mockOrders = [
     shippingCost: 0,
     total: 313.18,
     status: "processing",
+    refundStatus: "pending",
     payment: {
       method: "Credit Card (Mastercard ****1234)",
       status: "paid",
@@ -466,6 +559,7 @@ export const mockOrders = [
     shippingCost: 7.99,
     total: 148.38,
     status: "pending",
+    refundStatus: "pending",
     payment: {
       method: "Credit Card (Amex ****7890)",
       status: "pending",
@@ -521,6 +615,7 @@ export const mockOrders = [
     shippingCost: 29.99,
     total: 299.98,
     status: "cancelled",
+    refundStatus: "rejected",
     payment: {
       method: "Credit Card (Visa ****5678)",
       status: "refunded",
@@ -788,6 +883,7 @@ export const mockOrders = [
     shippingCost: 0,
     total: 1133.97,
     status: "processing",
+    refundStatus: "pending",
     payment: {
       method: "Credit Card (Visa ****2345)",
       status: "paid",

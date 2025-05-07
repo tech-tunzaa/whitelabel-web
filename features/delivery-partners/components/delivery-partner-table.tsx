@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react"
 import { DeliveryPartner } from "../types/delivery-partner"
+import { useRouter } from "next/navigation";
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[]
@@ -40,6 +41,7 @@ export function DeliveryPartnerTable({
   onApproveDeliveryPartner,
   onRejectDeliveryPartner,
 }: DeliveryPartnerTableProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("")
   const isMobile = useIsMobile()
 
@@ -178,6 +180,14 @@ export function DeliveryPartnerTable({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/dashboard/delivery-partners/${partner._id}/edit`)
+                              }}
+                            >
+                              Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation()

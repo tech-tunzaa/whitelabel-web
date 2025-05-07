@@ -1,4 +1,6 @@
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded" | "Issued Refund" | "Refunded" | "Rejected Refund" | "Return Requested";
+export type OrderStatus = "pending" | "processing" | "cancelled" | "shipped" | "delivered" | "returned";
+
+export type RefundStatus = "pending" | "approved" | "rejected";
 
 export type PaymentMethod = "Credit Card" | "PayPal" | "Bank Transfer" | "Cash on Delivery";
 
@@ -77,6 +79,7 @@ export interface Order {
     shippingCost: number;
     total: number;
     status: OrderStatus;
+    refundStatus: RefundStatus;
     payment: Payment;
     shipping: Shipping;
     vendor: Vendor;

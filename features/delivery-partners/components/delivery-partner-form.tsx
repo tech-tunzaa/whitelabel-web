@@ -163,10 +163,12 @@ const commissionPercentages = [
 
 interface DeliveryPartnerFormProps {
   onSubmit: (data: DeliveryPartnerFormValues) => void
-  onCancel: () => void
+  onCancel?: () => void
+  initialData?: Partial<DeliveryPartnerFormValues> & { _id?: string }
+  disableTypeChange?: boolean
 }
 
-export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormProps) {
+export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTypeChange = false }: DeliveryPartnerFormProps) {
   const [activeTab, setActiveTab] = useState("basic")
   const [identityDocs, setIdentityDocs] = useState<File[]>([])
   const [vehicleDocs, setVehicleDocs] = useState<File[]>([])
@@ -181,7 +183,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
 
   const form = useForm<DeliveryPartnerFormValues>({
     resolver: zodResolver(deliveryPartnerFormSchema),
-    defaultValues,
+    defaultValues: initialData ? { ...defaultValues, ...initialData } : defaultValues,
     mode: "onChange",
   })
 
@@ -403,6 +405,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel }: DeliveryPartnerFormP
                               onValueChange={field.onChange}
                               defaultValue={field.value}
                               className="grid grid-cols-3 gap-4"
+                              disabled={disableTypeChange}
                             >
                               {businessTypes.map((type) => (
                                 <div key={type.id}>

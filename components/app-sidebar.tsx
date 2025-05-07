@@ -22,6 +22,7 @@ import {
   IconCategory,
   IconPackage,
   IconMail,
+  IconLock,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -43,6 +44,7 @@ import {
 import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
+import { title } from "process";
 
 type ExtendedUser = {
   role: string;
@@ -58,8 +60,15 @@ const data = {
     {
       title: "Tenants",
       url: "/dashboard/tenants",
-      icon: IconUsers,
+      icon: IconChartBar,
       roles: ["super_owner"],
+    },
+    {
+      title: "Marketplace",
+      url: "/dashboard/marketplace",
+      icon: IconFolder,
+      roles: ["super_owner", "admin"],
+
     },
     {
       title: "Vendors",
@@ -109,24 +118,29 @@ const data = {
         },
       ],
     },
-    // {
-    //   title: "Refunds",
-    //   url: "#",
-    //   icon: IconCreditCard,
-    //   roles: ["super_owner", "admin", "sub_admin", "support"],
-    // },
+    {
+      title: "Authentication",
+      url: "#",
+      icon: IconLock,
+      roles: ["super_owner", "admin", "sub_admin", "support"],
+      items: [
+        {
+          title: "Users",
+          url: "/dashboard/auth/users",
+          icon: IconUsers,
+        },
+        {
+          title: "Roles",
+          url: "/dashboard/auth/roles",
+          icon: IconUsers,
+        },
+      ],
+    },
     {
       title: "Support Tickets",
       url: "/dashboard/support",
       icon: IconHelp,
       roles: ["super_owner", "admin", "sub_admin", "support"],
-    },
-    {
-      title: "Marketplace Settings",
-      url: "/dashboard/marketplace-settings",
-      icon: IconSettings,
-      roles: ["super_owner", "admin"],
-
     },
   ],
   navClouds: [
