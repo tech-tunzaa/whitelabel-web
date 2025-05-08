@@ -23,6 +23,8 @@ import {
   IconPackage,
   IconMail,
   IconLock,
+  IconUserShield,
+  IconBusinessplan,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -132,9 +134,15 @@ const data = {
         {
           title: "Roles",
           url: "/dashboard/auth/roles",
-          icon: IconUsers,
+          icon: IconUserShield,
         },
       ],
+    },
+    {
+      title: "Settings & Configurations",
+      url: "/dashboard/settings",
+      icon: IconSettings,
+      roles: ["super_owner"],
     },
     {
       title: "Support Tickets",

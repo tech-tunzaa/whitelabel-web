@@ -70,6 +70,7 @@ const productFormSchema = z.object({
   }),
   variants: z.array(ProductVariantSchema).optional().default([]),
   featured: z.boolean().default(false),
+  nonDeliverable: z.boolean().default(false),
   status: z.enum(["draft", "active", "pending"]),
 });
 
@@ -82,6 +83,7 @@ const defaultValues: Partial<ProductFormValues> = {
   compareAtPrice: undefined,
   cost: undefined,
   featured: false,
+  nonDeliverable: false,
   status: "draft",
   quantity: 0,
   variants: [],
@@ -122,6 +124,7 @@ export function ProductForm({
           quantity: initialData.inventory?.stockLevel || 0,
           vendor: initialData.vendorId,
           featured: initialData.featured,
+          nonDeliverable: initialData.nonDeliverable || false,
           status: initialData.status,
         }
       : defaultValues,
@@ -419,6 +422,29 @@ export function ProductForm({
                               />
                             </FormControl>
                             <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="nonDeliverable"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">
+                                Non-Deliverable Product
+                              </FormLabel>
+                              <FormDescription>
+                                Enable for service-based products or items that don't require physical delivery
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
                           </FormItem>
                         )}
                       />

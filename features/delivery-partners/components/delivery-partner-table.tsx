@@ -30,14 +30,12 @@ import { useRouter } from "next/navigation";
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[]
-  onDeliveryPartnerClick: (partner: DeliveryPartner) => void
   onApproveDeliveryPartner: (id: string, commissionPercent: number, kycVerified: boolean) => void
   onRejectDeliveryPartner: (id: string) => void
 }
 
 export function DeliveryPartnerTable({
   deliveryPartners,
-  onDeliveryPartnerClick,
   onApproveDeliveryPartner,
   onRejectDeliveryPartner,
 }: DeliveryPartnerTableProps) {
@@ -133,7 +131,7 @@ export function DeliveryPartnerTable({
                   {filteredPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => onDeliveryPartnerClick(partner)}
+                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
@@ -188,14 +186,7 @@ export function DeliveryPartnerTable({
                             >
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeliveryPartnerClick(partner)
-                              }}
-                            >
-                              View details
-                            </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
                             {!partner.kyc.verified && partner.status !== "rejected" && (
                               <>
@@ -219,10 +210,7 @@ export function DeliveryPartnerTable({
                             )}
                             {partner.kyc.verified && (
                               <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  // Handle suspend
-                                }}
+                                onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/suspend`)}
                               >
                                 Suspend
                               </DropdownMenuItem>
@@ -255,7 +243,7 @@ export function DeliveryPartnerTable({
                   {pendingPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => onDeliveryPartnerClick(partner)}
+                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
@@ -285,14 +273,7 @@ export function DeliveryPartnerTable({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeliveryPartnerClick(partner)
-                              }}
-                            >
-                              View details
-                            </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={(e) => {
@@ -338,7 +319,7 @@ export function DeliveryPartnerTable({
                   {rejectedPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => onDeliveryPartnerClick(partner)}
+                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
@@ -368,14 +349,7 @@ export function DeliveryPartnerTable({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onDeliveryPartnerClick(partner)
-                              }}
-                            >
-                              View details
-                            </DropdownMenuItem>
+
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

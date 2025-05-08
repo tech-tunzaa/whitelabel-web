@@ -25,13 +25,30 @@ import { Card, CardContent } from "@/components/ui/card"
 
 interface TenantTableProps {
   tenants: Tenant[]
-  onTenantClick: (tenant: Tenant) => void
   onActivateTenant: (tenantId: string) => void
   onDeactivateTenant: (tenantId: string) => void
 }
 
-export function TenantTable({ tenants, onTenantClick, onActivateTenant, onDeactivateTenant }: TenantTableProps) {
+export function TenantTable({ tenants, onActivateTenant, onDeactivateTenant }: TenantTableProps) {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Handle undefined tenants
+  if (!tenants) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // Filter tenants based on status
+  const filteredTenants = tenants.filter(tenant => {
+    if (typeof tenant.status === 'string') {
+      return tenant.status.toLowerCase() !== 'deleted'
+    }
+    return true
+  })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -54,7 +71,7 @@ export function TenantTable({ tenants, onTenantClick, onActivateTenant, onDeacti
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Domain</TableHead>
-              <TableHead>Countries</TableHead>
+              <TableHead>Country</TableHead>
               <TableHead>Admin</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
@@ -62,18 +79,18 @@ export function TenantTable({ tenants, onTenantClick, onActivateTenant, onDeacti
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tenants.length === 0 ? (
+            {filteredTenants.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                   No tenants found
                 </TableCell>
               </TableRow>
             ) : (
-              tenants.map((tenant) => (
+              filteredTenants.map((tenant) => (
                 <TableRow 
                   key={tenant.id} 
-                  className="cursor-pointer" 
-                  onClick={() => onTenantClick(tenant)}
+                  onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+                  className="cursor-pointer"
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -104,9 +121,7 @@ export function TenantTable({ tenants, onTenantClick, onActivateTenant, onDeacti
                   <TableCell>{tenant.domain}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      {tenant.country_codes.map((code) => (
-                        <Badge key={code} variant="outline">{code}</Badge>
-                      ))}
+                        <Badge variant="outline">{tenant.country}</Badge>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -128,21 +143,11 @@ export function TenantTable({ tenants, onTenantClick, onActivateTenant, onDeacti
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/dashboard/tenants/${tenant.id}/edit`)
-                          }}
+                          onClick={() => router.push(`/dashboard/tenants/${tenant.id}/edit`) }
                         >
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onTenantClick(tenant)
-                          }}
-                        >
-                          View Details
-                        </DropdownMenuItem>
+
                         {tenant.status === "active" ? (
                           <DropdownMenuItem
                             onClick={(e) => {

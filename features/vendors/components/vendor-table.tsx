@@ -30,12 +30,11 @@ import { useRouter } from "next/navigation";
 
 interface VendorTableProps {
   vendors: Vendor[]
-  onVendorClick: (vendor: Vendor) => void
   onApproveVendor: (vendorId: number, commissionPlan: string, kycVerified: boolean) => void
   onRejectVendor: (vendorId: number) => void
 }
 
-export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectVendor }: VendorTableProps) {
+export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: VendorTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter();
   const isMobile = useIsMobile()
@@ -128,7 +127,7 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                   {filteredVendors.map((vendor) => (
                     <TableRow
                       key={vendor.id}
-                      onClick={() => onVendorClick(vendor)}
+                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
@@ -177,21 +176,14 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                             >
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onVendorClick(vendor)
-                              }}
-                            >
-                              View details
-                            </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
                             {vendor.status === "pending" && (
                               <>
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    onApproveVendor(vendor.id, "standard", true)
+                                    router.push(`/dashboard/vendors/${vendor.id}/approve`)
                                   }}
                                 >
                                   Approve
@@ -208,10 +200,7 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                             )}
                             {vendor.status === "active" && (
                               <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  // Handle suspend
-                                }}
+                                onClick={() => router.push(`/dashboard/vendors/${vendor.id}/suspend`) }
                               >
                                 Suspend
                               </DropdownMenuItem>
@@ -244,7 +233,7 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                   {pendingVendors.map((vendor) => (
                     <TableRow
                       key={vendor.id}
-                      onClick={() => onVendorClick(vendor)}
+                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
@@ -310,7 +299,7 @@ export function VendorTable({ vendors, onVendorClick, onApproveVendor, onRejectV
                   {rejectedVendors.map((vendor) => (
                     <TableRow
                       key={vendor.id}
-                      onClick={() => onVendorClick(vendor)}
+                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">

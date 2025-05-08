@@ -11,13 +11,7 @@ import { DeliveryPartner } from "@/features/delivery-partners/types/delivery-par
 export default function DeliveryPartnersPage() {
     const router = useRouter()
     const { deliveryPartners, approveDeliveryPartner, rejectDeliveryPartner } = useDeliveryPartnerStore()
-    const [selectedPartner, setSelectedPartner] = useState<DeliveryPartner | null>(null)
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    const handlePartnerClick = (partner: DeliveryPartner) => {
-        setSelectedPartner(partner)
-        setIsDialogOpen(true)
-    }
 
     const handleApprovePartner = (partnerId: string, commissionPercent: number, kycVerified: boolean) => {
         approveDeliveryPartner(partnerId, commissionPercent, kycVerified)
@@ -46,22 +40,17 @@ export default function DeliveryPartnersPage() {
             <div className="p-4 space-y-4">
                 <DeliveryPartnerTable
                     deliveryPartners={deliveryPartners}
-                    onDeliveryPartnerClick={handlePartnerClick}
-                    onApproveDeliveryPartner={handleApprovePartner}
-                    onRejectDeliveryPartner={handleRejectPartner}
+
+                    onApproveDeliveryPartner={(partnerId, commissionPercent, kycVerified) => {
+                        approveDeliveryPartner(partnerId, commissionPercent, kycVerified)
+                        router.push(`/dashboard/delivery-partners/${partnerId}/approve`)
+                    }}
+                    onRejectDeliveryPartner={(partnerId) => {
+                        rejectDeliveryPartner(partnerId)
+                        router.push(`/dashboard/delivery-partners/${partnerId}/reject`)
+                    }}
                 />
             </div>
-
-            <DeliveryPartnerDialog
-                partner={selectedPartner}
-                isOpen={isDialogOpen}
-                onClose={() => {
-                    setIsDialogOpen(false)
-                    setSelectedPartner(null)
-                }}
-                onApprove={handleApprovePartner}
-                onReject={handleRejectPartner}
-            />
         </div>
     )
 } 

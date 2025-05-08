@@ -34,6 +34,7 @@ export interface Product {
   brandId: string;
   description: string;
   featured: boolean;
+  nonDeliverable: boolean;
   categoryIds: string[];
   images: ProductImage[];
   variants?: ProductVariant[];

@@ -5,28 +5,22 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useVendorStore } from "@/features/vendors/stores/vendor-store";
 import { VendorTable } from "@/features/vendors/components/vendor-table";
-import { VendorDialog } from "@/features/vendors/components/vendor-dialog";
 import { Vendor } from "@/features/vendors/types/vendor";
 
 export default function VendorsPage() {
   const router = useRouter();
   const { vendors, approveVendor, rejectVendor } = useVendorStore();
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleVendorClick = (vendor: Vendor) => {
-    setSelectedVendor(vendor);
-    setIsDialogOpen(true);
+    router.push(`/dashboard/vendors/${vendor.id}`);
   };
 
   const handleApproveVendor = (vendorId: number, commissionPlan: string, kycVerified: boolean) => {
     approveVendor(vendorId, commissionPlan, kycVerified);
-    setIsDialogOpen(false);
   };
 
   const handleRejectVendor = (vendorId: number) => {
     rejectVendor(vendorId);
-    setIsDialogOpen(false);
   };
 
   return (
@@ -51,17 +45,6 @@ export default function VendorsPage() {
           onRejectVendor={handleRejectVendor}
         />
       </div>
-
-      <VendorDialog
-        vendor={selectedVendor}
-        isOpen={isDialogOpen}
-        onClose={() => {
-          setIsDialogOpen(false);
-          setSelectedVendor(null);
-        }}
-        onApprove={handleApproveVendor}
-        onReject={handleRejectVendor}
-      />
     </div>
   );
 }

@@ -98,12 +98,14 @@ export const MultiSelect = ({
                 <CommandItem
                   key={option.value}
                   value={option.value}
+                  disabled={false}
                   onSelect={() => {
                     onChange(
                       isSelected
                         ? selected.filter(value => value !== option.value)
                         : [...selected, option.value]
                     )
+                    setOpen(true) // Keep the popover open after selection
                   }}
                 >
                   <div className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm border ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>

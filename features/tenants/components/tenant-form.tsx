@@ -687,37 +687,54 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                     <div className="grid gap-6 md:grid-cols-3">
                       <FormField
                         control={form.control}
-                        name="configuration.country_codes"
+                        name="country"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Countries <RequiredField /></FormLabel>
-                            <FormControl>
-                              <MultiSelect
-                                options={countryCodes}
-                                selected={field.value}
-                                onChange={field.onChange}
-                                placeholder="Select countries"
-                              />
-                            </FormControl>
+                            <FormLabel>Country <RequiredField /></FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a country" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {countryCodes.map((country) => (
+                                  <SelectItem key={country.value} value={country.value}>
+                                    {country.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
-                        name="configuration.currencies"
+                        name="currency"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Currencies <RequiredField /></FormLabel>
-                            <FormControl>
-                              <MultiSelect
-                                options={currencies}
-                                selected={field.value}
-                                onChange={field.onChange}
-                                placeholder="Select currencies"
-                              />
-                            </FormControl>
+                            <FormLabel>Currency <RequiredField /></FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a currency" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {currencies.map((currency) => (
+                                  <SelectItem key={currency.value} value={currency.value}>
+                                    {currency.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

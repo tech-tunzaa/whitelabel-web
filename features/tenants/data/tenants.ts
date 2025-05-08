@@ -5,8 +5,8 @@ export const mockTenants: Tenant[] = [
     id: "1",
     name: "Example Store",
     domain: "example-store.marketplace.com",
-    country_codes: ["TZ", "KE", "BI"],
-    currencies: ["TZS", "USD"],
+    country: "TZ",
+    currency: "TZS",
     languages: ["en-US", "sw"],
     admin_email: "admin@examplestore.com",
     admin_phone: "+255712345678",
@@ -66,11 +66,30 @@ export const mockTenants: Tenant[] = [
     id: "2",
     name: "Fashion Boutique",
     domain: "fashion-boutique.marketplace.com",
-    country_codes: ["TZ", "UG"],
-    currencies: ["TZS", "UGX"],
+    country: "TZ",
+    currency: "TZS",
     languages: ["en-US", "sw"],
     admin_email: "admin@fashionboutique.com",
     admin_phone: "+255787654321",
+    billing_history: [
+      { id: 1, date: "2024-04-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 2, date: "2024-03-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 3, date: "2024-02-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 4, date: "2024-01-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+    ],
+    revenue: {
+      summary: { 
+        total: 12500000, 
+        growth: 8.5,
+        transactions: 458
+      },
+      monthly: [
+        { month: "Jan", amount: 2800000 },
+        { month: "Feb", amount: 3100000 },
+        { month: "Mar", amount: 3300000 },
+        { month: "Apr", amount: 3300000 },
+      ],
+    },
     modules: {
       payments: true,
       promotions: true,
@@ -108,11 +127,30 @@ export const mockTenants: Tenant[] = [
     id: "3",
     name: "Tech Gadgets",
     domain: "tech-gadgets.marketplace.com",
-    country_codes: ["KE", "RW"],
-    currencies: ["KES", "RWF", "USD"],
+    country: "KE",
+    currency: "KES",
     languages: ["en-US"],
     admin_email: "admin@techgadgets.com",
     admin_phone: "+254712345678",
+    billing_history: [
+      { id: 1, date: "2024-04-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 2, date: "2024-03-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 3, date: "2024-02-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+      { id: 4, date: "2024-01-15", description: "Monthly Subscription", amount: "150000", status: "paid" },
+    ],
+    revenue: {
+      summary: { 
+        total: 12500000, 
+        growth: 8.5,
+        transactions: 458
+      },
+      monthly: [
+        { month: "Jan", amount: 2800000 },
+        { month: "Feb", amount: 3100000 },
+        { month: "Mar", amount: 3300000 },
+        { month: "Apr", amount: 3300000 },
+      ],
+    },
     modules: {
       payments: true,
       promotions: false,
@@ -150,11 +188,20 @@ export const mockTenants: Tenant[] = [
     id: "4",
     name: "Fresh Groceries",
     domain: "fresh-groceries.marketplace.com",
-    country_codes: ["TZ"],
-    currencies: ["TZS"],
+    country: "TZ",
+    currency: "TZS",
     languages: ["sw", "en-US"],
     admin_email: "admin@freshgroceries.com",
     admin_phone: "+255798765432",
+    billing_history: [],
+    revenue: {
+      summary: { 
+        total: 0, 
+        growth: 0,
+        transactions: 0
+      },
+      monthly: [],
+    },
     modules: {
       payments: true,
       promotions: true,

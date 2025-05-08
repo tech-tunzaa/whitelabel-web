@@ -53,8 +53,8 @@ export type Tenant = {
   id: string;
   name: string;
   domain: string;
-  country_codes: string[];
-  currencies: string[];
+  country: string;
+  currency: string;
   languages: string[];
   admin_email: string;
   admin_phone: string;
