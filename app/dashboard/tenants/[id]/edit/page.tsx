@@ -1,13 +1,14 @@
 "use client";
 
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { use } from "react";
-
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
+import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
-import { useTenantStore } from "@/features/tenants/stores/tenant-store";
-import { toast } from "sonner";
+import { useTenantStore } from "@/features/tenants/store";
 
 interface TenantEditPageProps {
   params: Promise<{
@@ -17,47 +18,51 @@ interface TenantEditPageProps {
 
 export default function TenantEditPage({ params }: TenantEditPageProps) {
   const router = useRouter();
-  const { tenants, updateTenant } = useTenantStore();
-  const { id } = use(params);
-  const tenant = tenants.find((t) => t.id === id);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const tenantStore = useTenantStore();
+  const params_unwrapped = use(params);
+  const id = params_unwrapped.id;
+  const { tenant, loading, storeError } = tenantStore;
+  const hasFetchedRef = useRef(false);
 
-  if (!tenant) {
+  useEffect(() => {
+    // Only fetch once when the component mounts and if we don't have the tenant already
+    if (!hasFetchedRef.current && !loading) {
+      hasFetchedRef.current = true;
+      tenantStore.fetchTenant(id);
+    }
+  }, [id]);
+
+  const handleSubmit = async (data: Record<string, any>) => {
+    setIsSubmitting(true);
+    try {
+      await tenantStore.updateTenant(id, data);
+      toast.success("Tenant updated successfully");
+      router.push("/dashboard/tenants");
+    } catch (error) {
+      // console.error("Error updating tenant:", error);
+      toast.error("Failed to update tenant. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!loading && storeError && !tenant) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Tenant Not Found</h1>
-            <p className="text-muted-foreground">
-              The tenant you are trying to edit does not exist.
-            </p>
-          </div>
-        </div>
-        <div className="p-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/tenants")}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Tenants
-          </Button>
-        </div>
-      </div>
+      <ErrorCard
+        title="Error Loading Tenant"
+        error={{
+          message: storeError?.message || "Failed to load tenant",
+          status: storeError?.status ? String(storeError.status) : "error"
+        }}
+        buttonText="Back to Tenants"
+        buttonAction={() => router.push("/dashboard/tenants")}
+        buttonIcon={ArrowLeft}
+      />
     );
   }
 
-  const handleSubmit = (data: any) => {
-    const updatedTenant = {
-      ...tenant,
-      ...data,
-      updated_at: new Date().toISOString(),
-    };
-
-    updateTenant(updatedTenant);
-    toast.success("Tenant updated successfully");
-    router.push("/dashboard/tenants");
-  };
-
-  return (
+  return tenant ? (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center">
@@ -82,8 +87,22 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <TenantForm initialData={tenant} onSubmit={handleSubmit} />
+        {tenant && (
+          <TenantForm 
+            initialData={{
+              ...tenant,
+              modules: {
+                payments: tenant.modules?.payments || false,
+                promotions: tenant.modules?.promotions || false,
+                inventory: tenant.modules?.inventory || false,
+              }
+            }} 
+            onSubmit={handleSubmit} 
+            isSubmitting={isSubmitting}
+            id={id}
+          />
+        )}
       </div>
     </div>
-  );
+  ) : null;
 }

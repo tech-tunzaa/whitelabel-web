@@ -133,8 +133,8 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
                         </FormDescription>
                       </div>
                       
-                      <Tabs defaultValue={modules[0]} className="w-full">
-                        <TabsList className="mb-4 flex flex-wrap h-auto">
+                      <Tabs defaultValue={modules[0]}>
+                        <TabsList className="mb-4 flex flex-wrap h-auto w-full">
                           {modules.map(module => (
                             <TabsTrigger 
                               key={module} 

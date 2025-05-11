@@ -1,54 +1,127 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { TenantTable } from "./tenant-table"
-import { useTenantStore } from "../stores/tenant-store"
-import { Tenant } from "../types/tenant"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { TenantTable } from "./tenant-table";
+import { useTenantStore } from "../store";
+import { Tenant } from "../types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export function TenantContent() {
-  const router = useRouter()
-  const { tenants, searchQuery, setSearchQuery, updateTenantStatus, getFilteredTenants } = useTenantStore()
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const {
+    tenants,
+    loading,
+    storeError,
+    fetchTenants,
+    updateTenant,
+  } = useTenantStore();
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [searchText, setSearchText] = useState("");
+  
+  // Use debounced search to prevent excessive filtering
+  const searchQuery = useDebounce(searchText, 300);
 
-  // Handle loading state
-  if (!tenants) {
+  // Track if data has been loaded at least once
+  const [dataEverLoaded, setDataEverLoaded] = useState(false);
+  
+  // Fetch tenants only once when component mounts
+  useEffect(() => {
+    const loadTenants = async () => {
+      try {
+        await fetchTenants();
+        setDataEverLoaded(true); // Mark that we've successfully loaded data
+      } catch (error) {
+        // Error is already handled by store
+        // Only show error if we've never loaded data before
+        if (!dataEverLoaded) {
+          console.error('Failed to fetch tenants:', error);
+        }
+      }
+    };
+    
+    loadTenants();
+  }, [fetchTenants, dataEverLoaded]);
+
+  // Handle activation/deactivation with loading state management
+  const handleActivateTenant = useCallback(async (tenantId: string) => {
+    try {
+      await updateTenant(tenantId, { is_active: true });
+      toast.success("Tenant activated successfully");
+    } catch (error) {
+      toast.error("Failed to activate tenant");
+    }
+  }, [updateTenant]);
+
+  const handleDeactivateTenant = useCallback(async (tenantId: string) => {
+    try {
+      await updateTenant(tenantId, { is_active: false });
+      toast.success("Tenant deactivated successfully");
+    } catch (error) {
+      toast.error("Failed to deactivate tenant");
+    }
+  }, [updateTenant]);
+
+  // Handle retry if there's an error
+  const handleRetry = useCallback(() => {
+    fetchTenants().catch(() => {
+      // Error is already handled by store
+    });
+  }, [fetchTenants]);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+  }, []);
+
+  // Memoize filtered tenants to prevent unnecessary filtering on each render
+  const filteredTenants = useMemo(() => {
+    return tenants.filter((tenant) => {
+      // Filter by status
+      if (selectedStatus !== "all" && tenant.is_active !== (selectedStatus === "active"))
+        return false;
+      
+      // Filter by search query
+      if (searchQuery && !tenant.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        return false;
+        
+      return true;
+    });
+  }, [tenants, selectedStatus, searchQuery]);
+
+  // Memoize counts to prevent unnecessary calculations
+  const counts = useMemo(() => ({
+    all: tenants.length,
+    active: tenants.filter((t) => t.is_active).length,
+    inactive: tenants.filter((t) => !t.is_active).length,
+  }), [tenants]);
+  
+  // Show spinner during initial loading (only if we've never loaded data)
+  if (loading && tenants.length === 0 && !dataEverLoaded) {
+    return <Spinner />;
+  }
+  
+  // Show error card ONLY if there's an error AND we've never loaded data successfully
+  // This prevents showing timeout errors after data is already displayed
+  if (storeError && !loading && !dataEverLoaded && tenants.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+      <ErrorCard
+        title="Error loading tenants"
+        error={{ status: storeError.status?.toString() || "Error", message: storeError.message }}
+        buttonText="Retry"
+        buttonAction={handleRetry}
+        buttonIcon={RefreshCw}
+      />
+    );
   }
 
-  // Filter tenants based on status and search query
-  const filteredTenants = tenants.filter(tenant => {
-    if (selectedStatus === "all") return true
-    return tenant.status === selectedStatus
-  })
-  
-  const handleActivateTenant = (tenantId: string) => {
-    updateTenantStatus(tenantId, "active")
-  }
-  
-  const handleDeactivateTenant = (tenantId: string) => {
-    updateTenantStatus(tenantId, "inactive")
-  }
-
-  const handleSearch = () => {
-    setSelectedStatus("all")
-  }
-
-  // Count tenants by status
-  const allTenantsCount = getFilteredTenants().length
-  const activeTenantsCount = getFilteredTenants().filter(t => t.status === "active").length
-  const pendingTenantsCount = getFilteredTenants().filter(t => t.status === "pending").length
-  const inactiveTenantsCount = getFilteredTenants().filter(t => t.status === "inactive").length
-  
   return (
     <div className="space-y-4 mt-4">
       <div className="flex flex-col gap-4">
@@ -58,61 +131,49 @@ export function TenantContent() {
             type="search"
             placeholder="Search tenants..."
             className="pl-8 w-full md:w-[250px]"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyUp={(e) => handleSearch()}
+            value={searchText}
+            onChange={handleSearchChange}
           />
         </div>
-        
+
         <div className="px-4 pt-2">
-          <Tabs 
-            defaultValue="all" 
+          <Tabs
+            defaultValue="all"
             value={selectedStatus}
             onValueChange={setSelectedStatus}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="all">
-                All Tenants ({allTenantsCount})
+                All Tenants ({counts.all})
               </TabsTrigger>
               <TabsTrigger value="active">
-                Active ({activeTenantsCount})
-              </TabsTrigger>
-              <TabsTrigger value="pending">
-                Pending ({pendingTenantsCount})
+                Active ({counts.active})
               </TabsTrigger>
               <TabsTrigger value="inactive">
-                Inactive ({inactiveTenantsCount})
+                Inactive ({counts.inactive})
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="all" className="space-y-4">
-              <TenantTable 
-                tenants={filteredTenants}
+              <TenantTable
+                tenants={tenants}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
               />
             </TabsContent>
-            
+
             <TabsContent value="active" className="space-y-4">
-              <TenantTable 
-                tenants={filteredTenants}
+              <TenantTable
+                tenants={tenants.filter((t) => t.is_active)}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
               />
             </TabsContent>
-            
-            <TabsContent value="pending" className="space-y-4">
-              <TenantTable 
-                tenants={filteredTenants}
-                onActivateTenant={handleActivateTenant}
-                onDeactivateTenant={handleDeactivateTenant}
-              />
-            </TabsContent>
-            
+
             <TabsContent value="inactive" className="space-y-4">
-              <TenantTable 
-                tenants={filteredTenants}
+              <TenantTable
+                tenants={tenants.filter((t) => !t.is_active)}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
               />
@@ -121,5 +182,5 @@ export function TenantContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }

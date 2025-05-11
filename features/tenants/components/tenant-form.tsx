@@ -1,31 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react";
-import { Upload, X, CreditCard, FileText, BarChart3, Check, Truck, Badge } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Upload, X, CreditCard, FileText, BarChart3, Check, Truck, Badge, Loader2, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -33,163 +18,61 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { RequiredField } from "@/components/ui/required-field"
-import { Checkbox } from "@/components/ui/checkbox"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { ColorPicker } from "@/components/ui/color-picker"
+import { Spinner } from "@/components/ui/spinner"
+import { ErrorCard } from "@/components/ui/error-card"
 
 import { countryCodes, currencies, languages, documentTypes, vehicleTypes } from "../data/localization"
-import { mockBillingHistory, BillingHistoryItem } from "../data/billing"
+import { mockBillingHistory } from "../data/billing"
+import { tenantFormSchema, brandingSchema, modulesSchema, revenueSchema } from "../schema"
+import { TenantFormValues, BillingHistoryItem } from "../types"
 
-// Define schemas
-const brandingSchema = z.object({
-  logoUrl: z.string().url("Invalid URL"),
-  theme: z.object({
-    logo: z.object({
-      primary: z.string().url("Invalid URL"),
-      secondary: z.string().url("Invalid URL"),
-      icon: z.string().url("Invalid URL"),
-    }),
-    colors: z.object({
-      primary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-        message: "Please enter a valid hex color code.",
-      }),
-      secondary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-        message: "Please enter a valid hex color code.",
-      }),
-      accent: z.string().regex(/^#[0-9A-F]{6}$/i, {
-        message: "Please enter a valid hex color code.",
-      }),
-      text: z.object({
-        primary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-          message: "Please enter a valid hex color code.",
-        }),
-        secondary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-          message: "Please enter a valid hex color code.",
-        }),
-      }),
-      background: z.object({
-        primary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-          message: "Please enter a valid hex color code.",
-        }),
-        secondary: z.string().regex(/^#[0-9A-F]{6}$/i, {
-          message: "Please enter a valid hex color code.",
-        }),
-      }),
-      border: z.string().regex(/^#[0-9A-F]{6}$/i, {
-        message: "Please enter a valid hex color code.",
-      }),
-    })
-  }),
-});
-
-const configurationSchema = z.object({
-  country_codes: z.array(z.string()).min(1, {
-    message: "At least one country code is required.",
-  }),
-  currencies: z.array(z.string()).min(1, {
-    message: "At least one currency is required.",
-  }),
-  languages: z.array(z.string()).min(1, {
-    message: "At least one language is required.",
-  }),
-  document_types: z.array(z.string()).min(1, {
-    message: "At least one document type is required.",
-  }),
-  vehicle_types: z.array(z.string()).min(1, {
-    message: "At least one vehicle type is required.",
-  }),
-});
-
-const modulesSchema = z.object({
-  payments: z.boolean(),
-  promotions: z.boolean(),
-  inventory: z.boolean(),
-});
-
-const billingSchema = z.object({
-  billing_plan: z.enum(["monthly", "quarterly", "annually"], {
-    required_error: "Please select a subscription plan.",
-  }),
-  subscription_fee: z.string().min(1, {
-    message: "Subscription fee is required",
-  }),
-});
-
-const revenueSchema = z.object({
-  total_revenue: z.string().optional(),
-  commission_rate: z.string().min(1, {
-    message: "Commission rate is required",
-  }),
-  platform_fee: z.string().min(1, {
-    message: "Platform fee is required",
-  }),
-});
-
-const tenantFormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Tenant name must be at least 2 characters.",
-  }),
-  domain: z.string().min(5, {
-    message: "Domain must be at least 5 characters.",
-  }).refine(value => value.includes("."), {
-    message: "Domain must include at least one period (.)",
-  }),
-  admin_email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  admin_phone: z.string().min(10, {
-    message: "Please enter a valid phone number.",
-  }),
-  billing: billingSchema,
-  configuration: configurationSchema,
-  modules: modulesSchema,
-  branding: brandingSchema,
-  revenue: revenueSchema.optional(),
-});
-
-type TenantFormValues = z.infer<typeof tenantFormSchema>;
-
+// Default tenant values that match the API structure
 const defaultValues: Partial<TenantFormValues> = {
-  billing: {
-    billing_plan: "monthly",
-    subscription_fee: "199.99",
-  },
-  configuration: {
-    country_codes: [],
-    currencies: [],
-    languages: [],
-    document_types: ["nida", "passport", "drivers_license", "business_license"],
-    vehicle_types: ["boda", "car", "truck"],
-  },
+  name: "",
+  domain: "",
+  admin_email: "",
+  admin_phone: "",
+  plan: "monthly",
+  fee: "",
+  country_code: "TZ",
+  currency: "TZS",
+  languages: ["en-US", "sw"],
+  document_types: ["id_card", "passport"],
+  vehicle_types: ["motorcycle", "car"],
   modules: {
     payments: false,
     promotions: false,
     inventory: false,
   },
+  is_active: false,
+  trial_ends_at: "",
   branding: {
     logoUrl: "",
     theme: {
       logo: {
-        primary: "",
-        secondary: "",
-        icon: "",
+        primary: null,
+        secondary: null,
+        icon: null
       },
       colors: {
-        primary: "#4285F4",
-        secondary: "#34A853",
-        accent: "#FBBC05",
+        primary: "#3182CE",
+        secondary: "#E2E8F0",
+        accent: "#ED8936",
         text: {
           primary: "#000000",
-          secondary: "#666666",
+          secondary: "#4A5568",
         },
         background: {
           primary: "#FFFFFF",
-          secondary: "#F5F5F5",
+          secondary: "#F7FAFC",
         },
-        border: "#E5E5E5",
+        border: "#E2E8F0",
       },
     },
-  },
+  }
 };
 
 interface TenantFormProps {
@@ -198,864 +81,1046 @@ interface TenantFormProps {
   initialData?: Partial<TenantFormValues> & { id?: string };
   isEditable?: boolean;
   id?: string;
+  isSubmitting?: boolean;
 }
 
-// Type for billing history item
-type BillingHistoryItem = {
-  id: number;
-  date: string;
-  description: string;
-  amount: string;
-  status: 'paid' | 'pending' | 'failed';
-};
-
-export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true, id }: TenantFormProps) {
+export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true, id, isSubmitting: externalIsSubmitting }: TenantFormProps) {
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
   const isSuperOwner = userRole === "super_owner";
   const isAddPage = !initialData?.id;
 
+  // Form state management
   const [activeTab, setActiveTab] = useState("details");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
+  const isSubmitting = externalIsSubmitting !== undefined ? externalIsSubmitting : internalIsSubmitting;
+  const [formError, setFormError] = useState<string | null>(null);
+  
+  // File upload state management
   const [primaryLogoFile, setPrimaryLogoFile] = useState<File | null>(null);
   const [secondaryLogoFile, setSecondaryLogoFile] = useState<File | null>(null);
   const [iconFile, setIconFile] = useState<File | null>(null);
+  
+  // Data display state
   const [showMoreHistory, setShowMoreHistory] = useState(false);
   const [billingHistory] = useState<BillingHistoryItem[]>(mockBillingHistory);
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
-    defaultValues: initialData ? { ...defaultValues, ...initialData } : defaultValues,
+    defaultValues: initialData || defaultValues,
   });
 
+  // Tab navigation with field validation
+  const tabValidationMap = {
+    "details": ["name", "domain", "admin_email", "admin_phone", ...(isSuperOwner ? ["plan", "fee"] : [])],
+    "branding": [
+      "branding.logoUrl",
+      "branding.theme.colors.primary",
+      "branding.theme.colors.secondary",
+      "branding.theme.colors.accent",
+      "branding.theme.colors.text.primary",
+      "branding.theme.colors.text.secondary",
+      "branding.theme.colors.background.primary",
+      "branding.theme.colors.background.secondary",
+      "branding.theme.colors.border"
+    ],
+    "configuration": [
+      "country_code",
+      "currency",
+      "languages",
+      "document_types",
+      "vehicle_types"
+    ],
+    "modules": ["modules"]
+  };
+  
+  const tabFlow = ["details", "branding", "configuration", "modules"];
+  
   const nextTab = () => {
-    if (activeTab === "details") {
-      const detailsFields = ["name", "domain", "admin_email", "admin_phone", "billing_plan", "subscription_fee"];
-      const result = detailsFields.every((field) =>
-        form.trigger(field as keyof TenantFormValues)
-      );
-
-      if (result) {
-        setActiveTab("branding");
-      } else {
-        toast.error("Please complete all required fields.");
-      }
-    } else if (activeTab === "branding") {
-      const brandingFields = ["logoUrl", "theme"];
-      const result = brandingFields.every((field) =>
-        form.trigger(field as keyof TenantFormValues)
-      );
-
-      if (result) {
-        setActiveTab("configuration");
-      } else {
-        toast.error("Please complete all required fields.");
-      }
-    } else if (activeTab === "configuration") {
-      setActiveTab("modules");
+    const currentTabIndex = tabFlow.indexOf(activeTab);
+    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1) return;
+    
+    // Get fields to validate for the current tab
+    const fieldsToValidate = tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
+    
+    // Validate all required fields in the current tab
+    const result = fieldsToValidate.every(field => form.trigger(field as any));
+    
+    if (result) {
+      setActiveTab(tabFlow[currentTabIndex + 1]);
+    } else {
+      toast.error("Please complete all required fields before proceeding.");
     }
   };
 
   const prevTab = () => {
-    if (activeTab === "branding") {
-      setActiveTab("details");
-    } else if (activeTab === "configuration") {
-      setActiveTab("branding");
-    } else if (activeTab === "modules") {
-      setActiveTab("configuration");
+    const currentTabIndex = tabFlow.indexOf(activeTab);
+    if (currentTabIndex > 0) {
+      setActiveTab(tabFlow[currentTabIndex - 1]);
     }
   };
 
   // Handle file upload for form submission
-  const handleFileUpload = (file: File, fieldName: string) => {
+  const handleFileUpload = useCallback((file: File, fieldName: string) => {
     console.log(`Uploading file for ${fieldName}:`, file);
-    // In a real application, you would upload the file to a server here
-    // and get back a URL to use in the form submission
-    // For now, we'll just use the file object directly
+  }, []);
+
+  // Handle form submission with error handling and validation navigation
+  const handleFormSubmit = useCallback(async (data: TenantFormValues, e?: React.BaseSyntheticEvent) => {
+    try {
+      setFormError(null);
+      setInternalIsSubmitting(true);
+      
+      await onSubmit(data);
+
+      // toast.success(`Tenant ${isAddPage ? 'created' : 'updated'} successfully`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      setFormError(errorMessage);
+      
+      // toast.error(errorMessage);
+    } finally {
+      setInternalIsSubmitting(false);
+    }
+  }, [onSubmit, isAddPage]);
+  
+  // Handle form errors by navigating to the tab with the first error
+  const handleFormError = useCallback((errors: any) => {
+    // Immediately find which tab has errors
+    const tabWithErrors = findTabWithErrors(errors);
+    
+    // Always switch to the tab containing errors
+    setActiveTab(tabWithErrors);
+    toast.error("Please fix the validation errors before submitting");
+    
+    // Log validation errors for debugging
+    console.error("Form validation errors:", errors);
+  }, []);
+
+  // Function to find which tab contains field errors
+  const findTabWithErrors = (errors: any): string => {
+    // Check each field against our tab mapping to find which tab has errors
+    for (const [tabName, fields] of Object.entries(tabValidationMap)) {
+      for (const field of fields) {
+        // Handle nested fields (with dots)
+        if (field.includes(".")) {
+          const parts = field.split(".");
+          let currentObj = errors;
+          let hasError = true;
+          
+          // Navigate through the nested error object
+          for (const part of parts) {
+            if (!currentObj || !currentObj[part]) {
+              hasError = false;
+              break;
+            }
+            currentObj = currentObj[part];
+          }
+          
+          if (hasError) return tabName;
+        } else if (errors[field]) {
+          return tabName;
+        }
+      }
+    }
+    
+    // If no tab with errors is found, stay on the current tab
+    return activeTab;
   };
 
+  // If there's a form error and we're not in the loading state, show error card
+  if (formError && !isSubmitting) {
+    return (
+      <ErrorCard
+        title={`Failed to ${isAddPage ? 'create' : 'update'} tenant`}
+        error={{ status: 'Error', message: formError }}
+        buttonText="Try Again"
+        buttonAction={() => setFormError(null)}
+        buttonIcon={RefreshCw}
+      />
+    );
+  }
+
   return (
-    <Card className="mx-4">
-      <CardContent className="p-6">
-        <Form {...form}>
-          <form
-            id={id}
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6"
-          >
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full">
-                <TabsTrigger value="details">Basic Details</TabsTrigger>
-                <TabsTrigger value="branding">Branding</TabsTrigger>
-                <TabsTrigger value="configuration">Configuration</TabsTrigger>
-                <TabsTrigger value="modules">Modules</TabsTrigger>
-                {!isAddPage && (
-                  <TabsTrigger value="billing-history">Billing History</TabsTrigger>
-                )}
+    <fieldset disabled={isSubmitting}>
+      <Card className="mx-4">
+        <CardContent className="p-6">
+          <Form {...form}>
+            <form
+              id={id}
+              onSubmit={form.handleSubmit(handleFormSubmit, handleFormError)}
+              className="space-y-6"
+            >
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="details">Basic Details</TabsTrigger>
+                  <TabsTrigger value="branding">Branding</TabsTrigger>
+                  <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                  <TabsTrigger value="modules">Modules</TabsTrigger>
+                  {!isAddPage && (
+                    <TabsTrigger value="billing-history">Billing History</TabsTrigger>
+                  )}
+                  {isSuperOwner && !isAddPage && (
+                    <TabsTrigger value="revenue">Revenue</TabsTrigger>
+                  )}
+                </TabsList>
+
+                <DetailsTab />
+
+                <BrandingTab />
+
+                <ConfigurationTab />
+
+                <ModulesTab />
+
+                <BillingHistoryTab />
+
                 {isSuperOwner && !isAddPage && (
-                  <TabsTrigger value="revenue">Revenue</TabsTrigger>
+                  <RevenueTab />
                 )}
-              </TabsList>
-
-              <TabsContent value="details" className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tenant Name <RequiredField /></FormLabel>
-                        <FormControl>
-                          <Input placeholder="Example Store" {...field} readOnly={!isEditable} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="domain"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Domain <RequiredField /></FormLabel>
-                        <FormControl>
-                          <Input placeholder="example-store.marketplace.com" {...field} readOnly={!isEditable} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Administrator Contact</h3>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="admin_email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email <RequiredField /></FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="admin@example.com" {...field} readOnly={!isEditable} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="admin_phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone <RequiredField /></FormLabel>
-                          <FormControl>
-                            <PhoneInput placeholder="+255712345678" {...field} disabled={!isEditable} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Subscription Details</h3>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="billing.billing_plan"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Billing Plan <RequiredField /></FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a billing plan" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="monthly">Monthly</SelectItem>
-                              <SelectItem value="quarterly">Quarterly</SelectItem>
-                              <SelectItem value="annually">Annually</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="billing.subscription_fee"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Subscription Fee <RequiredField /></FormLabel>
-                          <FormControl>
-                            <Input placeholder="199.99" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Monthly subscription amount
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="branding" className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Store Branding</h3>
-
-                  <div className="grid gap-6 md:grid-cols-4">
-                    <FormField
-                      control={form.control}
-                      name="branding.logoUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Logo URL <RequiredField /></FormLabel>
-                          <FormControl>
-                            <ImageUpload
-                              id="logo-upload"
-                              value={field.value}
-                              onChange={field.onChange}
-                              previewAlt="Store Logo Preview"
-                              onFileChange={(file) => handleFileUpload(file, 'logoUrl')}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h4 className="text-md font-medium">Logo Variants</h4>
-                    <div className="grid gap-8 md:grid-cols-4">
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.logo.primary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Primary Logo</FormLabel>
-                            <FormControl>
-                              <ImageUpload
-                                id="primary-logo-upload"
-                                value={field.value}
-                                onChange={field.onChange}
-                                previewAlt="Primary Logo Preview"
-                                onFileChange={(file) => handleFileUpload(file, 'primaryLogo')}
-                                height="h-32"
-                                buttonText="Primary Logo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.logo.secondary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secondary Logo</FormLabel>
-                            <FormControl>
-                              <ImageUpload
-                                id="secondary-logo-upload"
-                                value={field.value}
-                                onChange={field.onChange}
-                                previewAlt="Secondary Logo Preview"
-                                onFileChange={(file) => handleFileUpload(file, 'secondaryLogo')}
-                                height="h-32"
-                                buttonText="Secondary Logo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.logo.icon"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Icon Logo</FormLabel>
-                            <FormControl>
-                              <ImageUpload
-                                id="icon-logo-upload"
-                                value={field.value}
-                                onChange={field.onChange}
-                                previewAlt="Icon Logo Preview"
-                                onFileChange={(file) => handleFileUpload(file, 'iconLogo')}
-                                height="h-32"
-                                buttonText="Icon Logo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <h4 className="text-md font-medium">Brand Colors</h4>
-                    <div className="grid gap-6 md:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.primary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Primary Color <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#4285F4" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.secondary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secondary Color <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#34A853" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.accent"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Accent Color <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#FBBC05" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <h4 className="text-md font-medium">Text & Background Colors</h4>
-                    <div className="grid gap-6 md:grid-cols-4">
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.text.primary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Primary Text <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#000000" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.text.secondary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secondary Text <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#666666" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.background.primary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Primary Background <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#FFFFFF" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="branding.theme.colors.background.secondary"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secondary Background <RequiredField /></FormLabel>
-                            <FormControl>
-                              <div className="flex gap-2">
-                                <div 
-                                  className="w-10 h-10 rounded-md border" 
-                                  style={{ backgroundColor: field.value }}
-                                />
-                                <Input type="text" placeholder="#F5F5F5" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="branding.theme.colors.border"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Border Color <RequiredField /></FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <div 
-                              className="w-10 h-10 rounded-md border-4" 
-                              style={{ borderColor: field.value }}
-                            />
-                            <Input type="text" placeholder="#E5E5E5" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="configuration" className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Marketplace Configurations</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Configure countries, languages, currencies, and other marketplace settings
-                  </p>
-
-                  <div className="space-y-6">
-                    <h4 className="text-md font-medium">Localization Settings</h4>
-                    <div className="grid gap-6 md:grid-cols-3">
-                      <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country <RequiredField /></FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a country" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {countryCodes.map((country) => (
-                                  <SelectItem key={country.value} value={country.value}>
-                                    {country.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="currency"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Currency <RequiredField /></FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a currency" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {currencies.map((currency) => (
-                                  <SelectItem key={currency.value} value={currency.value}>
-                                    {currency.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="configuration.languages"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Languages <RequiredField /></FormLabel>
-                            <FormControl>
-                              <MultiSelect
-                                options={languages}
-                                selected={field.value}
-                                onChange={field.onChange}
-                                placeholder="Select languages"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <Separator className="my-4" />
-                  
-                    <h4 className="text-md font-medium">Document & Vehicle Types</h4>
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="configuration.document_types"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Document Types <RequiredField /></FormLabel>
-                            <FormControl>
-                              <MultiSelect
-                                options={documentTypes}
-                                selected={field.value}
-                                onChange={field.onChange}
-                                placeholder="Select document types"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Document types accepted across this marketplace
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="configuration.vehicle_types"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Vehicle Types <RequiredField /></FormLabel>
-                            <FormControl>
-                              <MultiSelect
-                                options={vehicleTypes}
-                                selected={field.value}
-                                onChange={field.onChange}
-                                placeholder="Select vehicle types"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Vehicle types available for delivery partners
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="modules" className="space-y-4 mt-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Module Configuration</h3>
-                  {!isSuperOwner && (
-                    <Alert className="mb-4">
-                      <FileText className="h-4 w-4" />
-                      <AlertTitle>View Only</AlertTitle>
-                      <AlertDescription>
-                        Only super admins can modify module configurations
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    Enable or disable specific marketplace modules for this tenant
-                  </p>
-
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="modules.payments"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Payments Module
-                            </FormLabel>
-                            <FormDescription>
-                              Enables payment processing and transaction management
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!isSuperOwner}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="modules.promotions"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Promotions Module
-                            </FormLabel>
-                            <FormDescription>
-                              Enables discounts, coupons, and marketing campaigns
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!isSuperOwner}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="modules.inventory"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Inventory Module
-                            </FormLabel>
-                            <FormDescription>
-                              Enables inventory tracking and management
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!isSuperOwner}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
+              </Tabs>
               
-              {isSuperOwner && !isAddPage && (
-                <TabsContent value="revenue" className="space-y-4 mt-4">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Revenue Summary</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Revenue and commission information for this tenant
-                    </p>
+              {isEditable && (
+                <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
+                  {activeTab !== "billing-history" && activeTab !== "revenue" && (
+                    <>
+                      {activeTab !== "details" && (
+                        <Button type="button" variant="outline" onClick={prevTab}>
+                          Previous
+                        </Button>
+                      )}
 
-                    <div className="grid gap-6 md:grid-cols-3">
-                      <Card className="p-4 flex flex-col gap-2">
-                        <div className="text-sm font-medium text-muted-foreground">Total Revenue</div>
-                        <div className="text-2xl font-bold">TZS 12,896,540</div>
-                        <div className="text-xs text-muted-foreground">Since tenant inception</div>
-                      </Card>
-                      
-                      <Card className="p-4 flex flex-col gap-2">
-                        <div className="text-sm font-medium text-muted-foreground">Commission Earned</div>
-                        <div className="text-2xl font-bold">TZS 1,289,654</div>
-                        <div className="text-xs text-muted-foreground">Based on current rate</div>
-                      </Card>
-                      
-                      <Card className="p-4 flex flex-col gap-2">
-                        <div className="text-sm font-medium text-muted-foreground">Monthly Average</div>
-                        <div className="text-2xl font-bold">TZS 1,074,711</div>
-                        <div className="text-xs text-muted-foreground">Last 12 months</div>
-                      </Card>
-                    </div>
-                    
-                    <Separator className="my-6" />
-                    
-                    <div className="space-y-4">
-                      <h4 className="text-md font-medium">Revenue Breakdown</h4>
-                      
-                      <div className="border rounded-md overflow-hidden">
-                        <div className="min-w-full divide-y divide-gray-200">
-                          <div className="bg-gray-50">
-                            <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              <div>Month</div>
-                              <div>Revenue</div>
-                              <div>Commission</div>
-                              <div>Growth</div>
-                            </div>
-                          </div>
-                          <div className="bg-white divide-y divide-gray-200">
-                            {[...Array(6)].map((_, index) => (
-                              <div key={index} className="grid grid-cols-4 px-6 py-4 text-sm">
-                                <div className="text-gray-900">{new Date(2024, 4 - index, 1).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}</div>
-                                <div className="text-gray-900">TZS {(1200000 - index * 50000).toLocaleString()}</div>
-                                <div className="text-gray-900 font-medium">TZS {(120000 - index * 5000).toLocaleString()}</div>
-                                <div>
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${index % 3 === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                    {index % 3 === 0 ? '+' : ''}{6 - index}%
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              )}
-
-              <TabsContent value="billing-history" className="space-y-4 mt-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Billing History</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Recent payment activities and transaction history
-                  </p>
-
-                  {billingHistory.length === 0 ? (
-                    <div className="text-center py-8 border rounded-md">
-                      <p className="text-muted-foreground">No billing history available</p>
-                    </div>
-                  ) : (
-                    <div className="border rounded-md overflow-hidden">
-                      <div className="min-w-full divide-y divide-gray-200">
-                        <div className="bg-gray-50">
-                          <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div>Date</div>
-                            <div>Description</div>
-                            <div>Amount</div>
-                            <div>Status</div>
-                          </div>
-                        </div>
-                        <div className="bg-white divide-y divide-gray-200">
-                          {billingHistory
-                            .slice(0, showMoreHistory ? 10 : 5)
-                            .map((item) => (
-                              <div key={item.id} className="grid grid-cols-4 px-6 py-4 text-sm">
-                                <div className="text-gray-900">
-                                  {new Date(item.date).toLocaleDateString('en-US', { 
-                                    year: 'numeric', 
-                                    month: 'short', 
-                                    day: 'numeric' 
-                                  })}
-                                </div>
-                                <div className="text-gray-900">{item.description}</div>
-                                <div className="text-gray-900 font-medium">{item.amount}</div>
-                                <div>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    {item.status}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {billingHistory.length > 5 && (
-                    <div className="text-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowMoreHistory(!showMoreHistory)}
-                      >
-                        {showMoreHistory ? "Show Less" : "Show More"}
-                      </Button>
-                    </div>
+                      {activeTab !== "modules" ? (
+                        <Button 
+                          type="button" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            nextTab();
+                          }}
+                        >
+                          Next
+                        </Button>
+                      ) : (
+                        <Button 
+                          type="submit" 
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Spinner size="sm" color="white" />
+                              Processing...
+                            </>
+                          ) : (
+                            'Submit'
+                          )}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
-              </TabsContent>
-            </Tabs>
-            
-            {/* TODO: for marketplace page do not show the previous, next or submit buttons */}
-            {isEditable && (
-              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
-                {activeTab !== "billing-history" && activeTab !== "revenue" && (
-                  <>
-                    {activeTab !== "details" && (
-                      <Button type="button" variant="outline" onClick={prevTab}>
-                        Previous
-                      </Button>
-                    )}
-
-                    {activeTab !== "modules" ? (
-                      <Button type="button" onClick={nextTab}>
-                        Next
-                      </Button>
-                    ) : (
-                      <Button type="submit">Submit</Button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </form>
+              )}
+            </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </fieldset>
   );
+
+  function DetailsTab() {
+    return (
+      <TabsContent value="details" className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tenant Name <RequiredField /></FormLabel>
+                <FormControl>
+                  <Input placeholder="Example Store" {...field} readOnly={!isEditable} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="domain"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Domain <RequiredField /></FormLabel>
+                <FormControl>
+                  <Input placeholder="example-store.marketplace.com" {...field} readOnly={!isEditable} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Administrator Contact</h3>
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="admin_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email <RequiredField /></FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="admin@example.com" {...field} readOnly={!isEditable} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="admin_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone <RequiredField /></FormLabel>
+                  <FormControl>
+                    <PhoneInput 
+                      value={field.value} 
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={!isEditable} 
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {isSuperOwner && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Subscription Details</h3>
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="plan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Billing Plan <RequiredField /></FormLabel>
+                      <Select
+                        disabled={!isEditable}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a billing plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="annually">Annually</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select the billing plan for the tenant
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="fee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subscription Fee <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Monthly subscription amount
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Status</h3>
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Active Status</FormLabel>
+                        <FormDescription>
+                          Toggle to activate or deactivate the tenant account
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="trial_ends_at"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Trial End Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Set the date when the trial period ends
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </TabsContent>
+    );
+  }
+
+  function BrandingTab() {
+    return (
+      <TabsContent value="branding" className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Store Branding</h3>
+
+          <div className="grid gap-6 md:grid-cols-4">
+            <FormField
+              control={form.control}
+              name="branding.logoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Logo URL <RequiredField /></FormLabel>
+                  <FormControl>
+                    <ImageUpload
+                      id="logo-upload"
+                      value={field.value}
+                      onChange={field.onChange}
+                      previewAlt="Store Logo Preview"
+                      onFileChange={(file) => handleFileUpload(file, 'logoUrl')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-md font-medium">Logo Variants</h4>
+            <div className="grid gap-8 md:grid-cols-4">
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="primary-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Primary Logo Preview"
+                        onFileChange={(file) => handleFileUpload(file, 'primaryLogo')}
+                        height="h-32"
+                        buttonText="Primary Logo"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="secondary-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Secondary Logo Preview"
+                        onFileChange={(file) => handleFileUpload(file, 'secondaryLogo')}
+                        height="h-32"
+                        buttonText="Secondary Logo"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.icon"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Icon Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="icon-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Icon Logo Preview"
+                        onFileChange={(file) => handleFileUpload(file, 'iconLogo')}
+                        height="h-32"
+                        buttonText="Icon Logo"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <h4 className="text-md font-medium">Brand Colors</h4>
+            <div className="grid gap-6 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Color <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Color <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.accent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Accent Color <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <h4 className="text-md font-medium">Text & Background Colors</h4>
+            <div className="grid gap-6 md:grid-cols-4">
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.text.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Text <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.text.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Text <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.background.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Background <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.background.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Background <RequiredField /></FormLabel>
+                    <FormControl>
+                      <ColorPicker 
+                        color={field.value} 
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="branding.theme.colors.border"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Border Color <RequiredField /></FormLabel>
+                <FormControl>
+                  <ColorPicker 
+                    color={field.value} 
+                    onChange={field.onChange}
+                    disabled={!isEditable}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </TabsContent>
+    );
+  }
+
+  function ConfigurationTab() {
+    return (
+      <TabsContent value="configuration" className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Marketplace Configurations</h3>
+          <p className="text-sm text-muted-foreground">
+            Configure country, currency, languages, and other marketplace settings
+          </p>
+
+          <div className="space-y-6">
+            <h4 className="text-md font-medium">Localization Settings</h4>
+            <div className="grid gap-6 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="country_code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country <RequiredField /></FormLabel>
+                    <Select
+                      disabled={!isEditable}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a country code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryCodes.map((code) => (
+                          <SelectItem
+                            key={code.value}
+                            value={code.value}
+                          >
+                            {code.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              /> 
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency <RequiredField /></FormLabel>
+                    <Select
+                      disabled={!isEditable}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem
+                            key={currency.value}
+                            value={currency.value}
+                          >
+                            {currency.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="languages"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Languages <RequiredField /></FormLabel>
+                    <MultiSelect
+                      placeholder="Select languages"
+                      selected={field.value || []}
+                      options={languages.map((language) => ({
+                        value: language.value,
+                        label: language.label
+                      }))}
+                      onChange={(selected) => field.onChange(selected)}
+                      className="w-full"
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="space-y-4">
+              <h4 className="text-md font-medium">Document & Vehicle Types</h4>
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="document_types"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Document Types <RequiredField /></FormLabel>
+                      <MultiSelect
+                        placeholder="Select document types"
+                        selected={field.value || []}
+                        options={documentTypes.map((type) => ({
+                          value: type.value,
+                          label: type.label
+                        }))}
+                        onChange={(selected) => field.onChange(selected)}
+                        className="w-full"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vehicle_types"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle Types <RequiredField /></FormLabel>
+                      <MultiSelect
+                        placeholder="Select vehicle types"
+                        selected={field.value || []}
+                        options={vehicleTypes.map((type) => ({
+                          value: type.value,
+                          label: type.label
+                        }))}
+                        onChange={(selected) => field.onChange(selected)}
+                        className="w-full"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+    );
+  }
+
+  function ModulesTab() {
+    return (
+      <TabsContent value="modules" className="space-y-4 mt-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Module Configuration</h3>
+          {!isSuperOwner && (
+            <Alert className="mb-4">
+              <FileText className="h-4 w-4" />
+              <AlertTitle>View Only</AlertTitle>
+              <AlertDescription>
+                Only super admins can modify module configurations
+              </AlertDescription>
+            </Alert>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Enable or disable specific marketplace modules for this tenant
+          </p>
+
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="modules.payments"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Payments Module
+                    </FormLabel>
+                    <FormDescription>
+                      Enables payment processing and transaction management
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!isSuperOwner}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="modules.promotions"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Promotions Module
+                    </FormLabel>
+                    <FormDescription>
+                      Enables discounts, coupons, and marketing campaigns
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!isSuperOwner}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="modules.inventory"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Inventory Module
+                    </FormLabel>
+                    <FormDescription>
+                      Enables inventory tracking and management
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!isSuperOwner}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+      </TabsContent>
+    );
+  }
+
+  function BillingHistoryTab() {
+    return (
+      <TabsContent value="billing-history" className="space-y-4 mt-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Billing History</h3>
+          <p className="text-sm text-muted-foreground">
+            Recent payment activities and transaction history
+          </p>
+
+          {billingHistory.length === 0 ? (
+            <div className="text-center py-8 border rounded-md">
+              <p className="text-muted-foreground">No billing history available</p>
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-hidden">
+              <div className="min-w-full divide-y divide-gray-200">
+                <div className="bg-gray-50">
+                  <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div>Date</div>
+                    <div>Description</div>
+                    <div>Amount</div>
+                    <div>Status</div>
+                  </div>
+                </div>
+                <div className="bg-white divide-y divide-gray-200">
+                  {billingHistory
+                    .slice(0, showMoreHistory ? 10 : 5)
+                    .map((item) => (
+                      <div key={item.id} className="grid grid-cols-4 px-6 py-4 text-sm">
+                        <div className="text-gray-900">
+                          {new Date(item.date).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </div>
+                        <div className="text-gray-900">{item.description}</div>
+                        <div className="text-gray-900 font-medium">{item.amount}</div>
+                        <div>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {billingHistory.length > 5 && (
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowMoreHistory(!showMoreHistory)}
+              >
+                {showMoreHistory ? "Show Less" : "Show More"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </TabsContent>
+    );
+  }
+
+  function RevenueTab() {
+    return (
+      <TabsContent value="revenue" className="space-y-4 mt-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Revenue Summary</h3>
+          <p className="text-sm text-muted-foreground">
+            Revenue and commission information for this tenant
+          </p>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="p-4 flex flex-col gap-2">
+              <div className="text-sm font-medium text-muted-foreground">Total Revenue</div>
+              <div className="text-2xl font-bold">TZS 12,896,540</div>
+              <div className="text-xs text-muted-foreground">Since tenant inception</div>
+            </Card>
+            
+            <Card className="p-4 flex flex-col gap-2">
+              <div className="text-sm font-medium text-muted-foreground">Commission Earned</div>
+              <div className="text-2xl font-bold">TZS 1,289,654</div>
+              <div className="text-xs text-muted-foreground">Based on current rate</div>
+            </Card>
+            
+            <Card className="p-4 flex flex-col gap-2">
+              <div className="text-sm font-medium text-muted-foreground">Monthly Average</div>
+              <div className="text-2xl font-bold">TZS 1,074,711</div>
+              <div className="text-xs text-muted-foreground">Last 12 months</div>
+            </Card>
+          </div>
+          
+          <Separator className="my-6" />
+          
+          <div className="space-y-4">
+            <h4 className="text-md font-medium">Revenue Breakdown</h4>
+            
+            <div className="border rounded-md overflow-hidden">
+              <div className="min-w-full divide-y divide-gray-200">
+                <div className="bg-gray-50">
+                  <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div>Month</div>
+                    <div>Revenue</div>
+                    <div>Commission</div>
+                    <div>Growth</div>
+                  </div>
+                </div>
+                <div className="bg-white divide-y divide-gray-200">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={index} className="grid grid-cols-4 px-6 py-4 text-sm">
+                      <div className="text-gray-900">{new Date(2024, 4 - index, 1).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}</div>
+                      <div className="text-gray-900">TZS {(1200000 - index * 50000).toLocaleString()}</div>
+                      <div className="text-gray-900 font-medium">TZS {(120000 - index * 5000).toLocaleString()}</div>
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${index % 3 === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {index % 3 === 0 ? '+' : ''}{6 - index}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </TabsContent>
+    );
+  }
 }

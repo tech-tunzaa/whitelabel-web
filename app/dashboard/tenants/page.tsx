@@ -1,9 +1,12 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { TenantContent } from "@/features/tenants/components/tenant-content"
 
 export default function TenantsPage() {
+  const router = useRouter()
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">

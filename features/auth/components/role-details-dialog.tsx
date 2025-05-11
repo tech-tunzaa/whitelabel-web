@@ -51,13 +51,13 @@ export function RoleDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[calc(100vh-10rem)]">
         <DialogHeader>
           <DialogTitle>Role Details</DialogTitle>
           <DialogDescription>Role information and permissions</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-4 py-4 h-100 overflow-y-auto">
           <div>
             <h3 className="text-lg font-semibold">{role.name}</h3>
             <p className="text-sm text-muted-foreground mt-1">{role.description}</p>

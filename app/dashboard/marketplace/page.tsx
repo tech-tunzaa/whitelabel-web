@@ -1,81 +1,92 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useSession } from "next-auth/react";
-import { Edit, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Edit, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-
-import { Tenant } from "@/features/tenants/types/tenant";
-import { useTenantStore } from "@/features/tenants/stores/tenant-store";
-import { TenantFormValues } from "@/features/tenants/types/tenant-form";
+import { ErrorCard } from "@/components/ui/error-card";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
+import { useTenantStore } from "@/features/tenants/store";
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const { data: session } = useSession();
-  const { tenants } = useTenantStore();
-  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const tenantStore = useTenantStore();
+  const { tenant, loading, storeError } = tenantStore;
+  const hasFetchedRef = useRef(false);
   
-  // Use tenant with ID 1
-  const currentTenantId = "1";
+  // Use tenant with ID - this is the marketplace tenant ID
+  const currentTenantId = "4c56d0c3-55d9-495b-ae26-0d922d430a42";
 
   useEffect(() => {
-    // Ensure we're using consistent formatting for ID comparison
-    if (tenants.length > 0) {
-      // First try to find by exact ID match
-      let foundTenant = tenants.find(tenant => tenant.id === currentTenantId);
-      
-      // If not found, fallback to first tenant as default
-      if (!foundTenant && tenants.length > 0) {
-        foundTenant = tenants[0];
-        console.log('Using first tenant as fallback', foundTenant);
-      }
-      
-      if (foundTenant) {
-        console.log('Setting tenant:', foundTenant);
-        setTenant(foundTenant);
-      } else {
-        console.warn('No tenant found with ID', currentTenantId);
-      }
-    } else {
-      console.warn('No tenants available in the store');
+    // Only fetch once when the component mounts and if we don't have the tenant already
+    if (!hasFetchedRef.current && !loading) {
+      hasFetchedRef.current = true;
+      tenantStore.fetchTenant(currentTenantId).catch(error => {
+        console.error("Error fetching marketplace tenant:", error);
+      });
     }
-  }, [tenants, currentTenantId]);
+  }, [currentTenantId, tenantStore, loading]);
 
-  const onSubmit = (data: TenantFormValues) => {
-    if (!isEditing) return;
-    
+  const onSubmit = async (data: Record<string, any>) => {
     setIsSubmitting(true);
-    
-    console.log("Submitting data:", data);
-    
-    // Simulate API call
-    setTimeout(() => {
-      toast.success("Marketplace settings updated!");
+    try {
+      if (tenant) {
+        // Update existing tenant
+        await tenantStore.updateTenant(currentTenantId, data);
+        toast.success("Marketplace settings updated successfully");
+        setIsEditing(false);
+      } else {
+        // This shouldn't normally happen for marketplace, but just in case
+        const tenantData = {
+          ...data,
+          user_id: session?.user?.id || "13c94ad0-1071-431a-9d59-93eeee25ca0a", // Use session user ID if available
+        };
+
+        await tenantStore.createTenant(tenantData);
+        toast.success("Marketplace created successfully");
+      }
+    } catch (error) {
+      console.error("Error saving marketplace settings:", error);
+      toast.error("Failed to save marketplace settings. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      setIsEditing(false);
-    }, 1000);
+    }
   };
-  
+
   const handleCancelEdit = () => {
     setIsEditing(false);
   };
-  
-  return (
-    <div className="container py-10 space-y-8">
-      <div className="flex justify-between items-center mx-4">
+
+  // Error handling consistent with tenant edit page
+  if (!loading && storeError && !tenant) {
+    return (
+      <ErrorCard
+        title="Error Loading Marketplace"
+        error={{
+          message: storeError?.message || "Failed to load marketplace settings",
+          status: storeError?.status ? String(storeError.status) : "error"
+        }}
+        buttonText="Back to Dashboard"
+        buttonAction={() => router.push("/dashboard")}
+        buttonIcon={ArrowLeft}
+      />
+    );
+  }
+
+  return tenant ? (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Marketplace Settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Marketplace Settings
+          </h1>
           <p className="text-muted-foreground">
             Customize your marketplace appearance and functionality
           </p>
@@ -94,7 +105,6 @@ export default function MarketplacePage() {
                 type="submit"
                 form="marketplace-tenant-form"
                 disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700"
               >
                 {isSubmitting && (
                   <span className="mr-2">
@@ -113,13 +123,26 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      <Separator/>
-      <TenantForm 
-        initialData={tenant} 
-        onSubmit={onSubmit} 
-        isEditable={isEditing}
-        id="tenant-form"
-      />
+      <div className="flex-1 p-4 overflow-auto">
+        <Separator className="mb-6" />
+        {tenant && (
+          <TenantForm
+            initialData={{
+              ...tenant,
+              modules: {
+                payments: tenant.modules?.payments || false,
+                promotions: tenant.modules?.promotions || false,
+                inventory: tenant.modules?.inventory || false,
+              }
+            }}
+            onSubmit={onSubmit}
+            onCancel={handleCancelEdit}
+            isEditable={isEditing}
+            id="marketplace-tenant-form"
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </div>
     </div>
-  );
+  ) : null;
 }

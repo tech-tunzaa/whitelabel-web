@@ -49,7 +49,7 @@ const countryCodes: CountryCode[] = [
 export interface PhoneInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   countryCode?: string
-  onChange?: (value: { countryCode: string; phoneNumber: string }) => void
+  onChange?: (value: string) => void
   value?: string
   onBlur?: React.FocusEventHandler<HTMLInputElement>
 }
@@ -58,8 +58,8 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ countryCode: initialCountryCode = "+255", onChange, value = "", onBlur, ...props }, ref) => {
     // Parse the initial value if it's a complete phone number with country code
     const parseInitialValue = () => {
-      // Make sure value is a string to prevent 'startsWith is not a function' error
-      const phoneValue = typeof value === 'string' ? value : '';
+      // Handle null, undefined, and non-string values
+      const phoneValue = value == null ? '' : (typeof value === 'string' ? value : String(value));
       if (!phoneValue) return { countryCode: initialCountryCode, phoneNumber: "" }
       
       // Check if the value starts with a + (has country code)
@@ -72,28 +72,33 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         if (matchedCountry) {
           return {
             countryCode: matchedCountry.code,
-            phoneNumber: value.substring(matchedCountry.code.length)
+            phoneNumber: phoneValue.substring(matchedCountry.code.length)
           }
         }
       }
       
       // Default case: use initial country code and the entire value as phone number
-      return { countryCode: initialCountryCode, phoneNumber: value }
+      return { countryCode: initialCountryCode, phoneNumber: phoneValue }
     }
     
     const parsedValue = parseInitialValue()
     const [countryCode, setCountryCode] = useState<string>(parsedValue.countryCode)
     const [phoneNumber, setPhoneNumber] = useState<string>(parsedValue.phoneNumber)
 
+    // Function to format and provide the complete phone number
+    const formatPhoneNumber = (code: string, number: string) => {
+      return `${code}${number}`;
+    }
+
     const handleCountryCodeChange = (code: string) => {
       setCountryCode(code)
-      onChange?.({ countryCode: code, phoneNumber })
+      onChange?.(formatPhoneNumber(code, phoneNumber))
     }
 
     const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newPhoneNumber = e.target.value
       setPhoneNumber(newPhoneNumber)
-      onChange?.({ countryCode, phoneNumber: newPhoneNumber })
+      onChange?.(formatPhoneNumber(countryCode, newPhoneNumber))
     }
 
     return (

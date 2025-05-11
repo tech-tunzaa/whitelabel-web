@@ -151,7 +151,7 @@ export function UserForm({ onSubmit, onCancel, initialData }: UserFormProps) {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <PhoneInput placeholder="+1 (555) 000-0000" value={field.value} onChange={field.onChange} />
+                        <PhoneInput value={field.value} onChange={field.onChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -53,7 +53,7 @@ export function LoginForm({
             <div className="grid gap-6">
               <UserAuthForm />
             </div>
-            <div className="text-center text-sm">
+            {/* <div className="text-center text-sm">
               Don&apos;t have an account?{" "}
               <Link
                 className="underline underline-offset-4"
@@ -61,7 +61,7 @@ export function LoginForm({
               >
                 Create an Account
               </Link>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>

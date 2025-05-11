@@ -33,7 +33,7 @@ export default function UserAuthForm() {
   const callbackUrl = searchParams.get("callbackUrl");
   const [loading, startTransition] = useTransition();
   const defaultValues = {
-    email: "demo@gmail.com",
+    email: "",
     password: "",
   };
   const form = useForm<UserFormValue>({
