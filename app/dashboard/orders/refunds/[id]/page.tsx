@@ -16,7 +16,7 @@ import { OrderTimeline } from "@/features/orders/components/order-timeline";
 import { CustomerInfo } from "@/features/orders/components/customer-info";
 import { ShippingInfo } from "@/features/orders/components/shipping-info";
 import { PaymentInfo } from "@/features/orders/components/payment-info";
-import { useOrderStore } from "@/features/orders/stores/order-store";
+import { useOrderStore } from "@/features/orders/store";
 
 interface RefundDetailsPageProps {
   params: Promise<{
