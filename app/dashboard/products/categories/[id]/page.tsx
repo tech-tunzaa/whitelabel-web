@@ -103,50 +103,19 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center p-4 border-b">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/dashboard/products/categories")}
-            className="mr-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Loading Category Details</h1>
-        </div>
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
-        </div>
-      </div>
+      <Spinner />
     );
   }
   
-  if (error || !category) {
+  if (error && !loading || !category) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Category Not Found</h1>
-            <p className="text-muted-foreground">
-              {error || "The category you are looking for does not exist."}
-            </p>
-          </div>
-        </div>
-        <div className="p-4">
-          <ErrorCard
-            title="Error Loading Category"
-            error={{
-              message: error || "The category you are looking for does not exist.",
-              status: "error"
-            }}
-            buttonText="Back to Categories"
-            buttonAction={() => router.push("/dashboard/products/categories")}
-            buttonIcon={ArrowLeft}
-          />
-        </div>
-      </div>
+      <ErrorCard
+        title="Error Loading Category"
+        error={error}
+        buttonText="Back to Categories"
+        buttonAction={() => router.push("/dashboard/products/categories")}
+        buttonIcon={ArrowLeft}
+      />
     );
   }
 

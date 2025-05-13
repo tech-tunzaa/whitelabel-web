@@ -237,9 +237,6 @@ export default function ProductsPage() {
             <TabsContent value="draft">
               <ProductTable
                 products={pendingProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}`)
-                }
                 onDelete={openDeleteDialog}
               />
             </TabsContent>

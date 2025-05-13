@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Product } from "../types/product";
+import { useRouter } from "next/navigation";
 
 interface ProductTableProps {
   products: Product[];
@@ -36,9 +37,9 @@ const statusColors = {
 
 export function ProductTable({
   products,
-  onEdit,
   onDelete,
 }: ProductTableProps) {
+  const router = useRouter();
   return (
     <div className="rounded-md border">
       <Table>
@@ -105,6 +106,12 @@ export function ProductTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => router.push(`/dashboard/products/${product.product_id}`)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(product)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit

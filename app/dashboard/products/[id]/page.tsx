@@ -33,7 +33,7 @@ export default function ProductPage({ params }: ProductPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { fetchProduct, deleteProduct } = useProductStore();
-  const { fetchCategories } = useCategoryStore();
+  const { fetchCategories, fetchCategory } = useCategoryStore();
   
   // Define tenant headers
   const tenantHeaders = {
@@ -46,13 +46,23 @@ export default function ProductPage({ params }: ProductPageProps) {
         setLoading(true);
         setError(null);
         
-        // Fetch categories first so we can display category names
-        const categoriesResponse = await fetchCategories(undefined, tenantHeaders);
-        setCategories(categoriesResponse.items || []);
-        
         // Fetch product details
         const productData = await fetchProduct(id, tenantHeaders);
         setProduct(productData);
+        
+        // Fetch only the category associated with this product, if it exists
+        if (productData && productData.category_id) {
+          try {
+            const categoryData = await fetchCategory(productData.category_id, tenantHeaders);
+            if (categoryData) {
+              // Add just this category to the list
+              setCategories([categoryData]);
+            }
+          } catch (categoryErr) {
+            console.error('Error fetching category:', categoryErr);
+            // Don't fail the whole page if just the category fetch fails
+          }
+        }
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Failed to load product details. Please try again.');
@@ -62,11 +72,11 @@ export default function ProductPage({ params }: ProductPageProps) {
     };
     
     loadData();
-  }, [id, fetchProduct, fetchCategories]);
+  }, [id, fetchProduct, fetchCategory]);
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(cat => cat._id === categoryId);
-    return category ? category.name : 'Unknown Category';
+    return category?.name || 'Unknown Category';
   };
 
   const getStockStatusBadge = (status: string) => {
@@ -107,50 +117,19 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center p-4 border-b">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/dashboard/products")}
-            className="mr-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Loading Product Details</h1>
-        </div>
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
-        </div>
-      </div>
+      <Spinner />
     );
   }
   
-  if (error || !product) {
+  if (error && !loading || !product) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Product Not Found</h1>
-            <p className="text-muted-foreground">
-              {error || "The product you are looking for does not exist."}
-            </p>
-          </div>
-        </div>
-        <div className="p-4">
-          <ErrorCard
-            title="Error Loading Product"
-            error={{
-              message: error || "The product you are looking for does not exist.",
-              status: "error"
-            }}
-            buttonText="Back to Products"
-            buttonAction={() => router.push("/dashboard/products")}
-            buttonIcon={ArrowLeft}
-          />
-        </div>
-      </div>
+      <ErrorCard
+        title="Error Loading Product"
+        error={error}
+        buttonText="Back to Products"
+        buttonAction={() => router.push("/dashboard/products")}
+        buttonIcon={ArrowLeft}
+      />
     );
   }
 
