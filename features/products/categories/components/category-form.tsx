@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCategoryStore } from "../store"
 import { CategoryFormData } from "../types"
 import { Switch } from "@/components/ui/switch"
+import { Spinner } from "@/components/ui/spinner"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -23,7 +24,9 @@ const formSchema = z.object({
   parentId: z.string().optional(),
   featured: z.boolean().default(false),
   slug: z.string().optional(),
-})
+}) as z.ZodType<CategoryFormData>
+
+// Using the CategoryFormData interface from the types file
 
 interface CategoryFormProps {
   initialData?: CategoryFormData
@@ -33,9 +36,14 @@ interface CategoryFormProps {
 
 export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormProps) {
   const { categories, fetchCategories } = useCategoryStore()
+  const [isLoading, setIsLoading] = useState(false)
 
+  // Load categories when component mounts
   useEffect(() => {
+    setIsLoading(true)
     fetchCategories()
+      .then(() => setIsLoading(false))
+      .catch(() => setIsLoading(false))
   }, [fetchCategories])
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -49,6 +57,9 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
       slug: initialData?.slug || "",
     },
   })
+  
+  // Keep track of the category being edited
+  const currentCategoryId = initialData?.category_id
 
   // Function to generate slug from name
   const generateSlug = (name: string): string => {
@@ -78,7 +89,17 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
     if (!values.slug && values.name) {
       values.slug = generateSlug(values.name);
     }
-    onSubmit(values);
+    
+    // If this is an edit, preserve the category_id
+    if (initialData?.category_id) {
+      const formData = {
+        ...values,
+        category_id: initialData.category_id
+      };
+      onSubmit(formData);
+    } else {
+      onSubmit(values);
+    }
   }
 
   return (
@@ -157,11 +178,22 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {categories?.map((category) => (
-                    <SelectItem key={category._id} value={category._id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {isLoading ? (
+                    <div className="p-2 flex justify-center">
+                      <Spinner size="sm" />
+                    </div>
+                  ) : (
+                    categories
+                      ?.filter(category => {
+                        // Filter out the current category to prevent circular dependencies
+                        return !currentCategoryId || category._id !== currentCategoryId;
+                      })
+                      .map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
+                          {category.name}
+                        </SelectItem>
+                      ))
+                  )}
                 </SelectContent>
               </Select>
               <FormDescription>

@@ -3,7 +3,10 @@ export interface Category {
   name: string;
   description?: string;
   is_active: boolean;
+  status?: 'active' | 'inactive';
   parentId?: string;
+  featured?: boolean;
+  slug?: string;
   created_at: string;
   updated_at: string;
 }
@@ -32,4 +35,14 @@ export type CategoryAction =
 export interface CategoryError {
   message: string;
   status?: number;
+}
+
+export interface CategoryFormData {
+  name: string;
+  description?: string;
+  status: 'active' | 'inactive';
+  parentId?: string;
+  featured?: boolean;
+  slug?: string;
+  category_id?: string; // Added to track the category being edited
 }

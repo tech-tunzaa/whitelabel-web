@@ -15,6 +15,7 @@ interface ImageUploadProps {
   width?: string
   buttonText?: string
   className?: string
+  readOnly?: boolean
 }
 
 export function ImageUpload({
@@ -27,6 +28,7 @@ export function ImageUpload({
   width = "w-full",
   buttonText = "Upload",
   className = "",
+  readOnly = false,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(value || null)
 
@@ -66,15 +68,21 @@ export function ImageUpload({
             alt={previewAlt}
             className="object-contain w-full h-full"
           />
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2 h-6 w-6"
-            onClick={clearImage}
-          >
-            <X className="h-3 w-3" />
-          </Button>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 h-6 w-6"
+              onClick={clearImage}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      ) : readOnly ? (
+        <div className={`${width} ${height} border border-dashed rounded-md flex items-center justify-center`}>
+          <span className="text-sm text-muted-foreground">No image</span>
         </div>
       ) : (
         <>

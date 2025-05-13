@@ -387,7 +387,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                       value={field.value} 
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      disabled={!isEditable} 
+                      readOnly={!isEditable}
                       ref={field.ref}
                     />
                   </FormControl>
@@ -516,6 +516,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                       onChange={field.onChange}
                       previewAlt="Store Logo Preview"
                       onFileChange={(file) => handleFileUpload(file, 'logoUrl')}
+                      readOnly={!isEditable}
                     />
                   </FormControl>
                   <FormMessage />
@@ -542,6 +543,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         onFileChange={(file) => handleFileUpload(file, 'primaryLogo')}
                         height="h-32"
                         buttonText="Primary Logo"
+                        readOnly={!isEditable}
                       />
                     </FormControl>
                     <FormMessage />
@@ -564,6 +566,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         onFileChange={(file) => handleFileUpload(file, 'secondaryLogo')}
                         height="h-32"
                         buttonText="Secondary Logo"
+                        readOnly={!isEditable}
                       />
                     </FormControl>
                     <FormMessage />
@@ -585,6 +588,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         onFileChange={(file) => handleFileUpload(file, 'iconLogo')}
                         height="h-32"
                         buttonText="Icon Logo"
+                        readOnly={!isEditable}
                       />
                     </FormControl>
                     <FormMessage />
@@ -836,6 +840,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                       }))}
                       onChange={(selected) => field.onChange(selected)}
                       className="w-full"
+                      readOnly={!isEditable}
                     />
                     <FormMessage />
                   </FormItem>
@@ -863,6 +868,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         }))}
                         onChange={(selected) => field.onChange(selected)}
                         className="w-full"
+                        readOnly={!isEditable}
                       />
                       <FormMessage />
                     </FormItem>
@@ -883,6 +889,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         }))}
                         onChange={(selected) => field.onChange(selected)}
                         className="w-full"
+                        readOnly={!isEditable}
                       />
                       <FormMessage />
                     </FormItem>
@@ -915,77 +922,131 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
           </p>
 
           <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="modules.payments"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            {isSuperOwner ? (
+              // Super users can modify module settings through form fields
+              <>
+                <FormField
+                  control={form.control}
+                  name="modules.payments"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Payments Module
+                        </FormLabel>
+                        <FormDescription>
+                          Enables payment processing and transaction management
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="modules.promotions"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Promotions Module
+                        </FormLabel>
+                        <FormDescription>
+                          Enables discounts, coupons, and marketing campaigns
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="modules.inventory"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Inventory Module
+                        </FormLabel>
+                        <FormDescription>
+                          Enables inventory tracking and management
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </>
+            ) : (
+              // Non-super users see read-only displays that aren't part of the form
+              // These are just UI elements, not form fields, so they can't be manipulated via inspection
+              <>
+                <div className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">
+                    <div className="text-base font-medium">
                       Payments Module
-                    </FormLabel>
-                    <FormDescription>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
                       Enables payment processing and transaction management
-                    </FormDescription>
+                    </div>
                   </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={!isSuperOwner}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                  <Switch
+                    checked={form.getValues("modules.payments")}
+                    onCheckedChange={() => {}}
+                    disabled={true}
+                  />
+                </div>
 
-            <FormField
-              control={form.control}
-              name="modules.promotions"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">
+                    <div className="text-base font-medium">
                       Promotions Module
-                    </FormLabel>
-                    <FormDescription>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
                       Enables discounts, coupons, and marketing campaigns
-                    </FormDescription>
+                    </div>
                   </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={!isSuperOwner}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                  <Switch
+                    checked={form.getValues("modules.promotions")}
+                    onCheckedChange={() => {}}
+                    disabled={true}
+                  />
+                </div>
 
-            <FormField
-              control={form.control}
-              name="modules.inventory"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">
+                    <div className="text-base font-medium">
                       Inventory Module
-                    </FormLabel>
-                    <FormDescription>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
                       Enables inventory tracking and management
-                    </FormDescription>
+                    </div>
                   </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={!isSuperOwner}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                  <Switch
+                    checked={form.getValues("modules.inventory")}
+                    onCheckedChange={() => {}}
+                    disabled={true}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </TabsContent>

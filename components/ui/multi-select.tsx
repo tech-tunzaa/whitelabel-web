@@ -19,6 +19,7 @@ interface MultiSelectProps {
   onChange: (selected: string[]) => void
   className?: string
   placeholder?: string
+  readOnly?: boolean
 }
 
 export const MultiSelect = ({
@@ -27,6 +28,7 @@ export const MultiSelect = ({
   onChange,
   className,
   placeholder = "Select options",
+  readOnly = false,
   ...props
 }: MultiSelectProps) => {
   const [open, setOpen] = React.useState(false)
@@ -49,7 +51,7 @@ export const MultiSelect = ({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen} {...props}>
+    <Popover open={!readOnly && open} onOpenChange={readOnly ? () => {} : setOpen} {...props}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -60,7 +62,8 @@ export const MultiSelect = ({
             selectedOptions.length > 0 ? "h-auto" : "h-10",
             className
           )}
-          onClick={() => setOpen(!open)}
+          onClick={() => !readOnly && setOpen(!open)}
+          disabled={readOnly}
         >
           <div className="flex flex-wrap gap-1 items-center">
             {selectedOptions.length > 0 ? (
@@ -71,16 +74,18 @@ export const MultiSelect = ({
                   className="mr-1 mb-1"
                 >
                   {option.label}
-                  <button
-                    type="button"
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleOption(option.value)
-                    }}
-                  >
-                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleOption(option.value)
+                      }}
+                    >
+                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                    </button>
+                  )}
                 </Badge>
               ))
             ) : (

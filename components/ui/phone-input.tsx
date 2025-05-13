@@ -52,10 +52,11 @@ export interface PhoneInputProps
   onChange?: (value: string) => void
   value?: string
   onBlur?: React.FocusEventHandler<HTMLInputElement>
+  readOnly?: boolean
 }
 
 const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ countryCode: initialCountryCode = "+255", onChange, value = "", onBlur, ...props }, ref) => {
+  ({ countryCode: initialCountryCode = "+255", onChange, value = "", onBlur, readOnly, ...props }, ref) => {
     // Parse the initial value if it's a complete phone number with country code
     const parseInitialValue = () => {
       // Handle null, undefined, and non-string values
@@ -106,6 +107,7 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         <Select
           value={countryCode}
           onValueChange={handleCountryCodeChange}
+          disabled={props.disabled || readOnly}
         >
           <SelectTrigger className="w-[105px] rounded-r-none border-r-0">
             <SelectValue placeholder="Code" />
@@ -128,6 +130,7 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
           onChange={handlePhoneNumberChange}
           onBlur={onBlur}
           ref={ref}
+          readOnly={readOnly}
           {...props}
         />
       </div>

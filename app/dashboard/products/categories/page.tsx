@@ -113,7 +113,7 @@ export default function CategoriesPage() {
   
   const handleViewDetails = (category: Category) => {
     // Use the correct ID property (_id) for navigation
-    router.push(`/dashboard/products/categories/${category.category_id}`);
+    router.push(`/dashboard/products/categories/${category._id}`);
   };
 
   const closeFormDialog = () => {
@@ -231,10 +231,14 @@ export default function CategoriesPage() {
             initialData={categoryToEdit ? {
               name: categoryToEdit.name,
               description: categoryToEdit.description,
-              status: categoryToEdit.status,
+              status: categoryToEdit.is_active ? 'active' : 'inactive',
               parentId: categoryToEdit.parentId,
+              category_id: categoryToEdit._id, // Pass the category ID for proper filtering of parent options
+              featured: Boolean(categoryToEdit.featured),
+              slug: categoryToEdit.slug || ''
             } : undefined}
             onSubmit={categoryToEdit ? handleEditCategory : handleAddCategory}
+            onCancel={closeFormDialog}
           />
         </DialogContent>
       </Dialog>

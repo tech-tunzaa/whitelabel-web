@@ -36,26 +36,15 @@ export default function MarketplacePage() {
   }, [currentTenantId, tenantStore]);
 
   const onSubmit = async (data: Record<string, any>) => {
+    console.log("Marketplace form data:", data);
     setIsSubmitting(true);
     try {
-      if (tenant) {
-        // Update existing tenant
-        await tenantStore.updateTenant(currentTenantId, data);
-        toast.success("Marketplace settings updated successfully");
-        setIsEditing(false);
-      } else {
-        // This shouldn't normally happen for marketplace, but just in case
-        const tenantData = {
-          ...data,
-          user_id: session?.user?.id || "13c94ad0-1071-431a-9d59-93eeee25ca0a", // Use session user ID if available
-        };
-
-        await tenantStore.createTenant(tenantData);
-        toast.success("Marketplace created successfully");
-      }
+      await tenantStore.updateTenant(currentTenantId, data);
+      toast.success("Marketplace settings updated successfully");
+      setIsEditing(false);
     } catch (error) {
-      console.error("Error saving marketplace settings:", error);
-      toast.error("Failed to save marketplace settings. Please try again.");
+      console.error("Error updating marketplace settings:", error);
+      toast.error("Failed to update marketplace settings. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -129,9 +118,7 @@ export default function MarketplacePage() {
                 disabled={isSubmitting}
               >
                 {isSubmitting && (
-                  <span className="mr-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </span>
+                  <Spinner size="sm" className="mr-2" />
                 )}
                 Save Changes
               </Button>

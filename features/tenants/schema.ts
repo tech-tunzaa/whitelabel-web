@@ -2,12 +2,12 @@ import { z } from "zod";
 
 // Define schemas
 export const brandingSchema = z.object({
-  logoUrl: z.string().url("Invalid URL").optional(),
+  logoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
   theme: z.object({
     logo: z.object({
-      primary: z.string().url("Invalid URL").optional(),
-      secondary: z.string().url("Invalid URL").optional(),
-      icon: z.string().url("Invalid URL").optional(),
+      primary: z.string().url("Invalid URL").optional().or(z.literal("")),
+      secondary: z.string().url("Invalid URL").optional().or(z.literal("")),
+      icon: z.string().url("Invalid URL").optional().or(z.literal("")),
     }),
     colors: z.object({
       primary: z.string().regex(/^#[0-9A-F]{6}$/i, {
@@ -43,9 +43,8 @@ export const brandingSchema = z.object({
 });
 
 export const modulesSchema = z.object({
-  payments: z.boolean(),
-  promotions: z.boolean(),
-  inventory: z.boolean(),
+  key: z.string().optional(),
+  value: z.boolean().optional(),
 });
 
 export const revenueSchema = z.object({
@@ -74,10 +73,6 @@ export const tenantFormSchema = z.object({
   plan: z.enum(["monthly", "quarterly", "annually"], {
     required_error: "Please select a subscription plan.",
   }),
-  // Make fee required without optional() to ensure validation works
-  fee: z.string().min(1, {
-    message: "Subscription fee is required",
-  }),
   country_code: z.string().min(1, {
     message: "Country is required.",
   }),
@@ -93,8 +88,8 @@ export const tenantFormSchema = z.object({
   vehicle_types: z.array(z.string()).min(1, {
     message: "At least one vehicle type is required.",
   }),
-  // Properly handle empty string as undefined for optional date field
-  trial_ends_at: z.string().transform(val => val === "" ? undefined : val).optional(),
+  fee: z.string().optional().or(z.literal("")),
+  trial_ends_at: z.string().optional().or(z.literal("")),
   is_active: z.boolean().optional(),
   modules: modulesSchema,
   branding: brandingSchema,
