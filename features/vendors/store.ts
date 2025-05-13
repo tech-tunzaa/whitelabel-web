@@ -47,7 +47,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('fetchOne');
         setLoading(true);
-        const response = await apiClient.get<any>(`/marketplace/vendors/${id}`, undefined, headers);
+        const response = await apiClient.get<any>(`/vendors/${id}`, undefined, headers);
         
         console.log('Vendor API Response:', response);
         
@@ -103,7 +103,7 @@ export const useVendorStore = create<VendorStore>()(
         setLoading(true);
         // The API might have a different endpoint for fetching by user ID
         // Adjust this endpoint according to the actual API
-        const response = await apiClient.get<ApiResponse<Vendor>>(`/marketplace/vendors?user_id=${userId}`, undefined, headers);
+        const response = await apiClient.get<ApiResponse<Vendor>>(`/vendors?user_id=${userId}`, undefined, headers);
         if (response.data && response.data.data) {
           // Use type assertion to convert API response to Vendor
           const vendorData = (response.data.data as unknown) as Vendor;
@@ -137,7 +137,7 @@ export const useVendorStore = create<VendorStore>()(
         if (filter.verification_status) params.append('verification_status', filter.verification_status);
         if (filter.is_active !== undefined) params.append('is_active', filter.is_active.toString());
 
-        const response = await apiClient.get<ApiResponse<VendorListResponse>>(`/marketplace/vendors?${params.toString()}`, undefined, headers);
+        const response = await apiClient.get<ApiResponse<VendorListResponse>>(`/vendors?${params.toString()}`, undefined, headers);
         
         // Log the response structure to debug
         console.log('API Response:', response);
@@ -195,7 +195,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('create');
         setLoading(true);
-        const response = await apiClient.post<ApiResponse<Vendor>>('/marketplace/vendors', data, headers);
+        const response = await apiClient.post<ApiResponse<Vendor>>('/vendors', data, headers);
         if (response.data && response.data.data) {
           const vendor = response.data.data as Vendor;
           setLoading(false);
@@ -228,7 +228,7 @@ export const useVendorStore = create<VendorStore>()(
         delete vendorData.store;
 
         // Update vendor data
-        const response = await apiClient.put<ApiResponse<Vendor>>(`/marketplace/vendors/${id}`, vendorData, headers);
+        const response = await apiClient.put<ApiResponse<Vendor>>(`/vendors/${id}`, vendorData, headers);
         if (response.data && response.data.data) {
           const vendorResponse: Vendor = response.data.data as Vendor;
 
@@ -264,7 +264,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('updateStatus');
         setLoading(true);
-        await apiClient.put(`/marketplace/vendors/${id}/status`, { status }, headers);
+        await apiClient.put(`/vendors/${id}/status`, { status }, headers);
         setLoading(false);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to update vendor status';
@@ -285,7 +285,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('uploadDocuments');
         setLoading(true);
-        await apiClient.post(`/marketplace/vendors/${id}/documents`, { documents }, headers);
+        await apiClient.post(`/vendors/${id}/documents`, { documents }, headers);
         setLoading(false);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to upload documents';
@@ -307,7 +307,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('fetchStore');
         setLoading(true);
-        const response = await apiClient.get<ApiResponse<Store>>(`/marketplace/stores/${id}`, undefined, headers);
+        const response = await apiClient.get<ApiResponse<Store>>(`/stores/${id}`, undefined, headers);
         if (response.data && response.data.data) {
           const store = response.data.data as Store;
           setLoading(false);
@@ -333,7 +333,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('createStore');
         setLoading(true);
-        const response = await apiClient.post<ApiResponse<Store>>(`/marketplace/vendors/${vendorId}/store`, data, headers);
+        const response = await apiClient.post<ApiResponse<Store>>(`/vendors/${vendorId}/store`, data, headers);
         if (response.data && response.data.data) {
           const store = response.data.data as Store;
           setLoading(false);
@@ -359,7 +359,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('updateStoreBranding');
         setLoading(true);
-        const response = await apiClient.put<ApiResponse<Store>>(`/marketplace/stores/${storeId}/branding`, data, headers);
+        const response = await apiClient.put<ApiResponse<Store>>(`/stores/${storeId}/branding`, data, headers);
         if (response.data && response.data.data) {
           const store = response.data.data as Store;
           setLoading(false);
@@ -385,7 +385,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('addStoreBanner');
         setLoading(true);
-        await apiClient.post(`/marketplace/stores/${storeId}/banners`, data, headers);
+        await apiClient.post(`/stores/${storeId}/banners`, data, headers);
         setLoading(false);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to add store banner';
@@ -406,7 +406,7 @@ export const useVendorStore = create<VendorStore>()(
       try {
         setActiveAction('deleteStoreBanner');
         setLoading(true);
-        await apiClient.delete(`/marketplace/stores/${storeId}/banners/${bannerId}`, undefined, headers);
+        await apiClient.delete(`/stores/${storeId}/banners/${bannerId}`, undefined, headers);
         setLoading(false);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to delete store banner';
