@@ -66,7 +66,7 @@ const data = {
       roles: ["super_owner"],
     },
     {
-      title: "Marketplace",
+      title: "Marketplace Settings",
       url: "/dashboard/marketplace",
       icon: IconFolder,
       roles: ["super_owner", "admin"],

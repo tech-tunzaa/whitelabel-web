@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,24 +13,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
 
-import { useCategoryStore } from "@/features/products/categories/store/category-store";
-import { Category, CategoryFormData } from "@/features/products/categories/types/category";
+import { useCategoryStore } from "@/features/products/categories/store";
+import { Category } from "@/features/products/categories/types";
 import { CategoryTable } from "@/features/products/categories/components/category-table";
 import { CategoryForm } from "@/features/products/categories/components/category-form";
 
 export default function CategoriesPage() {
-  const { categories, loading, error, fetchCategories, addCategory, updateCategory, deleteCategory } =
-    useCategoryStore();
+  const { loading, storeError, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Define tenant headers
+  const tenantHeaders = {
+    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+  };
+  
+  const loadCategories = async () => {
+    try {
+      setError(null);
+      const response = await fetchCategories(undefined, tenantHeaders);
+      setCategories(response.items || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('Failed to load categories. Please try again.');
+    }
+  };
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    loadCategories();
+  }, []);
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -39,32 +58,35 @@ export default function CategoriesPage() {
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
     try {
-      await deleteCategory(categoryToDelete._id);
+      await deleteCategory(categoryToDelete._id, tenantHeaders);
       setIsDeleteDialogOpen(false);
       setCategoryToDelete(null);
       toast.success("Category deleted successfully");
+      loadCategories(); // Refresh the list
     } catch (error) {
       toast.error("Failed to delete category");
     }
   };
 
-  const handleAddCategory = async (formData: CategoryFormData) => {
+  const handleAddCategory = async (formData: any) => {
     try {
-      await addCategory(formData);
+      await createCategory(formData, tenantHeaders);
       setIsFormDialogOpen(false);
       toast.success("Category added successfully");
+      loadCategories(); // Refresh the list
     } catch (error) {
       toast.error("Failed to add category");
     }
   };
 
-  const handleEditCategory = async (formData: CategoryFormData) => {
+  const handleEditCategory = async (formData: any) => {
     if (!categoryToEdit) return;
     try {
-      await updateCategory(categoryToEdit._id, formData);
+      await updateCategory(categoryToEdit._id, formData, tenantHeaders);
       setIsFormDialogOpen(false);
       setCategoryToEdit(null);
       toast.success("Category updated successfully");
+      loadCategories(); // Refresh the list
     } catch (error) {
       toast.error("Failed to update category");
     }
@@ -85,11 +107,38 @@ export default function CategoriesPage() {
     setIsFormDialogOpen(false);
   };
 
+  if (loading) {
+    return (
+      <Spinner />
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-destructive">Error: {error}</p>
-      </div>
+      <>
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Categories</h1>
+            <p className="text-muted-foreground">
+              Manage your product categories
+            </p>
+          </div>
+          <Button onClick={() => openFormDialog()}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+        </div>
+        <ErrorCard
+          title="Error Loading Categories"
+          error={{
+            message: error,
+            status: "error"
+          }}
+          buttonText="Retry"
+          buttonAction={() => loadCategories()}
+          buttonIcon={RefreshCw}
+        />
+      </>
     );
   }
 
@@ -122,11 +171,28 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <CategoryTable
-          categories={filteredCategories}
-          onEdit={openFormDialog}
-          onDelete={openDeleteDialog}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Spinner size="lg" />
+          </div>
+        ) : error ? (
+          <ErrorCard
+            title="Error Loading Categories"
+            error={{
+              message: error,
+              status: "error"
+            }}
+            buttonText="Retry"
+            buttonAction={() => loadCategories()}
+            buttonIcon={RefreshCw}
+          />
+        ) : (
+          <CategoryTable
+            categories={filteredCategories}
+            onEdit={openFormDialog}
+            onDelete={openDeleteDialog}
+          />
+        )}
       </div>
 
       {/* Add/Edit Category Dialog */}

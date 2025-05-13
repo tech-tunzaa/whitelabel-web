@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useDeliveryPartnerStore } from "@/features/delivery-partners/stores/delivery-partner-store"
+import { useDeliveryPartnerStore } from "@/features/delivery-partners/store"
 import { DeliveryPartnerForm } from "@/features/delivery-partners/components/delivery-partner-form"
-import { DeliveryPartner } from "@/features/delivery-partners/types/delivery-partner"
+import { DeliveryPartner } from "@/features/delivery-partners/types"
 
 export default function AddDeliveryPartnerPage() {
     const router = useRouter()

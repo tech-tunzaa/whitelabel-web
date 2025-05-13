@@ -37,12 +37,10 @@ export function TenantContent() {
     const loadTenants = async () => {
       try {
         await fetchTenants();
-        setDataEverLoaded(true); // Mark that we've successfully loaded data
+        setDataEverLoaded(true);
       } catch (error) {
-        // Error is already handled by store
-        // Only show error if we've never loaded data before
         if (!dataEverLoaded) {
-          console.error('Failed to fetch tenants:', error);
+          // console.error('Failed to fetch tenants:', error);
         }
       }
     };

@@ -24,9 +24,9 @@ import { ColorPicker } from "@/components/ui/color-picker"
 import { Spinner } from "@/components/ui/spinner"
 import { ErrorCard } from "@/components/ui/error-card"
 
-import { countryCodes, currencies, languages, documentTypes, vehicleTypes } from "../data/localization"
+import { countries, currencies, languages, documentTypes, vehicleTypes } from "@/features/settings/data/localization"
 import { mockBillingHistory } from "../data/billing"
-import { tenantFormSchema, brandingSchema, modulesSchema, revenueSchema } from "../schema"
+import { tenantFormSchema } from "../schema"
 import { TenantFormValues, BillingHistoryItem } from "../types"
 
 // Default tenant values that match the API structure
@@ -778,7 +778,7 @@ export function TenantForm({ onSubmit, onCancel, initialData, isEditable = true,
                         <SelectValue placeholder="Select a country code" />
                       </SelectTrigger>
                       <SelectContent>
-                        {countryCodes.map((code) => (
+                        {countries.map((code) => (
                           <SelectItem
                             key={code.value}
                             value={code.value}

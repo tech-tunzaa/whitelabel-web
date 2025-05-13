@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { use } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
-import { useVendorStore } from "@/features/vendors/stores/vendor-store";
+import { useVendorStore } from "@/features/vendors/store";
+import { toast } from "sonner";
 
 interface VendorEditPageProps {
   params: Promise<{
@@ -17,31 +20,56 @@ interface VendorEditPageProps {
 
 export default function VendorEditPage({ params }: VendorEditPageProps) {
   const router = useRouter();
-  const { vendors, updateVendor } = useVendorStore();
-  const { id } = use(params);
-  const vendor = vendors.find((v) => v.id === parseInt(id));
+  const unwrappedParams = use(params);
+  const id = unwrappedParams.id;
+  const { vendor, loading, storeError, fetchVendor, updateVendor } = useVendorStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!vendor) {
+  // Define tenant headers
+  const tenantHeaders = {
+    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+  };
+
+  // Use ref to prevent duplicate API calls
+  const fetchRequestRef = useRef(false);
+  
+  useEffect(() => {
+    // Only fetch if not already fetched
+    if (!fetchRequestRef.current) {
+      fetchRequestRef.current = true;
+      fetchVendor(id, tenantHeaders);
+    }
+  }, [id, fetchVendor]);
+
+  const handleUpdateVendor = async (data: any) => {
+    try {
+      setIsSubmitting(true);
+      await updateVendor(id, data, tenantHeaders);
+      toast.success("Vendor updated successfully");
+      router.push(`/dashboard/vendors/${id}`);
+    } catch (error) {
+      console.error("Failed to update vendor:", error);
+      toast.error("Failed to update vendor");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Vendor Not Found</h1>
-            <p className="text-muted-foreground">
-              The vendor you are trying to edit does not exist.
-            </p>
-          </div>
-        </div>
-        <div className="p-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/vendors")}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Vendors
-          </Button>
-        </div>
-      </div>
+      <Spinner />
+    );
+  }
+
+  if (!vendor && !loading && storeError) {
+    return (
+      <ErrorCard 
+        title="Failed to load vendor"
+        error={storeError}
+        buttonText="Back to Vendors"
+        buttonAction={() => router.push("/dashboard/vendors")}
+        buttonIcon={ArrowLeft}
+      />
     );
   }
 
@@ -60,7 +88,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Edit Vendor: {vendor.businessName}
+              Edit Vendor: {vendor.business_name}
             </h1>
             <p className="text-muted-foreground">
               Update vendor information and settings
@@ -72,13 +100,8 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
       <div className="flex-1 p-4 overflow-auto">
         <VendorForm 
           initialData={vendor} 
-          onSubmit={(data) => {
-            updateVendor({
-              ...vendor,
-              ...data,
-            });
-            router.push("/dashboard/vendors");
-          }} 
+          onSubmit={handleUpdateVendor}
+          isSubmitting={isSubmitting}
         />
       </div>
     </div>

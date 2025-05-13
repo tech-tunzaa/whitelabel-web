@@ -19,7 +19,7 @@ export const ColorPicker = ({
   onChange,
   disabled = false,
   className,
-  presetColors = ["#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF", "#4285F4", "#34A853", "#FBBC05", "#EA4335"]
+  presetColors = ["#3182CE", "#E2E8F0", "#ED8936", "#000000", "#FFFFFF", "#4285F4", "#34A853", "#FBBC05", "#EA4335"]
 }: ColorPickerProps) => {
   const [value, setValue] = React.useState(color)
 

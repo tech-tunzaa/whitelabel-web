@@ -1,11 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { Check, Edit, Eye, MoreHorizontal, XCircle } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -21,90 +25,101 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react"
-import { Vendor } from "../types/vendor"
-import { useRouter } from "next/navigation";
+} from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
+
+import { VendorListResponse } from "../types";
 
 interface VendorTableProps {
-  vendors: Vendor[]
-  onApproveVendor: (vendorId: number, commissionPlan: string, kycVerified: boolean) => void
-  onRejectVendor: (vendorId: number) => void
+  vendors: VendorListResponse["items"];
+  onVendorClick: (vendor: VendorListResponse["items"][0]) => void;
+  onStatusChange?: (vendorId: string, status: string) => Promise<void>;
 }
 
-export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: VendorTableProps) {
-  const [searchQuery, setSearchQuery] = useState("")
+export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTableProps) {
   const router = useRouter();
-  const isMobile = useIsMobile()
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // Filter vendors by status - directly using API response fields
+  const pendingVendors = vendors.filter((vendor) => vendor.verification_status === "pending");
+  const activeVendors = vendors.filter((vendor) => vendor.verification_status === "approved" && vendor.is_active);
+  const rejectedVendors = vendors.filter((vendor) => vendor.verification_status === "rejected");
 
-  const filteredVendors = vendors.filter(
-    (vendor) =>
-      vendor.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vendor.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Helper function to handle status change with loading state
+  const handleStatusChange = async (vendorId: string | undefined, newStatus: string) => {
+    if (!onStatusChange || !vendorId) return; // Skip if no ID or handler
+    try {
+      setProcessingId(vendorId);
+      await onStatusChange(vendorId, newStatus);
+    } catch (error) {
+      console.error("Error changing vendor status:", error);
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
-  const pendingVendors = filteredVendors.filter((vendor) => vendor.status === "pending")
-  const activeVendors = filteredVendors.filter((vendor) => vendor.status === "active")
-  const rejectedVendors = filteredVendors.filter((vendor) => vendor.status === "rejected")
+  // Helper function to get badge variant based on status
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'default';
+      case 'pending':
+        return 'secondary';
+      case 'rejected':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+  
+  // Helper to get displayed status text
+  const getStatusDisplayText = (vendor: Vendor) => {
+    if (vendor.verification_status === 'approved' && vendor.is_active) {
+      return 'Active';
+    } else if (vendor.verification_status === 'approved' && !vendor.is_active) {
+      return 'Inactive';
+    } else {
+      return vendor.verification_status?.charAt(0).toUpperCase() + vendor.verification_status?.slice(1) || 'Pending';
+    }
+  };
 
+  // Format date helper with consistent formatting to prevent hydration errors
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "N/A";
+    
+    try {
+      // Check if the date is in DD/MM/YYYY format
+      if (dateString.includes('/')) {
+        const [day, month, year] = dateString.split('/');
+        return format(new Date(`${year}-${month}-${day}`), "MMM d, yyyy");
+      }
+      
+      return format(new Date(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return "Invalid date";
+    }
+  };
+  
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search vendors..."
-            className="pl-8 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <Filter className="h-3.5 w-3.5" />
-                <span>Filter</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <span className="mr-2">Status</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <span className="mr-2">Category</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <span className="mr-2">Registration Date</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="all">
             All Vendors
             <Badge variant="secondary" className="ml-2">
-              {filteredVendors.length}
+              {vendors.length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="pending">
-            Pending Applications
+            Pending
             <Badge variant="secondary" className="ml-2">
               {pendingVendors.length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected
+          <TabsTrigger value="active">
+            Active
             <Badge variant="secondary" className="ml-2">
-              {rejectedVendors.length}
+              {activeVendors.length}
             </Badge>
           </TabsTrigger>
         </TabsList>
@@ -124,92 +139,111 @@ export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: Vendor
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredVendors.map((vendor) => (
-                    <TableRow
-                      key={vendor.id}
-                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.businessName} />
-                            <AvatarFallback>{vendor.businessName.substring(0, 2)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{vendor.businessName}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.category}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            vendor.status === "active"
-                              ? "success"
-                              : vendor.status === "pending"
-                              ? "warning"
-                              : "destructive"
-                          }
-                        >
-                          {vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.registrationDate}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(`/dashboard/vendors/${vendor.id}/edit`)
-                              }}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-                            {vendor.status === "pending" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(`/dashboard/vendors/${vendor.id}/approve`)
-                                  }}
-                                >
-                                  Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onRejectVendor(vendor.id)
-                                  }}
-                                >
-                                  Reject
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {vendor.status === "active" && (
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/dashboard/vendors/${vendor.id}/suspend`) }
-                              >
-                                Suspend
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                  {vendors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        No vendors found
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    vendors.map((vendor, index) => (
+                      <TableRow
+                        key={vendor.vendor_id || `vendor-${index}`}
+                        onClick={() => onVendorClick(vendor)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={vendor.store?.branding?.logo_url || "/placeholder.svg"} alt={vendor.business_name} />
+                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div>{vendor.business_name}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">{vendor.contact_email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.contact_email}</TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.store?.store_name || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(vendor.verification_status || 'pending')}>
+                            {getStatusDisplayText(vendor)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/dashboard/vendors/${vendor.vendor_id}`);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/dashboard/vendors/${vendor.vendor_id}/edit`);
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+                              {onStatusChange && (
+                                <>
+                                  {(!vendor.is_active || vendor.verification_status !== "approved") && (
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStatusChange(vendor.vendor_id, "active");
+                                      }}
+                                      disabled={processingId === vendor.vendor_id}
+                                    >
+                                      {processingId === vendor.vendor_id ? (
+                                        <Spinner size="sm" className="mr-2" />
+                                      ) : (
+                                        <Check className="h-4 w-4 mr-2" />
+                                      )}
+                                      Activate
+                                    </DropdownMenuItem>
+                                  )}
+                                  {vendor.verification_status !== "pending" && (
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStatusChange(vendor.vendor_id, "pending");
+                                      }}
+                                      disabled={processingId === vendor.vendor_id}
+                                    >
+                                      {processingId === vendor.vendor_id ? (
+                                        <Spinner size="sm" className="mr-2" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                      )}
+                                      Deactivate
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}                  
                 </TableBody>
               </Table>
             </CardContent>
@@ -230,59 +264,63 @@ export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: Vendor
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingVendors.map((vendor) => (
-                    <TableRow
-                      key={vendor.id}
-                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.businessName} />
-                            <AvatarFallback>{vendor.businessName.substring(0, 2)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{vendor.businessName}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.category}</TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.registrationDate}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onRejectVendor(vendor.id)
-                            }}
-                          >
-                            <X className="h-4 w-4 mr-1" /> Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onVendorClick(vendor)
-                            }}
-                          >
-                            <Check className="h-4 w-4 mr-1" /> Review
-                          </Button>
-                        </div>
+                  {pendingVendors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                        No pending vendors found
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    pendingVendors.map((vendor, index) => (
+                      <TableRow
+                        key={vendor.vendor_id || `pending-${index}`}
+                        onClick={() => onVendorClick(vendor)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.business_name} />
+                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div>{vendor.business_name}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.category || 'N/A'}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          {onStatusChange && (
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(vendor.vendor_id, "active");
+                              }}
+                              disabled={processingId === vendor.vendor_id}
+                            >
+                              {processingId === vendor.vendor_id ? (
+                                <Spinner size="sm" className="mr-2" />
+                              ) : (
+                                <Check className="h-4 w-4 mr-2" />
+                              )}
+                              Activate
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="rejected" className="space-y-4">
+        <TabsContent value="active" className="space-y-4">
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -296,40 +334,57 @@ export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: Vendor
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rejectedVendors.map((vendor) => (
-                    <TableRow
-                      key={vendor.id}
-                      onClick={() => router.push(`/dashboard/vendors/${vendor.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.businessName} />
-                            <AvatarFallback>{vendor.businessName.substring(0, 2)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{vendor.businessName}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.category}</TableCell>
-                      <TableCell className="hidden md:table-cell">{vendor.registrationDate}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onApproveVendor(vendor.id, "standard", true)
-                          }}
-                        >
-                          <Check className="h-4 w-4 mr-1" /> Approve
-                        </Button>
+                  {activeVendors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                        No active vendors found
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    activeVendors.map((vendor, index) => (
+                      <TableRow
+                        key={vendor.vendor_id || `active-${index}`}
+                        onClick={() => onVendorClick(vendor)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.business_name} />
+                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div>{vendor.business_name}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
+                        <TableCell className="hidden md:table-cell">{vendor.category || 'N/A'}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          {onStatusChange && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(vendor.id, "pending");
+                              }}
+                              disabled={processingId === vendor.id}
+                            >
+                              {processingId === vendor.id ? (
+                                <Spinner size="sm" className="mr-2" />
+                              ) : (
+                                <XCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Deactivate
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -337,5 +392,5 @@ export function VendorTable({ vendors, onApproveVendor, onRejectVendor }: Vendor
         </TabsContent>
       </Tabs>
     </div>
-  )
-} 
+  );
+}

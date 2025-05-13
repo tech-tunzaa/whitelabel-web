@@ -71,17 +71,17 @@ api.interceptors.response.use(undefined, async (err) => {
 });
 
 export const apiClient = {
-  get: <T>(url: string, params?: any) => {
-    return api.get<ApiResponse<T>>(url, { params });
+  get: <T>(url: string, params?: any, headers?: Record<string, string>) => {
+    return api.get<ApiResponse<T>>(url, { params, headers });
   },
-  post: <T>(url: string, data?: any) => {
-    return api.post<ApiResponse<T>>(url, data);
+  post: <T>(url: string, data?: any, headers?: Record<string, string>) => {
+    return api.post<ApiResponse<T>>(url, data, { headers });
   },
-  put: <T>(url: string, data?: any) => {
-    return api.put<ApiResponse<T>>(url, data);
+  put: <T>(url: string, data?: any, headers?: Record<string, string>) => {
+    return api.put<ApiResponse<T>>(url, data, { headers });
   },
-  delete: <T>(url: string, data?: any) => {
-    return api.delete<ApiResponse<T>>(url, { data });
+  delete: <T>(url: string, data?: any, headers?: Record<string, string>) => {
+    return api.delete<ApiResponse<T>>(url, { data, headers });
   },
 };
 

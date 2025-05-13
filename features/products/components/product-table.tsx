@@ -91,9 +91,10 @@ export function ProductTable({
                 </Badge>
               </TableCell>
               <TableCell>
-                {formatDistanceToNow(new Date(product.createdAt), {
+                {product.createdAt ? formatDistanceToNow(new Date(product.createdAt), {
                   addSuffix: true,
-                })}
+                  locale: require('date-fns/locale/en-US')
+                }) : 'N/A'}
               </TableCell>
               <TableCell>
                 <DropdownMenu>

@@ -1,0 +1,236 @@
+import { create } from 'zustand';
+import { ApiResponse } from '@/features/vendors/types';
+import { apiClient } from '@/lib/api/client';
+import { Category, CategoryFilter, CategoryListResponse, CategoryAction, CategoryError } from './types';
+
+// Extended API response type that includes items property
+interface CategoryApiResponse extends ApiResponse<any> {
+  items?: Category[];
+  total?: number;
+  skip?: number;
+  limit?: number;
+}
+
+interface CategoryStore {
+  categories: any[];
+  category: any | null;
+  loading: boolean;
+  storeError: CategoryError | null;
+  activeAction: CategoryAction | null;
+  setActiveAction: (action: CategoryAction | null) => void;
+  setLoading: (loading: boolean) => void;
+  setStoreError: (error: CategoryError | null) => void;
+  setCategory: (category: any | null) => void;
+  setCategories: (categories: any[]) => void;
+  fetchCategory: (id: string, headers?: Record<string, string>) => Promise<any>;
+  fetchCategories: (filter?: CategoryFilter, headers?: Record<string, string>) => Promise<any>;
+  createCategory: (data: any, headers?: Record<string, string>) => Promise<any>;
+  updateCategory: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
+  deleteCategory: (id: string, headers?: Record<string, string>) => Promise<any>;
+}
+
+export const useCategoryStore = create<CategoryStore>()(
+  (set, get) => ({
+    categories: [],
+    category: null,
+    loading: true,
+    storeError: null,
+    activeAction: null,
+
+    setActiveAction: (action) => set({ activeAction: action }),
+    setLoading: (loading) => set({ loading }),
+    setStoreError: (error) => set({ storeError: error }),
+    setCategory: (category: Category | null) => set({ category }),
+    setCategories: (categories: Category[]) => set({ categories }),
+
+    fetchCategory: async (id: string, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError, setCategory } = get();
+      try {
+        setActiveAction('fetchOne');
+        setLoading(true);
+        const response = await apiClient.get<any>(`/categories/${id}/`, undefined, headers);
+        
+        // Try multiple possible response structures
+        let categoryData = null;
+        
+        // Option 1: response.data.data structure
+        if (response.data && response.data.data) {
+          categoryData = response.data.data;
+        } 
+        // Option 2: response.data structure (direct)
+        else if (response.data) {
+          categoryData = response.data;
+        }
+        
+        // Check if we found category data
+        if (categoryData) {
+          // Use data as-is
+          setCategory(categoryData);
+          setLoading(false);
+          return categoryData;
+        }
+        
+        setLoading(false);
+        throw new Error('Category data not found or in unexpected format');
+      } catch (error: unknown) {
+        console.error('Error fetching category:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch category';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setCategory(null);
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    fetchCategories: async (filter: CategoryFilter = {}, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError, setCategories } = get();
+      try {
+        setActiveAction('fetchList');
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filter.skip) params.append('skip', filter.skip.toString());
+        if (filter.limit) params.append('limit', filter.limit.toString());
+        if (filter.search) params.append('search', filter.search);
+        if (filter.status) params.append('status', filter.status);
+
+        const response = await apiClient.get<CategoryApiResponse>(`/categories/?${params.toString()}`, undefined, headers);
+        
+        // Check if response has a nested data property
+        if (response.data && response.data.data) {
+          // Use the nested data property
+          const categoryData = response.data.data as CategoryApiResponse;
+          // Update state with the items directly from the API
+          const items = Array.isArray(categoryData.items) ? categoryData.items : 
+                       Array.isArray(categoryData) ? categoryData : [];
+          setCategories(items);
+          setLoading(false);
+          return { ...categoryData, items };
+        } else if (response.data) {
+          // API might be returning data directly without nesting
+          const categoryData = response.data as CategoryApiResponse;
+          const items = Array.isArray(categoryData.items) ? categoryData.items : 
+                       Array.isArray(categoryData) ? categoryData : [];
+          setCategories(items);
+          setLoading(false);
+          return { ...categoryData, items };
+        }
+        
+        // Return empty result if no data
+        const emptyResult = {
+          items: [],
+          total: 0,
+          skip: filter.skip || 0,
+          limit: filter.limit || 10
+        };
+        
+        setLoading(false);
+        return emptyResult;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch categories';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    createCategory: async (data: any, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('create');
+        setLoading(true);
+        
+        const response = await apiClient.post<ApiResponse<any>>('/categories/', data, headers);
+        
+        let categoryData = null;
+        
+        if (response.data && response.data.data) {
+          categoryData = response.data.data;
+        } else if (response.data) {
+          categoryData = response.data;
+        }
+        
+        setLoading(false);
+        return categoryData;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create category';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    updateCategory: async (id: string, data: any, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('update');
+        setLoading(true);
+        
+        const response = await apiClient.put<ApiResponse<any>>(`/categories/${id}/`, data, headers);
+        
+        let categoryData = null;
+        
+        if (response.data && response.data.data) {
+          categoryData = response.data.data;
+        } else if (response.data) {
+          categoryData = response.data;
+        }
+        
+        setLoading(false);
+        return categoryData;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    deleteCategory: async (id: string, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('delete');
+        setLoading(true);
+        
+        const response = await apiClient.delete<ApiResponse<any>>(`/categories/${id}/`, undefined, headers);
+        
+        setLoading(false);
+        return response.data;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete category';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+  })
+);

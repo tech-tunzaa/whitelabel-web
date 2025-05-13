@@ -4,13 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Check,
-  Edit,
-  MoreHorizontal,
   Plus,
   Search,
-  Trash2,
-  X,
+  RefreshCw
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,26 +27,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
 
-import { useProductStore } from "@/features/products/store/product-store";
-import { useCategoryStore } from "@/features/products/categories/store/category-store";
-import { Product } from "@/features/products/types/product";
+import { useProductStore } from "@/features/products/store";
+import { useCategoryStore } from "@/features/products/categories/store";
+import { Product } from "@/features/products/types";
 import { ProductTable } from "@/features/products/components/product-table";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { products, loading: productsLoading, error: productsError, fetchProducts, deleteProduct } = useProductStore();
-  const { categories, fetchCategories } = useCategoryStore();
+  const { loading, storeError, fetchProducts, deleteProduct } = useProductStore();
+  const { fetchCategories } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // Define tenant headers
+  const tenantHeaders = {
+    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+  };
+
+  const loadProducts = async () => {
+    try {
+      setError(null);
+      const response = await fetchProducts(undefined, tenantHeaders);
+      setProducts(response.items || []);
+      
+      const categoryResponse = await fetchCategories(undefined, tenantHeaders);
+      setCategories(categoryResponse.items || []);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError('Failed to load products. Please try again.');
+    }
+  };
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, [fetchProducts, fetchCategories]);
+    loadProducts();
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -79,10 +98,11 @@ export default function ProductsPage() {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     try {
-      await deleteProduct(productToDelete._id);
+      await deleteProduct(productToDelete._id, tenantHeaders);
       setIsDeleteDialogOpen(false);
       setProductToDelete(null);
       toast.success("Product deleted successfully");
+      loadProducts(); // Refresh the list
     } catch (error) {
       toast.error("Failed to delete product");
     }
@@ -93,11 +113,38 @@ export default function ProductsPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  if (productsError) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-destructive">Error: {productsError}</p>
-      </div>
+      <Spinner />
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+            <p className="text-muted-foreground">
+              Manage your marketplace products
+            </p>
+          </div>
+          <Button onClick={() => router.push("/dashboard/products/add")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
+        <ErrorCard
+          title="Error Loading Products"
+          error={{
+            message: error,
+            status: "error"
+          }}
+          buttonText="Retry"
+          buttonAction={() => loadProducts()}
+          buttonIcon={RefreshCw}
+        />
+      </>
     );
   }
 
@@ -169,33 +216,33 @@ export default function ProductsPage() {
               </Badge>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="all">
-            <ProductTable
-              products={filteredProducts}
-              onEdit={(product) =>
-                router.push(`/dashboard/products/${product._id}/edit`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
-          <TabsContent value="active">
-            <ProductTable
-              products={activeProducts}
-              onEdit={(product) =>
-                router.push(`/dashboard/products/${product._id}/edit`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
-          <TabsContent value="draft">
-            <ProductTable
-              products={pendingProducts}
-              onEdit={(product) =>
-                router.push(`/dashboard/products/${product._id}/edit`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
+            <TabsContent value="all">
+              <ProductTable
+                products={filteredProducts}
+                onEdit={(product) =>
+                  router.push(`/dashboard/products/${product._id}`)
+                }
+                onDelete={openDeleteDialog}
+              />
+            </TabsContent>
+            <TabsContent value="active">
+              <ProductTable
+                products={activeProducts}
+                onEdit={(product) =>
+                  router.push(`/dashboard/products/${product._id}`)
+                }
+                onDelete={openDeleteDialog}
+              />
+            </TabsContent>
+            <TabsContent value="draft">
+              <ProductTable
+                products={pendingProducts}
+                onEdit={(product) =>
+                  router.push(`/dashboard/products/${product._id}`)
+                }
+                onDelete={openDeleteDialog}
+              />
+            </TabsContent>
         </Tabs>
       </div>
 

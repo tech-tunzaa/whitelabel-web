@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { ErrorCard } from "@/components/ui/error-card";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
 import { useTenantStore } from "@/features/tenants/store";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function MarketplacePage() {
   const router = useRouter();
@@ -25,14 +26,14 @@ export default function MarketplacePage() {
   const currentTenantId = "4c56d0c3-55d9-495b-ae26-0d922d430a42";
 
   useEffect(() => {
-    // Only fetch once when the component mounts and if we don't have the tenant already
-    if (!hasFetchedRef.current && !loading) {
+    // Only fetch once when the component mounts
+    if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
       tenantStore.fetchTenant(currentTenantId).catch(error => {
         console.error("Error fetching marketplace tenant:", error);
       });
     }
-  }, [currentTenantId, tenantStore, loading]);
+  }, [currentTenantId, tenantStore]);
 
   const onSubmit = async (data: Record<string, any>) => {
     setIsSubmitting(true);
@@ -80,7 +81,28 @@ export default function MarketplacePage() {
     );
   }
 
-  return tenant ? (
+  if (loading) {
+    return (
+      <Spinner />
+    );
+  }
+
+  if (!tenant && !loading && storeError) {
+    return (
+      <ErrorCard
+        title="Error Loading Marketplace"
+        error={{
+          message: storeError?.message || "Failed to load marketplace settings",
+          status: storeError?.status ? String(storeError.status) : "error"
+        }}
+        buttonText="Back to Dashboard"
+        buttonAction={() => router.push("/dashboard")}
+        buttonIcon={ArrowLeft}
+      />
+    );
+  }
+
+  return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
@@ -144,5 +166,5 @@ export default function MarketplacePage() {
         )}
       </div>
     </div>
-  ) : null;
+  );
 }
