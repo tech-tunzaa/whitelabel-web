@@ -10,8 +10,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useCategoryStore } from "../store/category-store"
-import { CategoryFormData } from "../types/category"
+import { useCategoryStore } from "../store"
+import { CategoryFormData } from "../types"
 import { Switch } from "@/components/ui/switch"
 
 const formSchema = z.object({
@@ -22,6 +22,7 @@ const formSchema = z.object({
   status: z.enum(["active", "inactive"]),
   parentId: z.string().optional(),
   featured: z.boolean().default(false),
+  slug: z.string().optional(),
 })
 
 interface CategoryFormProps {
@@ -44,11 +45,40 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
       description: initialData?.description || "",
       status: initialData?.status || "active",
       parentId: initialData?.parentId || "none",
+      featured: initialData?.featured || false,
+      slug: initialData?.slug || "",
     },
   })
 
+  // Function to generate slug from name
+  const generateSlug = (name: string): string => {
+    return name
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')       // Replace spaces with -
+      .replace(/&/g, '-and-')     // Replace & with 'and'
+      .replace(/[^\w\-]+/g, '')   // Remove all non-word characters
+      .replace(/\-\-+/g, '-');     // Replace multiple - with single -
+  };
+
+  // Watch the name field to auto-generate slug
+  const watchName = form.watch("name");
+  
+  useEffect(() => {
+    // Only auto-generate slug if name changes and there's no custom slug already
+    if (watchName && !initialData?.slug) {
+      const newSlug = generateSlug(watchName);
+      form.setValue("slug", newSlug);
+    }
+  }, [watchName, form, initialData?.slug]);
+
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    onSubmit(values)
+    // Ensure slug is generated even if the effect hasn't run yet
+    if (!values.slug && values.name) {
+      values.slug = generateSlug(values.name);
+    }
+    onSubmit(values);
   }
 
   return (
@@ -65,6 +95,27 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
               </FormControl>
               <FormDescription>
                 This is the name that will be displayed for this category.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="slug"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Slug</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="category-slug"
+                  {...field}
+                  value={field.value || ''}
+                />
+              </FormControl>
+              <FormDescription>
+                URL-friendly version of the name. Auto-generated but can be customized.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -101,24 +152,26 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="None (Top-level category)" />
+                    <SelectValue placeholder="Select parent category" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">None (Top-level category)</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category._id} value={String(category._id)}>
+                  <SelectItem value="none">None</SelectItem>
+                  {categories?.map((category) => (
+                    <SelectItem key={category._id} value={category._id}>
                       {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <FormDescription>Select a parent category to create a hierarchical structure.</FormDescription>
+              <FormDescription>
+                Select a parent category if this is a subcategory.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <FormField
           control={form.control}
           name="featured"

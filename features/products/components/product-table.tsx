@@ -72,16 +72,16 @@ export function ProductTable({
                   : new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "TZS",
-                    }).format(product.price || 0)}
+                    }).format(product.base_price)}
               </TableCell>
               <TableCell>
                 {product.variants?.length
                   ? product.variants.reduce(
                       (total, variant) =>
-                        total + (variant.inventory.stockLevel || 0),
+                        total + (variant.inventory.stock_level || 0),
                       0
                     )
-                  : product.inventory?.stockLevel || 0}
+                  : product.inventory?.stock_level || 0}
               </TableCell>
               <TableCell>
                 <Badge
@@ -92,7 +92,7 @@ export function ProductTable({
                 </Badge>
               </TableCell>
               <TableCell>
-                {product.createdAt ? formatDistanceToNow(new Date(product.createdAt), {
+                {product.created_at ? formatDistanceToNow(new Date(product.created_at), {
                   addSuffix: true,
                   locale: require('date-fns/locale/en-US')
                 }) : 'N/A'}
@@ -112,11 +112,15 @@ export function ProductTable({
                       <Eye className="mr-2 h-4 w-4" />
                       View
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit(product)}>
+                    <DropdownMenuItem 
+                      onClick={() => router.push(`/dashboard/products/${product.product_id}/edit`)}
+                    >
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDelete(product)}>
+                    <DropdownMenuItem 
+                      onClick={() => onDelete(product)}
+                    >
                       <Trash className="mr-2 h-4 w-4" />
                       Delete
                     </DropdownMenuItem>

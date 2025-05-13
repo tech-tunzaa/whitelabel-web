@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatusBadge } from "./order-status-badge";
-import { useOrderStore } from "../stores/order-store";
-import type { Order } from "../types/order";
+import { useOrderStore } from "../store";
 
 interface OrderTableProps {
   orders: Order[];

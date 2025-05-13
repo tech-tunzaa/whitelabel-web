@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useVendorStore } from "@/features/vendors/stores/vendor-store";
+import { useVendorStore } from "@/features/vendors/store";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
-import { Vendor } from "@/features/vendors/types/vendor";
+import { Vendor } from "@/features/vendors/types";
 
 export default function AddVendorPage() {
   const router = useRouter();

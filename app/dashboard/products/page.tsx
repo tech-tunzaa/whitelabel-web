@@ -83,7 +83,8 @@ export default function ProductsPage() {
       selectedStatus === "all" || product.status === selectedStatus;
     const matchesCategory =
       selectedCategory === "all" ||
-      product.categoryIds.some((id) => id.toString() === selectedCategory);
+      (product.categoryIds && product.categoryIds.some((id) => id.toString() === selectedCategory)) ||
+      (product.categoryIds && product.categoryIds.some((id) => id.toString() === selectedCategory));
 
     return matchesSearch && matchesStatus && matchesCategory;
   });

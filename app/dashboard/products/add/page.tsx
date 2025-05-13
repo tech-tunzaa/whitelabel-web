@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { ProductForm } from "@/features/products/components/product-form";
-import { useProductStore } from "@/features/products/store/product-store";
+import { useProductStore } from "@/features/products/store";
 
 export default function AddProductPage() {
   const router = useRouter();

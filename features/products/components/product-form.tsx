@@ -33,10 +33,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
-import { useCategoryStore } from "@/features/products/categories/store/category-store";
-import { useVendorStore } from "@/features/vendors/stores/vendor-store";
-import { Product } from "../types/product";
-import { Category } from "../types/category";
+import { useCategoryStore } from "@/features/products/categories/store";
+import { useVendorStore } from "@/features/vendors/store";
+import { Product } from "../types";
+import { Category } from "../categories/types";
 
 const ProductVariantSchema = z.object({
   type: z.string().min(1, { message: "Variant type is required." }),

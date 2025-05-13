@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Trash2 } from "lucide-react";
+import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,12 +13,14 @@ interface CategoryTableProps {
   categories: Category[];
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onViewDetails?: (category: Category) => void;
 }
 
 export function CategoryTable({
   categories,
   onEdit,
   onDelete,
+  onViewDetails,
 }: CategoryTableProps) {
   return (
     <div className="rounded-md border">
@@ -58,6 +60,12 @@ export function CategoryTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {onViewDetails && (
+                      <DropdownMenuItem onClick={() => onViewDetails(category)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => onEdit(category)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Edit

@@ -41,40 +41,53 @@ export default function ProductPage({ params }: ProductPageProps) {
   };
   
   useEffect(() => {
+    // Prevent multiple API calls with a reference
+    let isActive = true;
+    
     const loadData = async () => {
+      if (!isActive) return;
+      
       try {
         setLoading(true);
         setError(null);
         
         // Fetch product details
         const productData = await fetchProduct(id, tenantHeaders);
+        if (!isActive) return;
         setProduct(productData);
         
-        // Fetch only the category associated with this product, if it exists
-        if (productData && productData.category_id) {
-          try {
-            const categoryData = await fetchCategory(productData.category_id, tenantHeaders);
-            if (categoryData) {
-              // Add just this category to the list
-              setCategories([categoryData]);
-            }
-          } catch (categoryErr) {
-            console.error('Error fetching category:', categoryErr);
-            // Don't fail the whole page if just the category fetch fails
+        // Fetch all categories
+        try {
+          const categoriesData = await fetchCategories(undefined, tenantHeaders);
+          if (!isActive) return;
+          if (categoriesData && categoriesData.items) {
+            setCategories(categoriesData.items || []);
           }
+        } catch (categoryErr) {
+          console.error('Error fetching categories:', categoryErr);
+          // Don't fail the whole page if just the categories fetch fails
         }
       } catch (err) {
+        if (!isActive) return;
         console.error('Error fetching product:', err);
         setError('Failed to load product details. Please try again.');
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
     
     loadData();
-  }, [id, fetchProduct, fetchCategory]);
+    
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isActive = false;
+    };
+  }, [id, fetchProduct, fetchCategories]);
 
   const getCategoryName = (categoryId: string) => {
+    if (!categories || !categories.length) return 'Unknown Category';
     const category = categories.find(cat => cat._id === categoryId);
     return category?.name || 'Unknown Category';
   };
@@ -150,7 +163,7 @@ export default function ProductPage({ params }: ProductPageProps) {
             {product.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            SKU: {product?.variants?.[0]?.sku || 'N/A'} • ID: {product._id}
+            {product.sku || 'N/A'} • ID: {product.product_id}
           </p>
         </div>
         <div className="ml-auto space-x-2">
@@ -174,7 +187,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                     {product.images && product.images.length > 0 ? (
                       <img 
                         src={product.images[0].url} 
-                        alt={product.images[0].alt} 
+                        alt={product.images[0].alt || 'Product image'} 
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -186,19 +199,11 @@ export default function ProductPage({ params }: ProductPageProps) {
                   <div>
                     <h3 className="text-xl font-semibold">{product.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {getStockStatusBadge((product.inventory?.stockStatus || product.variants?.[0]?.inventory?.stockStatus || 'N/A'))}
+                      {getStockStatusBadge(product.inventory_quantity > 0 ? 'in_stock' : 'out_of_stock')}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Created: {format(new Date(product.createdAt), "PPP")}
+                      Created: {product.created_at ? format(new Date(product.created_at), "PPP") : 'N/A'}
                     </p>
-                  </div>
-                  <div className="ml-auto space-y-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/products/${id}/edit`)}>
-                      <Pencil className="h-4 w-4 mr-2" /> Edit
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
-                      <Trash className="h-4 w-4 mr-2" /> Delete
-                    </Button>
                   </div>
                 </div>
                 
@@ -206,28 +211,24 @@ export default function ProductPage({ params }: ProductPageProps) {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium">Price</p>
+                    <p className="text-sm font-medium">Base Price</p>
                     <p className="text-lg font-bold">
-                      {product.price ? `$${product.price.toFixed(2)}` : 
-                       (product.variants && product.variants.length > 0) ? 
-                       `$${product.variants[0].price.toFixed(2)}` : 'N/A'}
+                      ${product.base_price ? parseFloat(product.base_price.toString()).toFixed(2) : 'N/A'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Stock Level</p>
                     <p className="text-lg">
-                      {product.inventory?.stockLevel || 
-                       (product.variants && product.variants.length > 0 ? 
-                        product.variants[0].inventory.stockLevel : 'N/A')}
+                      {product.inventory_quantity !== undefined ? product.inventory_quantity : 'N/A'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Vendor ID</p>
-                    <p className="text-sm">{product.vendorId}</p>
+                    <p className="text-sm">{product.vendor_id}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Non-Deliverable</p>
-                    <p className="text-sm">{product.nonDeliverable ? 'Yes' : 'No'}</p>
+                    <p className="text-sm font-medium">Requires Shipping</p>
+                    <p className="text-sm">{product.requires_shipping ? 'Yes' : 'No'}</p>
                   </div>
                 </div>
                 
@@ -243,12 +244,16 @@ export default function ProductPage({ params }: ProductPageProps) {
                 <div>
                   <p className="text-sm font-medium mb-2">Categories</p>
                   <div className="flex flex-wrap gap-2">
-                    {product.categoryIds.map((categoryId, index) => (
-                      <Badge key={index} variant="outline" className="cursor-pointer" onClick={() => router.push(`/dashboard/products/categories/${categoryId}`)}>
-                        <Tag className="mr-1 h-3 w-3" />
-                        {getCategoryName(categoryId)}
-                      </Badge>
-                    ))}
+                    {product.category_ids && product.category_ids.length > 0 ? (
+                      product.category_ids.map((categoryId, index) => (
+                        <Badge key={index} variant="outline" className="cursor-pointer" onClick={() => router.push(`/dashboard/products/categories/${categoryId}`)}>
+                          <Tag className="mr-1 h-3 w-3" />
+                          {getCategoryName(categoryId)}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No categories assigned</span>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -264,22 +269,22 @@ export default function ProductPage({ params }: ProductPageProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 divide-y">
-                    {product.variants.map((variant: ProductVariant, index: number) => (
-                      <div key={variant._id} className="py-4">
+                    {product.variants.map((variant: any, index: number) => (
+                      <div key={index} className="py-4">
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="font-medium">
-                              {variant.attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
+                              {variant.name || `Variant ${index + 1}`}
                             </p>
-                            <p className="text-sm text-muted-foreground">SKU: {variant.sku}</p>
+                            <p className="text-sm text-muted-foreground">SKU: {variant.sku || 'N/A'}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold">${variant.price.toFixed(2)}</p>
+                            <p className="font-bold">${variant.price ? parseFloat(variant.price.toString()).toFixed(2) : 'N/A'}</p>
                             <div className="flex items-center gap-2">
                               <p className="text-sm">
-                                Stock: {variant.inventory.stockLevel}
+                                Stock: {variant.inventory_quantity || 'N/A'}
                               </p>
-                              {getStockStatusBadge(variant.inventory.stockStatus)}
+                              {getStockStatusBadge(variant.inventory_quantity > 0 ? 'in_stock' : 'out_of_stock')}
                             </div>
                           </div>
                         </div>
@@ -336,11 +341,11 @@ export default function ProductPage({ params }: ProductPageProps) {
                   </div>
                   <div>
                     <p className="text-sm font-medium">Featured Product</p>
-                    <p>{product.featured ? 'Yes' : 'No'}</p>
+                    <p>{product.is_featured ? 'Yes' : 'No'}</p>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6">
+              <CardFooter className="border-t pt-6 flex flex-col space-y-2">
                 <Button 
                   variant="outline" 
                   className="w-full" 
@@ -348,6 +353,14 @@ export default function ProductPage({ params }: ProductPageProps) {
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Product
+                </Button>
+                <Button 
+                  variant="default" 
+                  className="w-full mt-4"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete Product
                 </Button>
               </CardFooter>
             </Card>

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { useProductStore } from "@/features/products/store/product-store";
-import { Product, ProductFormData } from "@/features/products/types/product";
+import { useProductStore } from "@/features/products/store";
+import { Product, ProductFormData } from "@/features/products/types";
 import { ProductForm, ProductFormValues } from "@/features/products/components/product-form";
 
 export default function EditProductPage() {

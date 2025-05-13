@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Search, RefreshCw } from "lucide-react";
 
@@ -22,6 +23,7 @@ import { CategoryTable } from "@/features/products/categories/components/categor
 import { CategoryForm } from "@/features/products/categories/components/category-form";
 
 export default function CategoriesPage() {
+  const router = useRouter();
   const { loading, storeError, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -48,8 +50,15 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    loadCategories();
+    // Use a ref to track if we've loaded data already to prevent infinite loops
+    const loadOnce = () => {
+      loadCategories();
+    };
+    
+    loadOnce();
+    // Empty dependency array ensures this only runs once on mount
   }, []);
+  
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -100,6 +109,11 @@ export default function CategoriesPage() {
   const openFormDialog = (category?: Category) => {
     setCategoryToEdit(category || null);
     setIsFormDialogOpen(true);
+  };
+  
+  const handleViewDetails = (category: Category) => {
+    // Use the correct ID property (_id) for navigation
+    router.push(`/dashboard/products/categories/${category._id}`);
   };
 
   const closeFormDialog = () => {
@@ -191,6 +205,7 @@ export default function CategoriesPage() {
             categories={filteredCategories}
             onEdit={openFormDialog}
             onDelete={openDeleteDialog}
+            onViewDetails={handleViewDetails}
           />
         )}
       </div>
