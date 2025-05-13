@@ -113,7 +113,7 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
 
       // Use direct API call instead of apiClient
       const queryString = Object.keys(params).length ? `?${new URLSearchParams(params).toString()}` : '';
-      const response = await apiClient.get<CategoryApiResponse>(`/categories${queryString}`, undefined, headers);
+      const response = await apiClient.get<CategoryApiResponse>(`/categories/${queryString}`, undefined, headers);
       
       // Process the categories response
       
@@ -185,7 +185,7 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
       }
       
       // Create category with the provided data
-      const response = await apiClient.post<ApiResponse<any>>('/categories', data, headers);
+      const response = await apiClient.post<ApiResponse<any>>('/categories/', data, headers);
       
       let categoryData = null;
       
