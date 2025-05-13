@@ -7,7 +7,7 @@ import { use } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DeliveryPartnerForm } from "@/features/delivery-partners/components/delivery-partner-form";
-import { useDeliveryPartnerStore } from "@/features/delivery-partners/stores/delivery-partner-store";
+import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
 
 interface DeliveryPartnerEditPageProps {
   params: Promise<{

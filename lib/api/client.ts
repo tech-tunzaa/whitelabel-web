@@ -30,6 +30,18 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add tenant header if needed
+    if (!config.headers['X-Tenant-ID']) {
+      config.headers['X-Tenant-ID'] = 'tunzaa-marketplace';
+    }
+    
+    // Prevent specific redirects by normalizing URLs
+    if (config.url?.includes('/categories')) {
+      // Log the request URL for debugging
+      console.log('Making categories API request to:', config.url);
+    }
+    
     return config;
   },
   (error) => {

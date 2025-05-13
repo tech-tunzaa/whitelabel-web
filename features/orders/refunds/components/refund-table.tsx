@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatusBadge } from "../../components/order-status-badge";
-import { useOrderStore } from "../../stores/order-store";
-import type { Order } from "../../types/order";
+import { useOrderStore } from "../../store";
+import type { Order } from "../../types";
 
 interface RefundTableProps {
   orders: Order[];

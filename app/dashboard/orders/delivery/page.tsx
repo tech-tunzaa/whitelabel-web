@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useOrderStore } from "@/features/orders/stores/order-store";
+import { useOrderStore } from "@/features/orders/store";
 import { mockRiders } from "@/features/orders/data/riders";
 import { DeliveryHeader } from "@/features/orders/delivery/components/delivery-header";
 import { DeliveryTabs } from "@/features/orders/delivery/components/delivery-tabs";
 import { AssignRiderDialog } from "@/features/orders/delivery/components/assign-rider-dialog";
-import { Order, Rider } from "@/features/orders/types/order";
+import { Order, Rider } from "@/features/orders/types";
 
 export default function DeliveryPage() {
   const { orders, updateOrder } = useOrderStore();

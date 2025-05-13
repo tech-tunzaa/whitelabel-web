@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useOrderStore } from "@/features/orders/stores/order-store";
+import { useOrderStore } from "@/features/orders/store";
 import { useRouter } from "next/navigation";
 import { RefundHeader } from "@/features/orders/refunds/components/refund-header";
 import { RefundTable } from "@/features/orders/refunds/components/refund-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Order } from "@/features/orders/types/order";
+import { Order } from "@/features/orders/types";
 
 export default function RefundPage() {
   const router = useRouter();
