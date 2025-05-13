@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Edit, Folder, Pencil, RefreshCw, Tag, Trash } from "lucide-react";
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -79,14 +79,14 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     loadData();
   }, [id, fetchCategory, fetchProducts]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: boolean | undefined) => {
     switch (status) {
-      case "active":
+      case true:
         return <Badge variant="default">Active</Badge>;
-      case "inactive":
+      case false:
         return <Badge variant="secondary">Inactive</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">Unknown</Badge>;
     }
   };
 
@@ -136,11 +136,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
             {category.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Category ID: {category._id}
+            Category ID: {category.category_id}
           </p>
         </div>
         <div className="ml-auto space-x-2">
-          {getStatusBadge(category.status)}
+          {getStatusBadge(category.is_active)}
         </div>
       </div>
 
@@ -159,16 +159,8 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                   <div>
                     <h3 className="text-xl font-semibold">{category.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Created: {format(new Date(category.createdAt), "PPP")}
+                      Created: {category.created_at ? format(new Date(category.created_at), "MM/dd/yyyy") : 'N/A'}
                     </p>
-                  </div>
-                  <div className="ml-auto space-y-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/products/categories/${id}/edit`)}>
-                      <Pencil className="h-4 w-4 mr-2" /> Edit
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
-                      <Trash className="h-4 w-4 mr-2" /> Delete
-                    </Button>
                   </div>
                 </div>
                 
@@ -177,7 +169,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium">Status</p>
-                    <div className="mt-1">{getStatusBadge(category.status)}</div>
+                    <div className="mt-1">{getStatusBadge(category.is_active)}</div>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Parent Category</p>
@@ -216,7 +208,6 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                   <ProductTable
                     products={products}
                     onEdit={(product) => router.push(`/dashboard/products/${product._id}`)}
-                    onDelete={(product) => router.push(`/dashboard/products/${product._id}`)}
                   />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
@@ -243,11 +234,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm font-medium">Category Status</p>
-                    <div className="mt-1">{getStatusBadge(category.status)}</div>
+                    <div className="mt-1">{getStatusBadge(category.is_active)}</div>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-sm">{format(new Date(category.updatedAt), "PPP")}</p>
+                    <p className="text-sm">{category.updated_at ? format(new Date(category.updated_at), "MM/dd/yyyy") : 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Products Count</p>
@@ -255,14 +246,21 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6">
+              <CardFooter className="border-t pt-6 flex flex-col">
                 <Button 
                   variant="outline" 
                   className="w-full" 
-                  onClick={() => router.push(`/dashboard/products/categories/${id}/edit`)}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Category
+                </Button>
+                <Button 
+                  variant="default" 
+                  className="w-full mt-4"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete Category
                 </Button>
               </CardFooter>
             </Card>

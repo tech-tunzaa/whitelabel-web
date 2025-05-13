@@ -14,7 +14,7 @@ import { useOrderStore } from "@/features/orders/store";
 import type { Order, OrderStatus, OrderFilter } from "@/features/orders/types";
 
 export default function OrdersPage() {
-  const { orders, loading, storeError, fetchOrders } = useOrderStore();
+  const { orders, loading, storeError, fetchOrders, fetchVendorOrders } = useOrderStore();
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -28,7 +28,8 @@ export default function OrdersPage() {
   // Function to load orders
   const loadOrders = async (filter: OrderFilter = {}) => {
     try {
-      await fetchOrders(filter, tenantHeaders);
+      // await fetchOrders(filter, tenantHeaders);
+      await fetchVendorOrders('13c94ad0-1071-431a-9d59-93eeee25ca0a', tenantHeaders);
     } catch (error) {
       console.error('Error fetching orders:', error);
     }

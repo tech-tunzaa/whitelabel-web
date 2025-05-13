@@ -50,7 +50,7 @@ export function ProductTable({
             <TableHead>Stock</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -86,9 +86,9 @@ export function ProductTable({
               <TableCell>
                 <Badge
                   variant="secondary"
-                  className={statusColors[product.status]}
+                  className={statusColors[product.is_active ? "active" : "inactive"]}
                 >
-                  {product.status}
+                  {product.is_active ? "Active" : "Inactive"}
                 </Badge>
               </TableCell>
               <TableCell>

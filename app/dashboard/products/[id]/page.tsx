@@ -345,7 +345,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6 flex flex-col space-y-2">
+              <CardFooter className="border-t pt-6 flex flex-col">
                 <Button 
                   variant="outline" 
                   className="w-full" 

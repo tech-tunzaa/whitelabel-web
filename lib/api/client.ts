@@ -20,7 +20,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
-  maxRedirects: 0, // Prevent automatic redirects
 });
 
 // Request interceptor
@@ -30,18 +29,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    // Add tenant header if needed
-    if (!config.headers['X-Tenant-ID']) {
-      config.headers['X-Tenant-ID'] = 'tunzaa-marketplace';
-    }
-    
-    // Prevent specific redirects by normalizing URLs
-    if (config.url?.includes('/categories')) {
-      // Log the request URL for debugging
-      console.log('Making categories API request to:', config.url);
-    }
-    
     return config;
   },
   (error) => {
