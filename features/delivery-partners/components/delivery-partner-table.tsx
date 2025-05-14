@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -21,17 +21,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react"
-import { DeliveryPartner } from "../types/delivery-partner"
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react";
+import { DeliveryPartner } from "../types/delivery-partner";
 import { useRouter } from "next/navigation";
 
 interface DeliveryPartnerTableProps {
-  deliveryPartners: DeliveryPartner[]
-  onApproveDeliveryPartner: (id: string, commissionPercent: number, kycVerified: boolean) => void
-  onRejectDeliveryPartner: (id: string) => void
+  deliveryPartners: DeliveryPartner[];
+  onApproveDeliveryPartner: (
+    id: string,
+    commissionPercent: number,
+    kycVerified: boolean
+  ) => void;
+  onRejectDeliveryPartner: (id: string) => void;
 }
 
 export function DeliveryPartnerTable({
@@ -40,18 +44,24 @@ export function DeliveryPartnerTable({
   onRejectDeliveryPartner,
 }: DeliveryPartnerTableProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("")
-  const isMobile = useIsMobile()
+  const [searchQuery, setSearchQuery] = useState("");
+  const isMobile = useIsMobile();
 
   const filteredPartners = deliveryPartners.filter(
     (partner) =>
       partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       partner.userId.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
-  const pendingPartners = filteredPartners.filter((partner) => !partner.kyc.verified)
-  const activePartners = filteredPartners.filter((partner) => partner.kyc.verified)
-  const rejectedPartners = filteredPartners.filter((partner) => partner.status === "rejected")
+  const pendingPartners = filteredPartners.filter(
+    (partner) => !partner.kyc.verified
+  );
+  const activePartners = filteredPartners.filter(
+    (partner) => partner.kyc.verified
+  );
+  const rejectedPartners = filteredPartners.filter(
+    (partner) => partner.status === "rejected"
+  );
 
   return (
     <div className="space-y-4">
@@ -121,9 +131,13 @@ export function DeliveryPartnerTable({
                   <TableRow>
                     <TableHead>Partner</TableHead>
                     <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Commission</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Commission
+                    </TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -131,25 +145,38 @@ export function DeliveryPartnerTable({
                   {filteredPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/delivery-partners/${partner._id}`
+                        )
+                      }
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={partner.profilePicture || "/placeholder.svg"} alt={partner.name} />
-                            <AvatarFallback>{partner.name.substring(0, 2)}</AvatarFallback>
+                            <AvatarImage
+                              src={partner.profilePicture || "/placeholder.svg"}
+                              alt={partner.name}
+                            />
+                            <AvatarFallback>
+                              {partner.name.substring(0, 2)}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
                             <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{partner.type}</div>
+                            <div className="text-xs text-muted-foreground md:hidden">
+                              {partner.type}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="outline">{partner.type}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{partner.commissionPercent}%</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {partner.commission_percent}%
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={
@@ -167,11 +194,20 @@ export function DeliveryPartnerTable({
                             : "Pending"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {new Date(partner.created_at).toLocaleDateString(
+                          "en-US",
+                          { year: "numeric", month: "2-digit", day: "2-digit" }
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
@@ -180,37 +216,48 @@ export function DeliveryPartnerTable({
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
                               onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(`/dashboard/delivery-partners/${partner._id}/edit`)
+                                e.stopPropagation();
+                                router.push(
+                                  `/dashboard/delivery-partners/${partner._id}/edit`
+                                );
                               }}
                             >
                               Edit
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
-                            {!partner.kyc.verified && partner.status !== "rejected" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onApproveDeliveryPartner(partner._id, partner.commissionPercent, true)
-                                  }}
-                                >
-                                  Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onRejectDeliveryPartner(partner._id)
-                                  }}
-                                >
-                                  Reject
-                                </DropdownMenuItem>
-                              </>
-                            )}
+                            {!partner.kyc.verified &&
+                              partner.status !== "rejected" && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onApproveDeliveryPartner(
+                                        partner._id,
+                                        partner.commission_percent,
+                                        true
+                                      );
+                                    }}
+                                  >
+                                    Approve
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onRejectDeliveryPartner(partner._id);
+                                    }}
+                                  >
+                                    Reject
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             {partner.kyc.verified && (
                               <DropdownMenuItem
-                                onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/suspend`)}
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/delivery-partners/${partner._id}/suspend`
+                                  )
+                                }
                               >
                                 Suspend
                               </DropdownMenuItem>
@@ -234,8 +281,12 @@ export function DeliveryPartnerTable({
                   <TableRow>
                     <TableHead>Partner</TableHead>
                     <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Commission</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Commission
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -243,30 +294,52 @@ export function DeliveryPartnerTable({
                   {pendingPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/delivery-partners/${partner._id}`
+                        )
+                      }
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={partner.profilePicture || "/placeholder.svg"} alt={partner.name} />
-                            <AvatarFallback>{partner.name.substring(0, 2)}</AvatarFallback>
+                            <AvatarImage
+                              src={partner.profilePicture || "/placeholder.svg"}
+                              alt={partner.name}
+                            />
+                            <AvatarFallback>
+                              {partner.name.substring(0, 2)}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
                             <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{partner.type}</div>
+                            <div className="text-xs text-muted-foreground md:hidden">
+                              {partner.type}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="outline">{partner.type}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{partner.commissionPercent}%</TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {partner.commission_percent}%
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {new Date(partner.created_at).toLocaleDateString(
+                          "en-US",
+                          { year: "numeric", month: "2-digit", day: "2-digit" }
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
@@ -277,16 +350,20 @@ export function DeliveryPartnerTable({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={(e) => {
-                                e.stopPropagation()
-                                onApproveDeliveryPartner(partner._id, partner.commissionPercent, true)
+                                e.stopPropagation();
+                                onApproveDeliveryPartner(
+                                  partner._id,
+                                  partner.commission_percent,
+                                  true
+                                );
                               }}
                             >
                               Approve
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={(e) => {
-                                e.stopPropagation()
-                                onRejectDeliveryPartner(partner._id)
+                                e.stopPropagation();
+                                onRejectDeliveryPartner(partner._id);
                               }}
                             >
                               Reject
@@ -310,8 +387,12 @@ export function DeliveryPartnerTable({
                   <TableRow>
                     <TableHead>Partner</TableHead>
                     <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Commission</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Commission
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -319,37 +400,58 @@ export function DeliveryPartnerTable({
                   {rejectedPartners.map((partner) => (
                     <TableRow
                       key={partner._id}
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}`)}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/delivery-partners/${partner._id}`
+                        )
+                      }
                       className="cursor-pointer"
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={partner.profilePicture || "/placeholder.svg"} alt={partner.name} />
-                            <AvatarFallback>{partner.name.substring(0, 2)}</AvatarFallback>
+                            <AvatarImage
+                              src={partner.profilePicture || "/placeholder.svg"}
+                              alt={partner.name}
+                            />
+                            <AvatarFallback>
+                              {partner.name.substring(0, 2)}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
                             <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">{partner.type}</div>
+                            <div className="text-xs text-muted-foreground md:hidden">
+                              {partner.type}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="outline">{partner.type}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{partner.commissionPercent}%</TableCell>
-                      <TableCell className="hidden md:table-cell">{new Date(partner.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {partner.commission_percent}%
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {new Date(partner.created_at).toLocaleDateString(
+                          "en-US",
+                          { year: "numeric", month: "2-digit", day: "2-digit" }
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -362,5 +464,5 @@ export function DeliveryPartnerTable({
         </TabsContent>
       </Tabs>
     </div>
-  )
-} 
+  );
+}
