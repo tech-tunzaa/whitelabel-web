@@ -32,6 +32,7 @@ export default function UserAuthForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const [loading, startTransition] = useTransition();
+  const router = useRouter();
   const defaultValues = {
     email: "",
     password: "",
@@ -42,13 +43,24 @@ export default function UserAuthForm() {
   });
 
   const onSubmit = async (data: UserFormValue) => {
-    startTransition(() => {
-      signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        callbackUrl: callbackUrl ?? "/dashboard",
-      });
-      toast.success("Signed In Successfully!");
+    startTransition(async () => {
+      try {
+        const result = await signIn("credentials", {
+          email: data.email,
+          password: data.password,
+          callbackUrl: callbackUrl ?? "/dashboard",
+          redirect: false,
+        });
+
+        if (result?.error) {
+          toast.error("Invalid email or password");
+        } else if (result?.ok) {
+          toast.success("Signed in successfully");
+          router.push(callbackUrl ?? "/dashboard");
+        }
+      } catch (error) {
+        toast.error("An error occurred during sign in");
+      }
     });
   };
 

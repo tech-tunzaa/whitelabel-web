@@ -38,7 +38,13 @@ export default async function RootLayout({
         <NextTopLoader showSpinner={false} />
         <NuqsAdapter>
           <Providers session={session}>
-            <Toaster />
+            <Toaster
+              toastOptions={{
+                classNames: {
+                  icon: "group-data-[type=error]:text-red-500 group-data-[type=success]:text-green-500 group-data-[type=warning]:text-amber-500 group-data-[type=info]:text-blue-500",
+                },
+              }}
+            />
             <GrammarlyFix />
             {children}
           </Providers>
