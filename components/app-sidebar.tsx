@@ -67,12 +67,6 @@ const data = {
       roles: ["super_owner"],
     },
     {
-      title: "Marketplace Settings",
-      url: "/dashboard/marketplace",
-      icon: IconFolder,
-      roles: ["super_owner", "admin"],
-    },
-    {
       title: "Vendors",
       url: "/dashboard/vendors",
       icon: IconUsers,
@@ -120,30 +114,7 @@ const data = {
         },
       ],
     },
-    {
-      title: "Authentication",
-      url: "#",
-      icon: IconLock,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-      items: [
-        {
-          title: "Users",
-          url: "/dashboard/auth/users",
-          icon: IconUsers,
-        },
-        {
-          title: "Roles",
-          url: "/dashboard/auth/roles",
-          icon: IconUserShield,
-        },
-      ],
-    },
-    {
-      title: "Settings & Configurations",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-      roles: ["super_owner"],
-    },
+
     {
       title: "Support Tickets",
       url: "/dashboard/support",
@@ -210,22 +181,42 @@ const data = {
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "#",
+      title: "Marketplace Settings",
+      url: "/dashboard/marketplace",
       icon: IconSettings,
-      role: "super_owner",
+      roles: ["admin"],
+    },
+    {
+      title: "Settings & Configurations",
+      url: "/dashboard/settings",
+      icon: IconSettings,
+      roles: ["super_owner"],
+    },
+    {
+      title: "Users",
+      url: "/dashboard/auth/users",
+      icon: IconUsers,
+      roles: ["super_owner", "admin", "sub_admin"],
+      items: [],
+    },
+    {
+      title: "User Roles",
+      url: "/dashboard/auth/roles",
+      icon: IconUsers,
+      roles: ["super_owner", "admin", "sub_admin"],
+      items: [],
     },
     {
       title: "Get Help",
       url: "#",
       icon: IconHelp,
-      role: "support",
+      roles: "support",
     },
     {
       title: "Search",
       url: "#",
       icon: IconSearch,
-      role: "admin",
+      roles: "admin",
     },
   ],
   documents: [
@@ -271,6 +262,12 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
 
   // Filter navigation items based on user role
   const filteredNavMain = data.navMain.filter((item) => {
+    const userRole = (session?.user as ExtendedUser)?.role;
+    if (!userRole) return false;
+    return item.roles.includes(userRole);
+  });
+
+  const filteredNavSecondary = data.navSecondary.filter((item) => {
     const userRole = (session?.user as ExtendedUser)?.role;
     if (!userRole) return false;
     return item.roles.includes(userRole);
@@ -359,8 +356,8 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
-        {/* <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        {/* <NavDocuments items={data.documents} /> */}
+        <NavSecondary items={filteredNavSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
