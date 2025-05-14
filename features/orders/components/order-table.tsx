@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Edit, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -31,12 +31,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { OrderStatusBadge } from "./order-status-badge";
 import { useOrderStore } from "../store";
+import { Order } from "../types";
 
 interface OrderTableProps {
   orders: Order[];
+  onEdit?: (order: Order) => void;
+  onDelete?: (order: Order) => void;
+  onViewDetails?: (order: Order) => void;
 }
 
-export function OrderTable({ orders }: OrderTableProps) {
+export function OrderTable({
+  orders,
+  onEdit,
+  onDelete,
+  onViewDetails,
+}: OrderTableProps) {
   const router = useRouter();
   const { updateOrderStatus, toggleOrderFlag } = useOrderStore();
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
@@ -80,23 +89,21 @@ export function OrderTable({ orders }: OrderTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead className="hidden md:table-cell">Customer</TableHead>
-            <TableHead className="hidden md:table-cell">Items</TableHead>
-            <TableHead className="hidden md:table-cell">Total</TableHead>
+            <TableHead>Order Number</TableHead>
+            <TableHead>Customer</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Total</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {orders.map((order) => (
             <TableRow
-              key={order.id}
+              key={order._id}
               className={order.flagged ? "bg-amber-50" : undefined}
             >
               <TableCell className="font-medium">
-                #{order.id}
+                #{order.order_number}
                 {order.flagged && (
                   <Badge variant="destructive" className="ml-2">
                     Issue
@@ -105,103 +112,48 @@ export function OrderTable({ orders }: OrderTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="text-sm">{formatDate(order.orderDate)}</span>
-                  <span className="text-xs text-muted-foreground hidden md:inline-block">
-                    {new Date(order.orderDate).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
+                  <span>
+                    {order.shipping_address.first_name}{" "}
+                    {order.shipping_address.last_name}
                   </span>
                 </div>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <div className="flex flex-col">
-                  <span>{order.customer.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {order.customer.email}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                {order.items.length}
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                {formatCurrency(order.total)}
               </TableCell>
               <TableCell>
-                <OrderStatusBadge status={order.status} />
+                <Badge
+                  variant={order.status === "pending" ? "default" : "secondary"}
+                >
+                  {order.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {order.totals.total} {order.currency}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" className="h-8 w-8 p-0">
                       <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-                    >
-                      View details
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {order.status === "pending" && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          updateOrderStatus(order.id, "processing");
-                        }}
-                      >
-                        Mark as processing
+                    {onViewDetails && (
+                      <DropdownMenuItem onClick={() => onViewDetails(order)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
                       </DropdownMenuItem>
                     )}
-                    {(order.status === "pending" || order.status === "processing") && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setIsCancelDialogOpen(true);
-                        }}
-                      >
-                        Cancel order
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(order)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
                       </DropdownMenuItem>
                     )}
-                    {order.status === "processing" && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          updateOrderStatus(order.id, "shipped");
-                        }}
-                      >
-                        Mark as shipped
+                    {onDelete && (
+                      <DropdownMenuItem onClick={() => onDelete(order)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
                       </DropdownMenuItem>
                     )}
-                    {order.status === "shipped" && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          updateOrderStatus(order.id, "delivered");
-                        }}
-                      >
-                        Mark as delivered
-                      </DropdownMenuItem>
-                    )}
-                    {(order.status === "delivered" || order.status === "shipped") && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setIsRefundDialogOpen(true);
-                        }}
-                      >
-                        Issue refund
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={() => {
-                        toggleOrderFlag(order.id);
-                      }}
-                    >
-                      {order.flagged ? "Resolve issue" : "Flag issue"}
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -269,4 +221,4 @@ export function OrderTable({ orders }: OrderTableProps) {
       </Dialog>
     </>
   );
-} 
+}

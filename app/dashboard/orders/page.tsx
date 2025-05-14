@@ -14,24 +14,29 @@ import { useOrderStore } from "@/features/orders/store";
 import type { Order, OrderStatus, OrderFilter } from "@/features/orders/types";
 
 export default function OrdersPage() {
-  const { orders, loading, storeError, fetchOrders, fetchVendorOrders } = useOrderStore();
+  const { orders, loading, storeError, fetchOrders, fetchVendorOrders } =
+    useOrderStore();
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  
+
   // Define tenant headers
   const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
   };
 
   // Function to load orders
   const loadOrders = async (filter: OrderFilter = {}) => {
     try {
-      // await fetchOrders(filter, tenantHeaders);
-      await fetchVendorOrders('13c94ad0-1071-431a-9d59-93eeee25ca0a', tenantHeaders);
+      console.log("Loading orders");
+      const response = await fetchVendorOrders(
+        "d4a073b8-57fd-404d-89f2-cffa7e36fd31",
+        tenantHeaders
+      );
+      console.log("Orders loaded:", response);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error("Error fetching orders:", error);
     }
   };
 
@@ -42,7 +47,8 @@ export default function OrdersPage() {
 
   // Apply filters to orders
   useEffect(() => {
-    if (!orders) {
+    console.log("Orders :: ", orders);
+    if (!orders || orders.length === 0) {
       setFilteredOrders([]);
       return;
     }
@@ -50,27 +56,26 @@ export default function OrdersPage() {
     let filtered = [...orders];
 
     // Apply status filter if not 'all'
-    if (currentStatus !== 'all' && currentStatus !== 'flagged') {
-      filtered = filtered.filter(order => order.status === currentStatus);
-    } else if (currentStatus === 'flagged') {
-      filtered = filtered.filter(order => order.flagged);
+    if (currentStatus !== "all") {
+      filtered = filtered.filter((order) => order.status === currentStatus);
     }
 
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.order_number.toLowerCase().includes(query) ||
-        order.customer.name.toLowerCase().includes(query) ||
-        order.customer.email.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (order) =>
+          order.order_number.toLowerCase().includes(query) ||
+          order.shipping_address.first_name.toLowerCase().includes(query) ||
+          order.shipping_address.email.toLowerCase().includes(query)
       );
     }
 
     // Apply date filter
     if (dateRange.from || dateRange.to) {
-      filtered = filtered.filter(order => {
+      filtered = filtered.filter((order) => {
         const orderDate = new Date(order.created_at);
-        
+
         if (dateRange.from && dateRange.to) {
           return orderDate >= dateRange.from && orderDate <= dateRange.to;
         }
@@ -101,19 +106,25 @@ export default function OrdersPage() {
   };
 
   // Calculate counts for each category
-  const pendingOrders = orders.filter(order => order.status === "pending");
-  const processingOrders = orders.filter(order => order.status === "processing");
-  const shippedOrders = orders.filter(order => order.status === "shipped");
-  const deliveredOrders = orders.filter(order => order.status === "delivered");
-  const cancelledOrders = orders.filter(order => order.status === "cancelled");
-  const completedOrders = orders.filter(order => order.status === "completed");
-  const refundedOrders = orders.filter(order => order.status === "refunded");
-  const flaggedOrders = orders.filter(order => order.flagged);
+  const pendingOrders = orders.filter((order) => order.status === "pending");
+  const processingOrders = orders.filter(
+    (order) => order.status === "processing"
+  );
+  const shippedOrders = orders.filter((order) => order.status === "shipped");
+  const deliveredOrders = orders.filter(
+    (order) => order.status === "delivered"
+  );
+  const cancelledOrders = orders.filter(
+    (order) => order.status === "cancelled"
+  );
+  const completedOrders = orders.filter(
+    (order) => order.status === "completed"
+  );
+  const refundedOrders = orders.filter((order) => order.status === "refunded");
+  const flaggedOrders = orders.filter((order) => order.flagged);
 
   if (loading && orders.length === 0) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (storeError && orders.length === 0) {
@@ -150,13 +161,17 @@ export default function OrdersPage() {
       </div>
 
       <div className="p-4 space-y-4">
-        <OrderFilters 
+        <OrderFilters
           onStatusChange={handleStatusChange}
           onSearchChange={handleSearchChange}
           onDateRangeChange={handleDateRangeChange}
         />
 
-        <Tabs defaultValue="all" className="" onValueChange={handleStatusChange}>
+        <Tabs
+          defaultValue="all"
+          className=""
+          onValueChange={handleStatusChange}
+        >
           <TabsList className="grid grid-cols-3 md:grid-cols-8 mb-4 w-full">
             <TabsTrigger value="all">
               All

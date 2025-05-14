@@ -1,10 +1,32 @@
-export type OrderStatus = "pending" | "processing" | "cancelled" | "shipped" | "delivered" | "returned" | "completed" | "refunded";
+export type OrderStatus =
+  | "pending"
+  | "processing"
+  | "cancelled"
+  | "shipped"
+  | "delivered"
+  | "returned"
+  | "completed"
+  | "refunded"
+  | "partially_refunded";
 
 export type RefundStatus = "pending" | "approved" | "rejected" | "partial";
 
-export type PaymentMethod = "credit_card" | "paypal" | "bank_transfer" | "cash_on_delivery" | "mobile_money";
+export type PaymentMethod =
+  | "credit_card"
+  | "paypal"
+  | "bank_transfer"
+  | "cash_on_delivery"
+  | "mobile_money";
 
-export type PaymentStatus = "paid" | "pending" | "failed" | "refunded" | "partially_refunded" | "authorized" | "captured" | "cancelled";
+export type PaymentStatus =
+  | "paid"
+  | "pending"
+  | "failed"
+  | "refunded"
+  | "partially_refunded"
+  | "authorized"
+  | "captured"
+  | "cancelled";
 
 export type ShippingMethod = "standard" | "express" | "free";
 
@@ -25,8 +47,18 @@ export interface OrderFilter {
 }
 
 export interface OrderAction {
-  type: 'fetchList' | 'fetchOne' | 'fetchByUser' | 'fetchByVendor' | 'create' | 'update' | 'updateStatus' | 'updatePayment' | 'refund' | 'delete';
-  status: 'idle' | 'loading' | 'success' | 'error';
+  type:
+    | "fetchList"
+    | "fetchOne"
+    | "fetchByUser"
+    | "fetchByVendor"
+    | "create"
+    | "update"
+    | "updateStatus"
+    | "updatePayment"
+    | "refund"
+    | "delete";
+  status: "idle" | "loading" | "success" | "error";
   error?: string;
 }
 
@@ -50,62 +82,63 @@ export interface PaymentDetails {
   currency: string;
   payment_gateway?: string;
   transaction_id?: string;
-  status: PaymentStatus;
   notes?: string;
 }
 
 export interface OrderItem {
-  id: string;
+  item_id: string;
   product_id: string;
-  product_name: string;
-  variant_id?: string;
-  variant_name?: string;
+  variant_id: string | null;
+  vendor_id: string;
+  store_id: string;
+  name: string;
+  sku: string;
   quantity: number;
   unit_price: number;
-  total_price: number;
-  currency: string;
-  image_url?: string;
-  sku?: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  commission_rate: string;
+  refunded_quantity: number;
+  refunded_amount: number;
+}
+
+export interface OrderTotals {
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
 }
 
 export interface Refund {
-  id: string;
+  refund_id: string;
   amount: number;
-  currency: string;
+  reason: string;
   status: RefundStatus;
-  reason?: string;
+  items: any[]; // Define specific type if needed
   issued_by: string;
-  issued_at: string;
-  transaction_id?: string;
+  created_at: string;
 }
 
 export interface Order {
-  id: string;
+  _id: string;
+  order_id: string;
   order_number: string;
-  user_id: string;
-  cart_id: string;
   tenant_id: string;
-  customer: {
-    user_id: string;
-    name: string;
-    email: string;
-    phone?: string;
-  };
+  user_id: string;
   items: OrderItem[];
   shipping_address: Address;
-  payment_details: PaymentDetails;
-  status: OrderStatus;
-  subtotal: number;
-  shipping_cost: number;
-  tax: number;
-  discount: number;
-  total: number;
+  totals: OrderTotals;
   currency: string;
-  notes?: string;
-  refunds?: Refund[];
+  discount_code: string | null;
+  status: OrderStatus;
+  payment_status: PaymentStatus;
+  payment_details: PaymentDetails;
+  refunds: Refund[];
   created_at: string;
   updated_at: string;
-  flagged?: boolean;
+  notes?: string;
 }
 
 export interface OrderListResponse {
@@ -145,7 +178,11 @@ export interface CartTotals {
 }
 
 export type OrderApiResponse = {
-  data: Order | Order[] | OrderListResponse;
+  data?: Order | Order[] | OrderListResponse;
+  items?: Order[];
+  total?: number;
+  skip?: number;
+  limit?: number;
 };
 
 export type CartApiResponse = {
