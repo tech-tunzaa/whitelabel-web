@@ -10,9 +10,26 @@ interface DashboardData {
     activeVendors: number;
     newVendors: number;
     salesGrowth: number;
+    pendingApprovals: number;
+    processingOrders: number;
+    unassignedOrders: number;
+    pendingTickets: number;
+    restockRequired: number;
+    avgProcessingTime: number;
   };
-  chartData: any[];
-  tableData: any[];
+  chartData: {
+    sales: any[];
+    approvals: any[];
+    orders: any[];
+    inventory: any[];
+    tickets: any[];
+  };
+  tableData: {
+    approvals: any[];
+    orders: any[];
+    inventory: any[];
+    tickets: any[];
+  };
 }
 
 export function AdminDashboard() {
@@ -20,10 +37,11 @@ export function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState("30d");
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [timeRange]);
 
   const fetchDashboardData = async () => {
     try {
@@ -35,16 +53,106 @@ export function AdminDashboard() {
           activeVendors: 25,
           newVendors: 5,
           salesGrowth: 8.5,
+          pendingApprovals: 15,
+          processingOrders: 45,
+          unassignedOrders: 12,
+          pendingTickets: 20,
+          restockRequired: 30,
+          avgProcessingTime: 2.5,
         },
-        chartData: [
-          { date: "2024-01", value: 40000 },
-          { date: "2024-02", value: 45000 },
-          { date: "2024-03", value: 50000 },
-        ],
-        tableData: [
-          { id: 1, name: "Vendor 1", status: "Active", sales: 10000 },
-          { id: 2, name: "Vendor 2", status: "Inactive", sales: 8000 },
-        ],
+        chartData: {
+          sales: [
+            { date: "2024-01", value: 40000, orders: 200 },
+            { date: "2024-02", value: 45000, orders: 225 },
+            { date: "2024-03", value: 50000, orders: 250 },
+          ],
+          approvals: [
+            { date: "2024-01", pending: 20, approved: 80, rejected: 10 },
+            { date: "2024-02", pending: 15, approved: 85, rejected: 8 },
+            { date: "2024-03", pending: 15, approved: 90, rejected: 5 },
+          ],
+          orders: [
+            { date: "2024-01", processing: 50, completed: 150, canceled: 10 },
+            { date: "2024-02", processing: 45, completed: 160, canceled: 8 },
+            { date: "2024-03", processing: 45, completed: 170, canceled: 5 },
+          ],
+          inventory: [
+            { date: "2024-01", low: 40, out: 10, restocked: 30 },
+            { date: "2024-02", low: 35, out: 8, restocked: 35 },
+            { date: "2024-03", low: 30, out: 5, restocked: 40 },
+          ],
+          tickets: [
+            { date: "2024-01", open: 25, resolved: 75, avgTime: 3 },
+            { date: "2024-02", open: 22, resolved: 78, avgTime: 2.8 },
+            { date: "2024-03", open: 20, resolved: 80, avgTime: 2.5 },
+          ],
+        },
+        tableData: {
+          approvals: [
+            {
+              id: 1,
+              type: "Product",
+              vendor: "Vendor 1",
+              status: "Pending",
+              submitted: "2024-03-20",
+            },
+            {
+              id: 2,
+              type: "Category",
+              vendor: "Vendor 2",
+              status: "Review",
+              submitted: "2024-03-19",
+            },
+          ],
+          orders: [
+            {
+              id: 1,
+              number: "ORD-001",
+              status: "Processing",
+              vendor: "Vendor 1",
+              timeInState: "2h",
+            },
+            {
+              id: 2,
+              number: "ORD-002",
+              status: "Unassigned",
+              vendor: "Vendor 2",
+              timeInState: "1h",
+            },
+          ],
+          inventory: [
+            {
+              id: 1,
+              product: "Product 1",
+              vendor: "Vendor 1",
+              stock: 5,
+              threshold: 10,
+            },
+            {
+              id: 2,
+              product: "Product 2",
+              vendor: "Vendor 2",
+              stock: 0,
+              threshold: 15,
+            },
+          ],
+          tickets: [
+            {
+              id: 1,
+              type: "Order Issue",
+              priority: "High",
+              status: "Open",
+              assignedTo: "Admin 1",
+            },
+            {
+              id: 2,
+              type: "Vendor Support",
+              priority: "Medium",
+              status: "In Progress",
+              assignedTo: "Admin 2",
+            },
+          ],
+        },
       };
       setData(mockData);
     } catch (err) {
@@ -62,37 +170,37 @@ export function AdminDashboard() {
           value: `$${data?.stats.totalSales.toLocaleString()}` || "$0",
           description: "All time sales",
           trend: "up",
-          trendValue: "12%",
+          trendValue: `${data?.stats.salesGrowth}%`,
         },
         {
-          title: "Active Vendors",
-          value: data?.stats.activeVendors.toString() || "0",
-          description: "Currently active",
+          title: "Pending Approvals",
+          value: data?.stats.pendingApprovals.toString() || "0",
+          description: "Products & categories",
+          trend: "down",
+          trendValue: "5%",
+        },
+        {
+          title: "Processing Orders",
+          value: data?.stats.processingOrders.toString() || "0",
+          description: "Current orders",
+          trend: "up",
+          trendValue: "10%",
+        },
+        {
+          title: "Restock Required",
+          value: data?.stats.restockRequired.toString() || "0",
+          description: "Low inventory items",
           trend: "up",
           trendValue: "8%",
         },
-        {
-          title: "New Vendors",
-          value: data?.stats.newVendors.toString() || "0",
-          description: "This month",
-          trend: "up",
-          trendValue: "15%",
-        },
-        {
-          title: "Sales Growth",
-          value: `${data?.stats.salesGrowth}%` || "0%",
-          description: "Monthly growth",
-          trend: "up",
-          trendValue: "5%",
-        },
       ]}
-      chartData={data?.chartData || []}
-      tableData={data?.tableData || []}
+      chartData={data?.chartData.sales || []}
+      tableData={data?.tableData.orders || []}
       loading={loading}
       error={error}
       onRefresh={fetchDashboardData}
-      chartTitle="Sales Volume"
-      tableTitle="Vendors Overview"
+      chartTitle="Sales Performance"
+      tableTitle="Order Queue"
     />
   );
-} 
+}
