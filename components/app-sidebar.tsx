@@ -182,7 +182,7 @@ const data = {
   navSecondary: [
     {
       title: "Marketplace Settings",
-      url: "/dashboard/marketplace",
+      url: "/dashboard/marketplace/edit",
       icon: IconSettings,
       roles: ["admin"],
     },

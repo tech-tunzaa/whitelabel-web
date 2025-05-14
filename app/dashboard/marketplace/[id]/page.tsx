@@ -13,7 +13,13 @@ import { TenantForm } from "@/features/tenants/components/tenant-form";
 import { useTenantStore } from "@/features/tenants/store";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function MarketplacePage() {
+interface MarketplacePageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function MarketplacePage({ params }: MarketplacePageProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,15 +27,22 @@ export default function MarketplacePage() {
   const tenantStore = useTenantStore();
   const { tenant, loading, storeError } = tenantStore;
   const hasFetchedRef = useRef(false);
-  
-  // Use tenant with ID - this is the marketplace tenant ID
-  const currentTenantId = "4c56d0c3-55d9-495b-ae26-0d922d430a42";
+
+  let currentTenantId = params.id;
+
+  console.log("Params", params);
+
+  if (currentTenantId === "edit") {
+    //Temporary fallback
+    currentTenantId = "4c56d0c3-55d9-495b-ae26-0d922d430a42";
+    // return <div>No tenant ID provided</div>;
+  }
 
   useEffect(() => {
     // Only fetch once when the component mounts
     if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      tenantStore.fetchTenant(currentTenantId).catch(error => {
+      tenantStore.fetchTenant(currentTenantId).catch((error) => {
         console.error("Error fetching marketplace tenant:", error);
       });
     }
@@ -61,7 +74,7 @@ export default function MarketplacePage() {
         title="Error Loading Marketplace"
         error={{
           message: storeError?.message || "Failed to load marketplace settings",
-          status: storeError?.status ? String(storeError.status) : "error"
+          status: storeError?.status ? String(storeError.status) : "error",
         }}
         buttonText="Back to Dashboard"
         buttonAction={() => router.push("/dashboard")}
@@ -71,9 +84,7 @@ export default function MarketplacePage() {
   }
 
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (!tenant && !loading && storeError) {
@@ -82,7 +93,7 @@ export default function MarketplacePage() {
         title="Error Loading Marketplace"
         error={{
           message: storeError?.message || "Failed to load marketplace settings",
-          status: storeError?.status ? String(storeError.status) : "error"
+          status: storeError?.status ? String(storeError.status) : "error",
         }}
         buttonText="Back to Dashboard"
         buttonAction={() => router.push("/dashboard")}
@@ -117,9 +128,7 @@ export default function MarketplacePage() {
                 form="marketplace-tenant-form"
                 disabled={isSubmitting}
               >
-                {isSubmitting && (
-                  <Spinner size="sm" className="mr-2" />
-                )}
+                {isSubmitting && <Spinner size="sm" className="mr-2" />}
                 Save Changes
               </Button>
             </>
@@ -142,7 +151,7 @@ export default function MarketplacePage() {
                 payments: tenant.modules?.payments || false,
                 promotions: tenant.modules?.promotions || false,
                 inventory: tenant.modules?.inventory || false,
-              }
+              },
             }}
             onSubmit={onSubmit}
             onCancel={handleCancelEdit}

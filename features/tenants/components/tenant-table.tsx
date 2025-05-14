@@ -39,7 +39,7 @@ export function TenantTable({
 }: TenantTableProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Handle undefined tenants
   if (!tenants || tenants.length === 0) {
     return (
@@ -93,10 +93,7 @@ export function TenantTable({
               </TableRow>
             ) : (
               tenants.map((tenant) => (
-                <TableRow
-                  key={tenant.id}
-                  className="cursor-pointer"
-                >
+                <TableRow key={tenant.id} className="cursor-pointer">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -163,6 +160,14 @@ export function TenantTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/marketplace/${tenant.id}`);
+                          }}
+                        >
+                          Marketplace Settings
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
