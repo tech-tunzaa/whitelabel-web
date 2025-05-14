@@ -24,28 +24,38 @@ import { CategoryForm } from "@/features/products/categories/components/category
 
 export default function CategoriesPage() {
   const router = useRouter();
-  const { loading, storeError, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategoryStore();
+  const {
+    loading,
+    storeError,
+    fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    activeAction,
+  } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
+    null
+  );
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Define tenant headers
   const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
   };
-  
+
   const loadCategories = async () => {
     try {
       setError(null);
       const response = await fetchCategories(undefined, tenantHeaders);
       setCategories(response.items || []);
     } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError('Failed to load categories. Please try again.');
+      console.error("Error fetching categories:", err);
+      setError("Failed to load categories. Please try again.");
     }
   };
 
@@ -54,11 +64,10 @@ export default function CategoriesPage() {
     const loadOnce = () => {
       loadCategories();
     };
-    
+
     loadOnce();
     // Empty dependency array ensures this only runs once on mount
   }, []);
-  
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -110,7 +119,7 @@ export default function CategoriesPage() {
     setCategoryToEdit(category || null);
     setIsFormDialogOpen(true);
   };
-  
+
   const handleViewDetails = (category: Category) => {
     // Use the correct ID property (_id) for navigation
     router.push(`/dashboard/products/categories/${category._id}`);
@@ -121,10 +130,8 @@ export default function CategoriesPage() {
     setIsFormDialogOpen(false);
   };
 
-  if (loading) {
-    return (
-      <Spinner />
-    );
+  if (loading && !activeAction) {
+    return <Spinner />;
   }
 
   if (error) {
@@ -146,7 +153,7 @@ export default function CategoriesPage() {
           title="Error Loading Categories"
           error={{
             message: error,
-            status: "error"
+            status: "error",
           }}
           buttonText="Retry"
           buttonAction={() => loadCategories()}
@@ -194,7 +201,7 @@ export default function CategoriesPage() {
             title="Error Loading Categories"
             error={{
               message: error,
-              status: "error"
+              status: "error",
             }}
             buttonText="Retry"
             buttonAction={() => loadCategories()}
@@ -211,11 +218,14 @@ export default function CategoriesPage() {
       </div>
 
       {/* Add/Edit Category Dialog */}
-      <Dialog open={isFormDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          closeFormDialog();
-        }
-      }}>
+      <Dialog
+        open={isFormDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeFormDialog();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>
@@ -228,15 +238,19 @@ export default function CategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <CategoryForm
-            initialData={categoryToEdit ? {
-              name: categoryToEdit.name,
-              description: categoryToEdit.description,
-              status: categoryToEdit.is_active ? 'active' : 'inactive',
-              parentId: categoryToEdit.parentId,
-              category_id: categoryToEdit._id, // Pass the category ID for proper filtering of parent options
-              featured: Boolean(categoryToEdit.featured),
-              slug: categoryToEdit.slug || ''
-            } : undefined}
+            initialData={
+              categoryToEdit
+                ? {
+                    name: categoryToEdit.name,
+                    description: categoryToEdit.description,
+                    status: categoryToEdit.is_active ? "active" : "inactive",
+                    parentId: categoryToEdit.parentId,
+                    category_id: categoryToEdit._id, // Pass the category ID for proper filtering of parent options
+                    featured: Boolean(categoryToEdit.featured),
+                    slug: categoryToEdit.slug || "",
+                  }
+                : undefined
+            }
             onSubmit={categoryToEdit ? handleEditCategory : handleAddCategory}
             onCancel={closeFormDialog}
           />
@@ -244,10 +258,7 @@ export default function CategoriesPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
@@ -263,10 +274,7 @@ export default function CategoriesPage() {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteCategory}
-            >
+            <Button variant="destructive" onClick={handleDeleteCategory}>
               Delete
             </Button>
           </div>
