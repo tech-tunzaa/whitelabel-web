@@ -36,17 +36,30 @@ interface VendorTableProps {
   onStatusChange?: (vendorId: string, status: string) => Promise<void>;
 }
 
-export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTableProps) {
+export function VendorTable({
+  vendors,
+  onVendorClick,
+  onStatusChange,
+}: VendorTableProps) {
   const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
-  
+
   // Filter vendors by status - directly using API response fields
-  const pendingVendors = vendors.filter((vendor) => vendor.verification_status === "pending");
-  const activeVendors = vendors.filter((vendor) => vendor.verification_status === "approved" && vendor.is_active);
-  const rejectedVendors = vendors.filter((vendor) => vendor.verification_status === "rejected");
+  const pendingVendors = vendors.filter(
+    (vendor) => vendor.verification_status === "pending"
+  );
+  const activeVendors = vendors.filter(
+    (vendor) => vendor.verification_status === "approved" && vendor.is_active
+  );
+  const rejectedVendors = vendors.filter(
+    (vendor) => vendor.verification_status === "rejected"
+  );
 
   // Helper function to handle status change with loading state
-  const handleStatusChange = async (vendorId: string | undefined, newStatus: string) => {
+  const handleStatusChange = async (
+    vendorId: string | undefined,
+    newStatus: string
+  ) => {
     if (!onStatusChange || !vendorId) return; // Skip if no ID or handler
     try {
       setProcessingId(vendorId);
@@ -61,45 +74,48 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
   // Helper function to get badge variant based on status
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'approved':
-        return 'default';
-      case 'pending':
-        return 'secondary';
-      case 'rejected':
-        return 'destructive';
+      case "approved":
+        return "default";
+      case "pending":
+        return "secondary";
+      case "rejected":
+        return "destructive";
       default:
-        return 'secondary';
+        return "secondary";
     }
   };
-  
+
   // Helper to get displayed status text
   const getStatusDisplayText = (vendor: Vendor) => {
-    if (vendor.verification_status === 'approved' && vendor.is_active) {
-      return 'Active';
-    } else if (vendor.verification_status === 'approved' && !vendor.is_active) {
-      return 'Inactive';
+    if (vendor.verification_status === "approved" && vendor.is_active) {
+      return "Active";
+    } else if (vendor.verification_status === "approved" && !vendor.is_active) {
+      return "Inactive";
     } else {
-      return vendor.verification_status?.charAt(0).toUpperCase() + vendor.verification_status?.slice(1) || 'Pending';
+      return (
+        vendor.verification_status?.charAt(0).toUpperCase() +
+          vendor.verification_status?.slice(1) || "Pending"
+      );
     }
   };
 
   // Format date helper with consistent formatting to prevent hydration errors
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return "N/A";
-    
+
     try {
       // Check if the date is in DD/MM/YYYY format
-      if (dateString.includes('/')) {
-        const [day, month, year] = dateString.split('/');
+      if (dateString.includes("/")) {
+        const [day, month, year] = dateString.split("/");
         return format(new Date(`${year}-${month}-${day}`), "MMM d, yyyy");
       }
-      
+
       return format(new Date(dateString), "MMM d, yyyy");
     } catch (error) {
       return "Invalid date";
     }
   };
-  
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="all" className="w-full">
@@ -131,17 +147,26 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                 <TableHeader>
                   <TableRow>
                     <TableHead>Business</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden md:table-cell">Category</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Email
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Category
+                    </TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {vendors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         No vendors found
                       </TableCell>
                     </TableRow>
@@ -155,27 +180,53 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={vendor.store?.branding?.logo_url || "/placeholder.svg"} alt={vendor.business_name} />
-                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                              <AvatarImage
+                                src={
+                                  vendor.store?.branding?.logo_url ||
+                                  "/placeholder.svg"
+                                }
+                                alt={vendor.business_name}
+                              />
+                              <AvatarFallback>
+                                {vendor.business_name
+                                  ?.substring(0, 2)
+                                  .toUpperCase() || "VD"}
+                              </AvatarFallback>
                             </Avatar>
                             <div>
                               <div>{vendor.business_name}</div>
-                              <div className="text-xs text-muted-foreground md:hidden">{vendor.contact_email}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">
+                                {vendor.contact_email}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.contact_email}</TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.store?.store_name || 'N/A'}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.contact_email}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.store?.store_name || "N/A"}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(vendor.verification_status || 'pending')}>
+                          <Badge
+                            variant={getStatusBadgeVariant(
+                              vendor.verification_status || "pending"
+                            )}
+                          >
                             {getStatusDisplayText(vendor)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatDate(vendor.created_at)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Open menu</span>
                               </Button>
@@ -185,7 +236,9 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/dashboard/vendors/${vendor.vendor_id}`);
+                                  router.push(
+                                    `/dashboard/vendors/${vendor.vendor_id}`
+                                  );
                                 }}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
@@ -194,7 +247,9 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/dashboard/vendors/${vendor.vendor_id}/edit`);
+                                  router.push(
+                                    `/dashboard/vendors/${vendor.vendor_id}/edit`
+                                  );
                                 }}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
@@ -204,13 +259,20 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                               <DropdownMenuSeparator />
                               {onStatusChange && (
                                 <>
-                                  {(!vendor.is_active || vendor.verification_status !== "approved") && (
+                                  {(!vendor.is_active ||
+                                    vendor.verification_status !==
+                                      "approved") && (
                                     <DropdownMenuItem
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleStatusChange(vendor.vendor_id, "active");
+                                        handleStatusChange(
+                                          vendor.vendor_id,
+                                          "approved"
+                                        );
                                       }}
-                                      disabled={processingId === vendor.vendor_id}
+                                      disabled={
+                                        processingId === vendor.vendor_id
+                                      }
                                     >
                                       {processingId === vendor.vendor_id ? (
                                         <Spinner size="sm" className="mr-2" />
@@ -224,9 +286,14 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                                     <DropdownMenuItem
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleStatusChange(vendor.vendor_id, "pending");
+                                        handleStatusChange(
+                                          vendor.vendor_id,
+                                          "pending"
+                                        );
                                       }}
-                                      disabled={processingId === vendor.vendor_id}
+                                      disabled={
+                                        processingId === vendor.vendor_id
+                                      }
                                     >
                                       {processingId === vendor.vendor_id ? (
                                         <Spinner size="sm" className="mr-2" />
@@ -243,7 +310,7 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                         </TableCell>
                       </TableRow>
                     ))
-                  )}                  
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -257,16 +324,25 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                 <TableHeader>
                   <TableRow>
                     <TableHead>Business</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden md:table-cell">Category</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Email
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Category
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pendingVendors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         No pending vendors found
                       </TableCell>
                     </TableRow>
@@ -280,18 +356,33 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.business_name} />
-                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                              <AvatarImage
+                                src={vendor.logo || "/placeholder.svg"}
+                                alt={vendor.business_name}
+                              />
+                              <AvatarFallback>
+                                {vendor.business_name
+                                  ?.substring(0, 2)
+                                  .toUpperCase() || "VD"}
+                              </AvatarFallback>
                             </Avatar>
                             <div>
                               <div>{vendor.business_name}</div>
-                              <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">
+                                {vendor.email}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.category || 'N/A'}</TableCell>
-                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.email}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.category || "N/A"}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatDate(vendor.created_at)}
+                        </TableCell>
                         <TableCell className="text-right">
                           {onStatusChange && (
                             <Button
@@ -327,16 +418,25 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                 <TableHeader>
                   <TableRow>
                     <TableHead>Business</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden md:table-cell">Category</TableHead>
-                    <TableHead className="hidden md:table-cell">Registered</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Email
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Category
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Registered
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activeVendors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         No active vendors found
                       </TableCell>
                     </TableRow>
@@ -350,18 +450,33 @@ export function VendorTable({ vendors, onVendorClick, onStatusChange }: VendorTa
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={vendor.logo || "/placeholder.svg"} alt={vendor.business_name} />
-                              <AvatarFallback>{vendor.business_name?.substring(0, 2).toUpperCase() || 'VD'}</AvatarFallback>
+                              <AvatarImage
+                                src={vendor.logo || "/placeholder.svg"}
+                                alt={vendor.business_name}
+                              />
+                              <AvatarFallback>
+                                {vendor.business_name
+                                  ?.substring(0, 2)
+                                  .toUpperCase() || "VD"}
+                              </AvatarFallback>
                             </Avatar>
                             <div>
                               <div>{vendor.business_name}</div>
-                              <div className="text-xs text-muted-foreground md:hidden">{vendor.email}</div>
+                              <div className="text-xs text-muted-foreground md:hidden">
+                                {vendor.email}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.email}</TableCell>
-                        <TableCell className="hidden md:table-cell">{vendor.category || 'N/A'}</TableCell>
-                        <TableCell className="hidden md:table-cell">{formatDate(vendor.created_at)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.email}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {vendor.category || "N/A"}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatDate(vendor.created_at)}
+                        </TableCell>
                         <TableCell className="text-right">
                           {onStatusChange && (
                             <Button
