@@ -36,18 +36,30 @@ const authConfig = {
           let role = "admin";
           let name = "The Manager";
 
-          if (credentials.email === "superowner@meneja.inc") {
+          if (
+            credentials.email === "superowner@meneja.inc" &&
+            credentials.password === "Test@1234"
+          ) {
             role = "super_owner";
             name = "Super Owner";
-          } else if (credentials.email === "admin@meneja.inc") {
+          } else if (
+            credentials.email === "admin@afrizon.cheetah.co.tz" &&
+            credentials.password === "Test@1234"
+          ) {
             role = "admin";
-            name = "The Admin";
-          } else if (credentials.email === "staff@meneja.inc") {
+            name = "Marketplace Admin";
+          } else if (
+            credentials.email === "staff@afrizon.cheetah.co.tz" &&
+            credentials.password === "Test@1234"
+          ) {
             role = "sub_admin";
             name = "Sub Admin";
-          } else if (credentials.email === "support@meneja.inc") {
+          } else if (
+            credentials.email === "support@afrizon.cheetah.co.tz" &&
+            credentials.password === "Test@1234"
+          ) {
             role = "support";
-            name = "Support Team";
+            name = "Afrizon Support";
           } else {
             throw new Error("Invalid credentials.");
             return null;

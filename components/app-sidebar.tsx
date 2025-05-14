@@ -25,6 +25,7 @@ import {
   IconLock,
   IconUserShield,
   IconBusinessplan,
+  IconBell,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/nav-documents";
@@ -70,7 +71,6 @@ const data = {
       url: "/dashboard/marketplace",
       icon: IconFolder,
       roles: ["super_owner", "admin"],
-
     },
     {
       title: "Vendors",
@@ -313,7 +313,7 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
                 className="size-8 group-data-[collapsible=icon]:opacity-0"
                 onClick={onNotificationClick}
               >
-                <IconMail className="h-5 w-5" />
+                <IconBell className="h-5 w-5" />
               </Button>
             </NotificationTrigger>
           </SidebarMenuItem>
