@@ -121,8 +121,7 @@ export default function CategoriesPage() {
   };
 
   const handleViewDetails = (category: Category) => {
-    // Use the correct ID property (_id) for navigation
-    router.push(`/dashboard/products/categories/${category._id}`);
+    router.push(`/dashboard/products/categories/${category.category_id}`);
   };
 
   const closeFormDialog = () => {

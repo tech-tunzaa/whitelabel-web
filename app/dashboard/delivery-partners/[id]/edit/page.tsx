@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { use } from "react";
@@ -17,11 +17,36 @@ interface DeliveryPartnerEditPageProps {
 
 export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditPageProps) {
   const router = useRouter();
-  const { deliveryPartners, updateDeliveryPartner } = useDeliveryPartnerStore();
   const { id } = use(params);
-  const deliveryPartner = deliveryPartners.find((dp) => dp._id === id);
+  const [partner, setPartner] = useState<DeliveryPartner | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { fetchDeliveryPartner } = useDeliveryPartnerStore();
 
-  if (!deliveryPartner) {
+  // Define tenant headers
+  const tenantHeaders = {
+    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+  };
+  
+  useEffect(() => {
+    const loadPartner = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const partnerData = await fetchDeliveryPartner(id, tenantHeaders);
+        setPartner(partnerData);
+      } catch (err) {
+        console.error('Error fetching delivery partner:', err);
+        setError('Failed to load delivery partner details. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadPartner();
+  }, [id, fetchDeliveryPartner]);
+
+  if (!partner) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -60,7 +85,7 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Edit Delivery Partner: {deliveryPartner.companyName}
+              Edit Delivery Partner: {partner.companyName}
             </h1>
             <p className="text-muted-foreground">
               Update delivery partner information and settings
@@ -71,11 +96,11 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
 
       <div className="flex-1 p-4 overflow-auto">
         <DeliveryPartnerForm 
-          initialData={deliveryPartner} 
+          initialData={partner} 
           disableTypeChange={true}
           onSubmit={(data) => {
             updateDeliveryPartner({
-              ...deliveryPartner,
+              ...partner,
               ...data,
             });
             router.push("/dashboard/delivery-partners");

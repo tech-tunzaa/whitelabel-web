@@ -36,7 +36,7 @@ export default function VendorsPage() {
     router.push(`/dashboard/vendors/${vendor.vendor_id}`);
   };
 
-  const handleStatusChange = async (vendorId: string, status: string) => {
+  const handleStatusChange = async (vendorId: string, status: any) => {
     try {
       // Pass tenant headers to the updateVendorStatus function
       await updateVendorStatus(vendorId, status, tenantHeaders);

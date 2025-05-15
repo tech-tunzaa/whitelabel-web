@@ -144,10 +144,10 @@ export function DeliveryPartnerTable({
                 <TableBody>
                   {filteredPartners.map((partner) => (
                     <TableRow
-                      key={partner._id}
+                      key={partner.id}
                       onClick={() =>
                         router.push(
-                          `/dashboard/delivery-partners/${partner._id}`
+                          `/dashboard/delivery-partners/${partner.id}`
                         )
                       }
                       className="cursor-pointer"
@@ -218,7 +218,7 @@ export function DeliveryPartnerTable({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(
-                                  `/dashboard/delivery-partners/${partner._id}/edit`
+                                  `/dashboard/delivery-partners/${partner.id}/edit`
                                 );
                               }}
                             >
@@ -233,7 +233,7 @@ export function DeliveryPartnerTable({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onApproveDeliveryPartner(
-                                        partner._id,
+                                        partner.id,
                                         partner.commission_percent,
                                         true
                                       );
@@ -244,7 +244,7 @@ export function DeliveryPartnerTable({
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onRejectDeliveryPartner(partner._id);
+                                      onRejectDeliveryPartner(partner.id);
                                     }}
                                   >
                                     Reject
@@ -255,7 +255,7 @@ export function DeliveryPartnerTable({
                               <DropdownMenuItem
                                 onClick={() =>
                                   router.push(
-                                    `/dashboard/delivery-partners/${partner._id}/suspend`
+                                    `/dashboard/delivery-partners/${partner.id}/suspend`
                                   )
                                 }
                               >
@@ -293,10 +293,10 @@ export function DeliveryPartnerTable({
                 <TableBody>
                   {pendingPartners.map((partner) => (
                     <TableRow
-                      key={partner._id}
+                      key={partner.id}
                       onClick={() =>
                         router.push(
-                          `/dashboard/delivery-partners/${partner._id}`
+                          `/dashboard/delivery-partners/${partner.id}`
                         )
                       }
                       className="cursor-pointer"
@@ -352,7 +352,7 @@ export function DeliveryPartnerTable({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onApproveDeliveryPartner(
-                                  partner._id,
+                                  partner.id,
                                   partner.commission_percent,
                                   true
                                 );
@@ -363,7 +363,7 @@ export function DeliveryPartnerTable({
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onRejectDeliveryPartner(partner._id);
+                                onRejectDeliveryPartner(partner.id);
                               }}
                             >
                               Reject
@@ -399,10 +399,10 @@ export function DeliveryPartnerTable({
                 <TableBody>
                   {rejectedPartners.map((partner) => (
                     <TableRow
-                      key={partner._id}
+                      key={partner.id}
                       onClick={() =>
                         router.push(
-                          `/dashboard/delivery-partners/${partner._id}`
+                          `/dashboard/delivery-partners/${partner.id}`
                         )
                       }
                       className="cursor-pointer"

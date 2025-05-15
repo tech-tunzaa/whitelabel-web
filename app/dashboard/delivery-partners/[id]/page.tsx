@@ -28,13 +28,18 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { fetchDeliveryPartner } = useDeliveryPartnerStore();
+
+  // Define tenant headers
+  const tenantHeaders = {
+    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+  };
   
   useEffect(() => {
     const loadPartner = async () => {
       try {
         setLoading(true);
         setError(null);
-        const partnerData = await fetchDeliveryPartner(id);
+        const partnerData = await fetchDeliveryPartner(id, tenantHeaders);
         setPartner(partnerData);
       } catch (err) {
         console.error('Error fetching delivery partner:', err);
@@ -87,6 +92,23 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
         return "destructive";
       default:
         return "secondary";
+    }
+  };
+  
+  // Helper function for safe date formatting
+  const formatDate = (dateString: string | undefined, formatStr: string): string => {
+    if (!dateString) return 'Unknown';
+    try {
+      // Use a consistent date parsing approach to avoid hydration errors
+      const date = new Date(dateString);
+      // Check if the date is valid before formatting
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return format(date, formatStr);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
     }
   };
 
@@ -153,11 +175,11 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
             {partner.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {getPartnerTypeLabel(partner.type)} • ID: {partner._id}
+            {getPartnerTypeLabel(partner.type)} • ID: {partner.id}
           </p>
         </div>
-        <Badge variant={getStatusVariant(partner.status)} className="ml-auto">
-          {partner.status.charAt(0).toUpperCase() + partner.status.slice(1)}
+        <Badge variant={getStatusVariant(partner.status || '')} className="ml-auto">
+          {partner.status ? partner.status.charAt(0).toUpperCase() + partner.status.slice(1) : 'Unknown'}
         </Badge>
       </div>
 
@@ -188,7 +210,7 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                   <div>
                     <h3 className="text-xl font-semibold">{partner.name}</h3>
                     <p className="text-sm text-muted-foreground">Type: {getPartnerTypeLabel(partner.type)}</p>
-                    <p className="text-sm text-muted-foreground">Since: {format(new Date(partner.createdAt), "MMMM yyyy")}</p>
+                    <p className="text-sm text-muted-foreground">Since: {formatDate(partner.createdAt, "MMMM yyyy")}</p>
                   </div>
                 </div>
                 
@@ -209,13 +231,13 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                   </div>
                   <div>
                     <p className="text-sm font-medium">Status</p>
-                    <Badge variant={getStatusVariant(partner.status)}>
-                      {partner.status.charAt(0).toUpperCase() + partner.status.slice(1)}
+                    <Badge variant={getStatusVariant(partner.status || '')}>
+                      {partner.status ? partner.status.charAt(0).toUpperCase() + partner.status.slice(1) : 'Unknown'}
                     </Badge>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-sm">{format(new Date(partner.updatedAt), "PPP")}</p>
+                    <p className="text-sm">{formatDate(partner.updatedAt, "PPP")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -355,14 +377,14 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                   <>
                     <Button 
                       className="w-full" 
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/approve`)}
+                      onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/approve`)}
                     >
                       <Check className="mr-2 h-4 w-4" /> Approve Partner
                     </Button>
                     <Button 
                       variant="destructive" 
                       className="w-full" 
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/reject`)}
+                      onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/reject`)}
                     >
                       <X className="mr-2 h-4 w-4" /> Reject Partner
                     </Button>
@@ -372,7 +394,7 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                   <Button 
                     variant="destructive" 
                     className="w-full" 
-                    onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/suspend`)}
+                    onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/suspend`)}
                   >
                     <X className="mr-2 h-4 w-4" /> Suspend Partner
                   </Button>
@@ -380,7 +402,7 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                 {partner.status === "suspended" && (
                   <Button 
                     className="w-full" 
-                    onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/reactivate`)}
+                    onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/reactivate`)}
                   >
                     <Check className="mr-2 h-4 w-4" /> Reactivate Partner
                   </Button>
@@ -388,7 +410,7 @@ export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps
                 <Button 
                   variant="outline" 
                   className="w-full" 
-                  onClick={() => router.push(`/dashboard/delivery-partners/${partner._id}/edit`)}
+                  onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/edit`)}
                 >
                   Edit Partner Details
                 </Button>

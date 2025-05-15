@@ -42,7 +42,7 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()(
       try {
         setActiveAction('fetchOne');
         setLoading(true);
-        const response = await apiClient.get<any>(`/partners/${id}/`, undefined, headers);
+        const response = await apiClient.get<any>(`/partners/${id}`, undefined, headers);
         
         console.log('Delivery Partner API Response:', response);
         

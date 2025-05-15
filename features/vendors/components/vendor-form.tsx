@@ -1,16 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { useSession } from "next-auth/react"
-import { Loader2, Store, ArrowLeft, Upload, RefreshCw, Building2, CreditCard, FileText, Truck } from "lucide-react"
+import { useState, useCallback, useEffect, useRef } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { useSession } from "next-auth/react";
+import {
+  Loader2,
+  Store,
+  ArrowLeft,
+  Upload,
+  RefreshCw,
+  Building2,
+  CreditCard,
+  FileText,
+  Truck,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -19,31 +29,31 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { toast } from "sonner"
-import { DocumentUpload } from "@/components/ui/document-upload"
-import { PhoneInput } from "@/components/ui/phone-input"
-import { RequiredField } from "@/components/ui/required-field"
-import { ImageUpload } from "@/components/ui/image-upload"
-import { ColorPicker } from "@/components/ui/color-picker"
-import { Spinner } from "@/components/ui/spinner"
-import { ErrorCard } from "@/components/ui/error-card"
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { DocumentUpload } from "@/components/ui/document-upload";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { RequiredField } from "@/components/ui/required-field";
+import { ImageUpload } from "@/components/ui/image-upload";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
 
-import { countries } from "@/features/settings/data/localization"
-import { vendorFormSchema } from "../schema"
-import { VendorFormValues } from "../types"
-import { useTenantStore } from "@/features/tenants/store"
+import { countries } from "@/features/settings/data/localization";
+import { vendorFormSchema } from "../schema";
+import { VendorFormValues } from "../types";
+import { useTenantStore } from "@/features/tenants/store";
 
 // Default values that match the API structure
 const defaultValues: Partial<VendorFormValues> = {
@@ -65,7 +75,7 @@ const defaultValues: Partial<VendorFormValues> = {
     account_number: "",
     account_name: "",
     swift_code: "",
-    branch_code: ""
+    branch_code: "",
   },
   store: {
     store_name: "",
@@ -78,11 +88,11 @@ const defaultValues: Partial<VendorFormValues> = {
         secondary: "#E2E8F0",
         accent: "#ED8936",
         text: "#000000",
-        background: "#FFFFFF"
-      }
-    }
-  }
-}
+        background: "#FFFFFF",
+      },
+    },
+  },
+};
 
 const businessCategories = [
   "Apparel",
@@ -91,25 +101,28 @@ const businessCategories = [
   "Handmade Goods",
   "Health & Beauty",
   "Home & Garden",
-  "Jewelry & Accessories",
-  "Sports & Outdoors",
-  "Toys & Games",
+  "Services",
   "Other",
-]
+];
 
-const bankNames = [
-  "CRDB Bank",
-  "NMB Bank",
-  "NBC Bank",
-  "Stanbic Bank",
-  "Absa Bank",
-  "Equity Bank",
-  "Standard Chartered",
-  "DTB Bank",
-  "Access Bank",
-  "TPB Bank",
-  "Other"
-]
+const banks = [
+  { id: "bank-001", name: "CRDB Bank" },
+  { id: "bank-002", name: "NMB Bank" },
+  { id: "bank-003", name: "NBC Bank" },
+  { id: "bank-004", name: "Stanbic Bank" },
+  { id: "bank-005", name: "Absa Bank" },
+  { id: "bank-006", name: "DTB Bank" },
+  { id: "bank-007", name: "Exim Bank" },
+  { id: "bank-008", name: "KCB Bank" },
+  { id: "bank-009", name: "Bank of Africa" },
+  { id: "bank-010", name: "Standard Chartered Bank" },
+  { id: "bank-011", name: "Equity Bank" },
+  { id: "bank-012", name: "Access Bank" },
+  { id: "bank-013", name: "Bank M" },
+  { id: "bank-014", name: "Azania Bank" },
+  { id: "bank-015", name: "TIB Bank" },
+  { id: "bank-016", name: "Other" },
+];
 
 interface VendorFormProps {
   onSubmit: (data: VendorFormValues) => void;
@@ -120,7 +133,14 @@ interface VendorFormProps {
   isSubmitting?: boolean;
 }
 
-export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true, id, isSubmitting: externalIsSubmitting }: VendorFormProps) {
+export function VendorForm({
+  onSubmit,
+  onCancel,
+  initialData,
+  isEditable = true,
+  id,
+  isSubmitting: externalIsSubmitting,
+}: VendorFormProps) {
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
   const isSuperOwner = userRole === "super_owner";
@@ -134,76 +154,103 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
 
   const tenants = useTenantStore((state) => state.tenants);
 
-
   // Form state management
-  const [activeTab, setActiveTab] = useState("business")
+  const [activeTab, setActiveTab] = useState("business");
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
-  const isSubmitting = externalIsSubmitting !== undefined ? externalIsSubmitting : internalIsSubmitting;
+  const isSubmitting =
+    externalIsSubmitting !== undefined
+      ? externalIsSubmitting
+      : internalIsSubmitting;
   const [formError, setFormError] = useState<string | null>(null);
   
+  // Form ref to prevent bubbling
+  const formRef = useRef<HTMLFormElement>(null);
+
   // Document uploads
-  const [identityDocs, setIdentityDocs] = useState<File[]>([])
-  const [businessDocs, setBusinessDocs] = useState<File[]>([])
-  const [bankDocs, setBankDocs] = useState<File[]>([])
-  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<Record<string, string>>({})
-  const [businessDocsExpiry, setBusinessDocsExpiry] = useState<Record<string, string>>({})
-  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>({})
-  
+  const [identityDocs, setIdentityDocs] = useState<File[]>([]);
+  const [businessDocs, setBusinessDocs] = useState<File[]>([]);
+  const [bankDocs, setBankDocs] = useState<File[]>([]);
+  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<
+    Record<string, string>
+  >({});
+  const [businessDocsExpiry, setBusinessDocsExpiry] = useState<
+    Record<string, string>
+  >({});
+  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>(
+    {}
+  );
+
   // Logo upload
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
   // Form validation tabs mapping
   const tabValidationMap = {
-    "business": [
-      "business_name", 
-      "display_name", 
-      "contact_email", 
-      "contact_phone", 
-      "tax_id"
+    business: [
+      "tenant_id",
+      "business_name",
+      "display_name",
+      "contact_email",
+      "contact_phone",
+      "tax_id",
     ],
-    "store": [
-      "store.store_name", 
-      "store.store_slug", 
-      "store.description", 
+    store: [
+      "store.store_name",
+      "store.store_slug",
+      "store.description",
       "store.branding.colors.primary",
       "store.branding.colors.secondary",
       "store.branding.colors.accent",
       "store.branding.colors.text",
-      "store.branding.colors.background"
+      "store.branding.colors.background",
     ],
-    "address": [
-      "address_line1", 
-      "city", 
-      "state_province", 
-      "postal_code", 
-      "country"
+    address: [
+      "address_line1",
+      "city",
+      "state_province",
+      "postal_code",
+      "country",
     ],
-    "banking": [
-      "bank_account.bank_name", 
-      "bank_account.account_number", 
-      "bank_account.account_name"
+    banking: [
+      "bank_account.bank_name",
+      "bank_account.account_number",
+      "bank_account.account_name",
     ],
-    "documents": [] // Documents are optional
+    documents: [], // Documents are optional
   };
-  
-  const tabFlow = ["business", "store", "address", "banking", "documents", "review"];
+
+  const tabFlow = [
+    "business",
+    "store",
+    "address",
+    "banking",
+    "documents",
+    "review",
+  ];
 
   const form = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
-    defaultValues: initialData ? { ...defaultValues, ...initialData } : defaultValues,
-  })
+    defaultValues: initialData
+      ? { ...defaultValues, ...initialData }
+      : defaultValues,
+    mode: "onBlur",
+    shouldFocusError: false,
+  });
 
   // Tab navigation with field validation
   const nextTab = useCallback(() => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
-    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1) return;
-    
+    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1)
+      return;
+
     // Get fields to validate for the current tab
-    const fieldsToValidate = tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
-    
+    const fieldsToValidate =
+      tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
+
     // Validate all required fields in the current tab
-    const result = fieldsToValidate.every(field => form.trigger(field as any));
-    
+    const result = fieldsToValidate.every((field) =>
+      form.trigger(field as any)
+    );
+
     if (result) {
       setActiveTab(tabFlow[currentTabIndex + 1]);
     } else {
@@ -225,63 +272,76 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
   }, []);
 
   // Handle form submission with error handling and validation
-  const handleFormSubmit = useCallback(async (data: VendorFormValues) => {
-    try {
-      setFormError(null);
-      setInternalIsSubmitting(true);
-      
-      // Process files if needed
-      if (logoFile) {
-        const logoUrl = await handleFileUpload(logoFile, 'logos');
-        data.store.branding.logo_url = logoUrl;
-      }
-      
-      // Convert document files to verification documents
-      if (identityDocs.length || businessDocs.length) {
-        const verificationDocs = [];
-        
-        for (const file of identityDocs) {
-          const docUrl = await handleFileUpload(file, 'identity');
-          verificationDocs.push({
-            document_type: 'identity',
-            document_url: docUrl,
-            verification_status: 'pending' as const
-          });
+  const handleFormSubmit = useCallback(
+    async (data: VendorFormValues) => {
+      try {
+        setFormError(null);
+        setInternalIsSubmitting(true);
+
+        // Process files if needed
+        if (logoFile) {
+          const logoUrl = await handleFileUpload(logoFile, "logos");
+          data.store.branding.logo_url = logoUrl;
         }
-        
-        for (const file of businessDocs) {
-          const docUrl = await handleFileUpload(file, 'business');
-          verificationDocs.push({
-            document_type: 'business_registration',
-            document_url: docUrl,
-            verification_status: 'pending' as const
-          });
+
+        // Convert document files to verification documents
+        if (identityDocs.length || businessDocs.length || bankDocs.length) {
+          const verificationDocs = [];
+
+          for (const file of identityDocs) {
+            const docUrl = await handleFileUpload(file, "identity");
+            verificationDocs.push({
+              document_type: "identity",
+              document_url: docUrl,
+              verification_status: "pending" as const,
+            });
+          }
+
+          for (const file of businessDocs) {
+            const docUrl = await handleFileUpload(file, "business");
+            verificationDocs.push({
+              document_type: "business_registration",
+              document_url: docUrl,
+              verification_status: "pending" as const,
+            });
+          }
+          
+          for (const file of bankDocs) {
+            const docUrl = await handleFileUpload(file, "banking");
+            verificationDocs.push({
+              document_type: "banking",
+              document_url: docUrl,
+              verification_status: "pending" as const,
+            });
+          }
+
+          data.verification_documents = verificationDocs;
         }
-        
-        data.verification_documents = verificationDocs;
+
+        await onSubmit(data);
+
+        // Success would typically be handled by the parent component
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "An error occurred";
+        setFormError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setInternalIsSubmitting(false);
       }
-      
-      await onSubmit(data);
-      
-      // Success would typically be handled by the parent component
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      setFormError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setInternalIsSubmitting(false);
-    }
-  }, [logoFile, identityDocs, businessDocs, handleFileUpload, onSubmit]);
-  
+    },
+    [logoFile, identityDocs, businessDocs, bankDocs, handleFileUpload, onSubmit]
+  );
+
   // Handle form errors by navigating to the tab with the first error
   const handleFormError = useCallback((errors: any) => {
     // Find which tab has errors
     const tabWithErrors = findTabWithErrors(errors);
-    
+
     // Switch to the tab containing errors
     setActiveTab(tabWithErrors);
     toast.error("Please fix the validation errors before submitting");
-    
+
     // Log validation errors for debugging
     console.error("Form validation errors:", errors);
   }, []);
@@ -296,7 +356,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           const parts = field.split(".");
           let currentObj = errors;
           let hasError = true;
-          
+
           // Navigate through the nested error object
           for (const part of parts) {
             if (!currentObj || !currentObj[part]) {
@@ -305,14 +365,14 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             }
             currentObj = currentObj[part];
           }
-          
+
           if (hasError) return tabName;
         } else if (errors[field]) {
           return tabName;
         }
       }
     }
-    
+
     // If no tab with errors is found, stay on the current tab
     return activeTab;
   };
@@ -321,8 +381,8 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
   if (formError && !isSubmitting) {
     return (
       <ErrorCard
-        title={`Failed to ${isAddPage ? 'create' : 'update'} vendor`}
-        error={{ status: 'Error', message: formError }}
+        title={`Failed to ${isAddPage ? "create" : "update"} vendor`}
+        error={{ status: "Error", message: formError }}
         buttonText="Try Again"
         buttonAction={() => setFormError(null)}
         buttonIcon={RefreshCw}
@@ -335,17 +395,25 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
       <Card className="w-full">
         <CardContent className="p-6">
           <Form {...form}>
-            <form 
+            <form
               id={id}
+              ref={formRef}
               onSubmit={form.handleSubmit(handleFormSubmit, handleFormError)}
+              onClick={(e) => e.stopPropagation()}
             >
               <FormField
                 control={form.control}
                 name="tenant_id"
                 render={({ field }) => (
                   <FormItem className="mb-6">
-                    <FormLabel>Marketplace <RequiredField /></FormLabel>
-                    <Select>
+                    <FormLabel>
+                      Marketplace <RequiredField />
+                    </FormLabel>
+                    <Select
+                      disabled={!isEditable}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a marketplace" />
                       </SelectTrigger>
@@ -375,11 +443,11 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                 </TabsList>
 
                 <BusinessTab />
-                
+
                 <StoreTab />
-                
+
                 <AddressTab />
-                
+
                 <BankingTab />
 
                 <DocumentsTab />
@@ -400,9 +468,12 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                           Previous
                         </Button>
                       )}
-                      <Button
-                        type="button"
-                        onClick={nextTab}
+                      <Button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          nextTab();
+                        }}
                       >
                         Next
                       </Button>
@@ -415,7 +486,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                           Processing...
                         </>
                       ) : (
-                        'Submit'
+                        "Submit"
                       )}
                     </Button>
                   )}
@@ -426,11 +497,11 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
         </CardContent>
       </Card>
     </fieldset>
-  )
-  
+  );
+
   function BusinessTab() {
     return (
-      <TabsContent value="business" className="space-y-6 pt-4">
+      <TabsContent value="business" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Business Information</h3>
           <p className="text-sm text-muted-foreground">
@@ -442,16 +513,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="business_name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Business Name <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Business Name <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Your business name" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="business_name"
+                    placeholder="Your business name"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -465,16 +536,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="display_name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Display Name <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Display Name <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Display name for your business" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="display_name"
+                    placeholder="Display name for your business"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -491,17 +562,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="contact_email"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Email <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Email address" 
-                    type="email" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="contact_email"
+                    placeholder="Email address"
+                    type="email"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -515,14 +586,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="contact_phone"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Phone <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <PhoneInput 
-                    value={field.value} 
+                  <PhoneInput
+                    id="contact_phone"
+                    value={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
-                    disabled={!isEditable} 
+                    disabled={!isEditable}
                     ref={field.ref}
                   />
                 </FormControl>
@@ -540,16 +614,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="tax_id"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tax ID <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Tax ID <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Tax ID" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="tax_id"
+                    placeholder="Tax ID"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -563,16 +637,14 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="website"
             render={({ field }) => (
-              <FormItem>
+              <FormItem onClick={(e) => e.stopPropagation()}>
                 <FormLabel>Website</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="https://yourbusiness.com" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="website"
+                    placeholder="https://yourbusiness.com"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -588,32 +660,31 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           control={form.control}
           name="commission_rate"
           render={({ field }) => (
-            <FormItem>
+            <FormItem onClick={(e) => e.stopPropagation()}>
               <FormLabel>Commission Rate</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="e.g. 10%" 
-                  value={field.value} 
-                  onChange={field.onChange} 
-                  onBlur={field.onBlur} 
-                  name={field.name} 
-                  ref={field.ref} 
+                <Input
+                  id="commission_rate"
+                  placeholder="e.g. 10%"
+                  {...field}
+                  readOnly={!isEditable}
                 />
               </FormControl>
               <FormDescription>
-                Commission rate for products sold through the marketplace (if applicable).
+                Commission rate for products sold through the marketplace (if
+                applicable).
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
       </TabsContent>
-    )
+    );
   }
 
   function StoreTab() {
     return (
-      <TabsContent value="store" className="space-y-6 pt-4">
+      <TabsContent value="store" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Store Information</h3>
           <p className="text-sm text-muted-foreground">
@@ -626,16 +697,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="store.store_name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Store Name <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Store Name <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Your store name" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="store_name"
+                    placeholder="Your store name"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -649,20 +720,21 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="store.store_slug"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Store URL Slug <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Store URL Slug <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="your-store-name" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="store_slug"
+                    placeholder="your-store-name"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
-                  Used in your store's URL: marketplace.com/stores/{field.value || 'your-store-name'}
+                  Used in your store's URL: marketplace.com/stores/
+                  {field.value || "your-store-name"}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -674,17 +746,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           control={form.control}
           name="store.description"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Store Description <RequiredField /></FormLabel>
+            <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormLabel>
+                Store Description <RequiredField />
+              </FormLabel>
               <FormControl>
                 <Textarea
+                  id="store_description"
                   placeholder="Tell customers about your store..."
                   className="min-h-[100px] resize-none"
-                  value={field.value} 
-                  onChange={field.onChange} 
-                  onBlur={field.onBlur} 
-                  name={field.name} 
-                  ref={field.ref}
+                  {...field}
+                  readOnly={!isEditable}
                 />
               </FormControl>
               <FormDescription>
@@ -701,15 +773,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="store.branding.logo_url"
             render={({ field }) => (
-              <FormItem>
+              <FormItem onClick={(e) => e.stopPropagation()}>
                 <FormLabel>Store Logo</FormLabel>
                 <FormControl>
                   <ImageUpload
+                    id="store_logo"
                     value={field.value}
                     onChange={(url) => {
-                      field.onChange(url)
+                      field.onChange(url);
                     }}
-                    onRemove={() => field.onChange('')}
+                    onRemove={() => field.onChange("")}
                     onUpload={(file) => {
                       // Set the file for later processing during submission
                       setLogoFile(file);
@@ -717,6 +790,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                       const previewUrl = URL.createObjectURL(file);
                       field.onChange(previewUrl);
                     }}
+                    disabled={!isEditable}
                   />
                 </FormControl>
                 <FormDescription>
@@ -735,10 +809,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
               control={form.control}
               name="store.branding.colors.primary"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Primary Color <RequiredField /></FormLabel>
+                <FormItem onClick={(e) => e.stopPropagation()}>
+                  <FormLabel>
+                    Primary Color <RequiredField />
+                  </FormLabel>
                   <FormControl>
-                    <ColorPicker value={field.value} onChange={field.onChange} />
+                    <ColorPicker
+                      id="primary_color"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!isEditable}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -748,10 +829,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
               control={form.control}
               name="store.branding.colors.secondary"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Secondary Color <RequiredField /></FormLabel>
+                <FormItem onClick={(e) => e.stopPropagation()}>
+                  <FormLabel>
+                    Secondary Color <RequiredField />
+                  </FormLabel>
                   <FormControl>
-                    <ColorPicker value={field.value} onChange={field.onChange} />
+                    <ColorPicker
+                      id="secondary_color"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!isEditable}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -761,10 +849,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
               control={form.control}
               name="store.branding.colors.accent"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Accent Color <RequiredField /></FormLabel>
+                <FormItem onClick={(e) => e.stopPropagation()}>
+                  <FormLabel>
+                    Accent Color <RequiredField />
+                  </FormLabel>
                   <FormControl>
-                    <ColorPicker value={field.value} onChange={field.onChange} />
+                    <ColorPicker
+                      id="accent_color"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!isEditable}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -776,10 +871,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
               control={form.control}
               name="store.branding.colors.text"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Text Color <RequiredField /></FormLabel>
+                <FormItem onClick={(e) => e.stopPropagation()}>
+                  <FormLabel>
+                    Text Color <RequiredField />
+                  </FormLabel>
                   <FormControl>
-                    <ColorPicker value={field.value} onChange={field.onChange} />
+                    <ColorPicker
+                      id="text_color"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!isEditable}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -789,10 +891,17 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
               control={form.control}
               name="store.branding.colors.background"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Background Color <RequiredField /></FormLabel>
+                <FormItem onClick={(e) => e.stopPropagation()}>
+                  <FormLabel>
+                    Background Color <RequiredField />
+                  </FormLabel>
                   <FormControl>
-                    <ColorPicker value={field.value} onChange={field.onChange} />
+                    <ColorPicker
+                      id="background_color"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!isEditable}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -801,32 +910,33 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           </div>
         </div>
       </TabsContent>
-    )
+    );
   }
-  
+
   function AddressTab() {
     return (
-      <TabsContent value="address" className="space-y-6 pt-4">
+      <TabsContent value="address" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Business Address</h3>
           <p className="text-sm text-muted-foreground">
             Provide your business location information.
           </p>
         </div>
+
         <FormField
           control={form.control}
           name="address_line1"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Address Line 1 <RequiredField /></FormLabel>
+            <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormLabel>
+                Address Line 1 <RequiredField />
+              </FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="123 Main St" 
-                  value={field.value} 
-                  onChange={field.onChange} 
-                  onBlur={field.onBlur} 
-                  name={field.name} 
-                  ref={field.ref} 
+                <Input
+                  id="address_line1"
+                  placeholder="123 Main St"
+                  {...field}
+                  readOnly={!isEditable}
                 />
               </FormControl>
               <FormMessage />
@@ -837,37 +947,36 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           control={form.control}
           name="address_line2"
           render={({ field }) => (
-            <FormItem>
+            <FormItem onClick={(e) => e.stopPropagation()}>
               <FormLabel>Address Line 2</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Suite 101" 
-                  value={field.value} 
-                  onChange={field.onChange} 
-                  onBlur={field.onBlur} 
-                  name={field.name} 
-                  ref={field.ref} 
+                <Input
+                  id="address_line2"
+                  placeholder="Suite 101"
+                  {...field}
+                  readOnly={!isEditable}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="grid gap-4 md:grid-cols-2">
+
+        <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="city"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>City <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  City <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="City" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="city"
+                    placeholder="City"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -878,16 +987,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="state_province"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>State/Province <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  State/Province <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="State or Province" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="state_province"
+                    placeholder="State or Province"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -895,21 +1004,22 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             )}
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+
+        <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="postal_code"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Postal Code <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Postal Code <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Postal code" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="postal_code"
+                    placeholder="Postal code"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -920,65 +1030,67 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="country"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Country <RequiredField /></FormLabel>
-                <FormControl>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    name={field.name}
-                    ref={field.ref}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.value} value={country.value}>
-                      {country.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-                </FormControl>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Country <RequiredField />
+                </FormLabel>
+                <Select
+                  disabled={!isEditable}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country.code} value={country.name}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
       </TabsContent>
-    )
+    );
   }
 
   function BankingTab() {
     return (
-      <TabsContent value="banking" className="space-y-6 pt-4">
+      <TabsContent value="banking" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Banking Information</h3>
           <p className="text-sm text-muted-foreground">
             Provide your banking details for payments and settlements.
           </p>
         </div>
-        
+
         <FormField
           control={form.control}
           name="bank_account.bank_name"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Bank Name <RequiredField /></FormLabel>
+            <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormLabel>
+                Bank Name <RequiredField />
+              </FormLabel>
               <Select
+                disabled={!isEditable}
                 onValueChange={field.onChange}
-                defaultValue={field.value}
+                value={field.value}
               >
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a bank" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {bankNames.map((bank) => (
-                    <SelectItem key={bank} value={bank}>
-                      {bank}
+                  {banks.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.name}>
+                      {bank.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -987,22 +1099,22 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             </FormItem>
           )}
         />
-        
-        <div className="grid gap-4 md:grid-cols-2">
+
+        <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="bank_account.account_number"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Account Number <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Account Number <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Account number" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="account_number"
+                    placeholder="Account number"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1013,16 +1125,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="bank_account.account_name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Account Name <RequiredField /></FormLabel>
+              <FormItem onClick={(e) => e.stopPropagation()}>
+                <FormLabel>
+                  Account Name <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Account holder name" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="account_name"
+                    placeholder="Account holder name"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1030,22 +1142,20 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             )}
           />
         </div>
-        
-        <div className="grid gap-4 md:grid-cols-2">
+
+        <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="bank_account.swift_code"
             render={({ field }) => (
-              <FormItem>
+              <FormItem onClick={(e) => e.stopPropagation()}>
                 <FormLabel>Swift Code</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Swift code (optional)" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="swift_code"
+                    placeholder="Swift code (optional)"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1056,16 +1166,14 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
             control={form.control}
             name="bank_account.branch_code"
             render={({ field }) => (
-              <FormItem>
+              <FormItem onClick={(e) => e.stopPropagation()}>
                 <FormLabel>Branch Code</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Branch code (optional)" 
-                    value={field.value} 
-                    onChange={field.onChange} 
-                    onBlur={field.onBlur} 
-                    name={field.name} 
-                    ref={field.ref} 
+                  <Input
+                    id="branch_code"
+                    placeholder="Branch code (optional)"
+                    {...field}
+                    readOnly={!isEditable}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1074,15 +1182,16 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           />
         </div>
       </TabsContent>
-    )
+    );
   }
-  
-  function DocumentsTab(){
+
+  function DocumentsTab() {
     return (
-      <TabsContent value="documents" className="space-y-6 pt-4">
+      <TabsContent value="documents" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Identity Documents</h3>
           <DocumentUpload
+            id="identity_documents"
             label="National ID, Passport, Driver's License, etc."
             description="Upload clear images of relevant identity documents. You may add an expiry date for any document that requires renewal."
             files={identityDocs}
@@ -1097,6 +1206,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Business Documents</h3>
           <DocumentUpload
+            id="business_documents"
             label="Business Registration, License, Certificates, etc."
             description="Upload clear images of all required business documents. Set expiry dates for any licenses or certificates that require renewal."
             files={businessDocs}
@@ -1111,6 +1221,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Banking Information</h3>
           <DocumentUpload
+            id="banking_documents"
             label="Bank Statements, Financial Records, etc."
             description="Upload bank account information and financial records. You may set expiry dates for documents like statements that need to be renewed."
             files={bankDocs}
@@ -1120,12 +1231,12 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           />
         </div>
       </TabsContent>
-    )
+    );
   }
-  
-  function ReviewTab(){
+
+  function ReviewTab() {
     return (
-      <TabsContent value="review" className="space-y-6 pt-4">
+      <TabsContent value="review" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Review Your Information</h3>
           <p className="text-sm text-muted-foreground">
@@ -1135,9 +1246,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-medium mb-4">
-              Business Information
-            </h3>
+            <h3 className="text-lg font-medium mb-4">Business Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1151,9 +1260,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Display Name
                 </h4>
-                <p className="text-base">
-                  {form.watch("display_name") || "—"}
-                </p>
+                <p className="text-base">{form.watch("display_name") || "—"}</p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1175,17 +1282,13 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Tax ID
                 </h4>
-                <p className="text-base">
-                  {form.watch("tax_id") || "—"}
-                </p>
+                <p className="text-base">{form.watch("tax_id") || "—"}</p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Website
                 </h4>
-                <p className="text-base">
-                  {form.watch("website") || "—"}
-                </p>
+                <p className="text-base">{form.watch("website") || "—"}</p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1201,9 +1304,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           <Separator />
 
           <div>
-            <h3 className="text-lg font-medium mb-4">
-              Store Information
-            </h3>
+            <h3 className="text-lg font-medium mb-4">Store Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1238,21 +1339,33 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                 <div className="flex items-center">
                   <div
                     className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{ backgroundColor: form.watch("store.branding.colors.primary") }}
+                    style={{
+                      backgroundColor: form.watch(
+                        "store.branding.colors.primary"
+                      ),
+                    }}
                   />
                   <span className="text-sm">Primary</span>
                 </div>
                 <div className="flex items-center">
                   <div
                     className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{ backgroundColor: form.watch("store.branding.colors.secondary") }}
+                    style={{
+                      backgroundColor: form.watch(
+                        "store.branding.colors.secondary"
+                      ),
+                    }}
                   />
                   <span className="text-sm">Secondary</span>
                 </div>
                 <div className="flex items-center">
                   <div
                     className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{ backgroundColor: form.watch("store.branding.colors.accent") }}
+                    style={{
+                      backgroundColor: form.watch(
+                        "store.branding.colors.accent"
+                      ),
+                    }}
                   />
                   <span className="text-sm">Accent</span>
                 </div>
@@ -1263,29 +1376,24 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           <Separator />
 
           <div>
-            <h3 className="text-lg font-medium mb-4">
-              Business Address
-            </h3>
+            <h3 className="text-lg font-medium mb-4">Business Address</h3>
             <p className="text-base">
               {form.watch("address_line1") || "—"}
-              {form.watch("address_line2") ? `, ${form.watch("address_line2")}` : ""}
+              {form.watch("address_line2")
+                ? `, ${form.watch("address_line2")}`
+                : ""}
             </p>
             <p className="text-base">
-              {form.watch("city") || "—"},{" "}
-              {form.watch("state_province") || "—"}{" "}
+              {form.watch("city") || "—"}, {form.watch("state_province") || "—"}{" "}
               {form.watch("postal_code") || "—"}
             </p>
-            <p className="text-base">
-              {form.watch("country") || "—"}
-            </p>
+            <p className="text-base">{form.watch("country") || "—"}</p>
           </div>
 
           <Separator />
-          
+
           <div>
-            <h3 className="text-lg font-medium mb-4">
-              Banking Information
-            </h3>
+            <h3 className="text-lg font-medium mb-4">Banking Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1333,9 +1441,7 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
           <Separator />
 
           <div>
-            <h3 className="text-lg font-medium mb-4">
-              Uploaded Documents
-            </h3>
+            <h3 className="text-lg font-medium mb-4">Uploaded Documents</h3>
             <div className="space-y-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
@@ -1347,7 +1453,10 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                       <li key={file.name} className="text-sm">
                         {file.name}
                         {identityDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground"> - Expires: {identityDocsExpiry[file.name]}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            - Expires: {identityDocsExpiry[file.name]}
+                          </span>
                         )}
                       </li>
                     ))}
@@ -1368,7 +1477,10 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                       <li key={file.name} className="text-sm">
                         {file.name}
                         {businessDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground"> - Expires: {businessDocsExpiry[file.name]}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            - Expires: {businessDocsExpiry[file.name]}
+                          </span>
                         )}
                       </li>
                     ))}
@@ -1389,7 +1501,10 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
                       <li key={file.name} className="text-sm">
                         {file.name}
                         {bankDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground"> - Expires: {bankDocsExpiry[file.name]}</span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            - Expires: {bankDocsExpiry[file.name]}
+                          </span>
                         )}
                       </li>
                     ))}
@@ -1406,13 +1521,13 @@ export function VendorForm({ onSubmit, onCancel, initialData, isEditable = true,
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            By submitting this application, you confirm that all
-            information provided is accurate and complete. The
-            vendor application will be reviewed by our team, and
-            you will be notified once a decision has been made.
+            By submitting this application, you confirm that all information
+            provided is accurate and complete. The vendor application will be
+            reviewed by our team, and you will be notified once a decision has
+            been made.
           </p>
         </div>
       </TabsContent>
-    )
+    );
   }
 }
