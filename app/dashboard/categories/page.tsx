@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Search, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +18,14 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 
-import { useCategoryStore } from "@/features/products/categories/store";
-import { Category } from "@/features/products/categories/types";
-import { CategoryTable } from "@/features/products/categories/components/category-table";
-import { CategoryForm } from "@/features/products/categories/components/category-form";
+import { useCategoryStore } from "@/features/categories/store";
+import { Category } from "@/features/categories/types";
+import { CategoryTable } from "@/features/categories/components/category-table";
+import { CategoryForm } from "@/features/categories/components/category-form";
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const {
     loading,
     storeError,
@@ -31,6 +33,7 @@ export default function CategoriesPage() {
     createCategory,
     updateCategory,
     deleteCategory,
+    toggleCategoryStatus,
     activeAction,
   } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,9 +46,12 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Get tenant ID from session or use default
+  const tenantId = session?.user?.tenant_id;
+  
   // Define tenant headers
   const tenantHeaders = {
-    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+    "X-Tenant-ID": tenantId,
   };
 
   const loadCategories = async () => {
@@ -60,14 +66,10 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    // Use a ref to track if we've loaded data already to prevent infinite loops
-    const loadOnce = () => {
-      loadCategories();
-    };
-
-    loadOnce();
-    // Empty dependency array ensures this only runs once on mount
-  }, []);
+    // Load categories when component mounts or tenant ID changes
+    loadCategories();
+    // Include tenantId in dependencies to reload if it changes
+  }, [tenantId]);
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -76,7 +78,7 @@ export default function CategoriesPage() {
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
     try {
-      await deleteCategory(categoryToDelete._id, tenantHeaders);
+      await deleteCategory(categoryToDelete.category_id, tenantHeaders);
       setIsDeleteDialogOpen(false);
       setCategoryToDelete(null);
       toast.success("Category deleted successfully");
@@ -88,7 +90,12 @@ export default function CategoriesPage() {
 
   const handleAddCategory = async (formData: any) => {
     try {
-      await createCategory(formData, tenantHeaders);
+      // Ensure tenant_id is included in the payload
+      const categoryData = {
+        ...formData,
+        tenant_id: tenantId
+      };
+      await createCategory(categoryData, tenantHeaders);
       setIsFormDialogOpen(false);
       toast.success("Category added successfully");
       loadCategories(); // Refresh the list
@@ -100,13 +107,29 @@ export default function CategoriesPage() {
   const handleEditCategory = async (formData: any) => {
     if (!categoryToEdit) return;
     try {
-      await updateCategory(categoryToEdit._id, formData, tenantHeaders);
+      // Ensure tenant_id and category_id are included in the payload
+      const categoryData = {
+        ...formData,
+        tenant_id: tenantId,
+        category_id: categoryToEdit.category_id
+      };
+      await updateCategory(categoryToEdit.category_id, categoryData, tenantHeaders);
       setIsFormDialogOpen(false);
       setCategoryToEdit(null);
       toast.success("Category updated successfully");
       loadCategories(); // Refresh the list
     } catch (error) {
       toast.error("Failed to update category");
+    }
+  };
+  
+  const handleToggleStatus = async (category: Category, isActive: boolean) => {
+    try {
+      await toggleCategoryStatus(category.category_id, isActive, tenantHeaders);
+      toast.success(`Category ${isActive ? 'activated' : 'deactivated'} successfully`);
+      loadCategories(); // Refresh the list
+    } catch (error) {
+      toast.error(`Failed to ${isActive ? 'activate' : 'deactivate'} category`);
     }
   };
 
@@ -121,7 +144,7 @@ export default function CategoriesPage() {
   };
 
   const handleViewDetails = (category: Category) => {
-    router.push(`/dashboard/products/categories/${category.category_id}`);
+    router.push(`/dashboard/categories/${category.category_id}`);
   };
 
   const closeFormDialog = () => {
@@ -192,9 +215,7 @@ export default function CategoriesPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Spinner size="lg" />
-          </div>
+          <Spinner />
         ) : error ? (
           <ErrorCard
             title="Error Loading Categories"
@@ -211,21 +232,20 @@ export default function CategoriesPage() {
             categories={filteredCategories}
             onEdit={openFormDialog}
             onDelete={openDeleteDialog}
+            onToggleStatus={handleToggleStatus}
             onViewDetails={handleViewDetails}
           />
         )}
       </div>
 
       {/* Add/Edit Category Dialog */}
-      <Dialog
-        open={isFormDialogOpen}
-        onOpenChange={(open) => {
+      <Dialog open={isFormDialogOpen} onOpenChange={(open) => {
           if (!open) {
-            closeFormDialog();
+            setCategoryToEdit(null);
           }
-        }}
-      >
-        <DialogContent className="sm:max-w-[550px]">
+          setIsFormDialogOpen(open);
+        }}>
+        <DialogContent className="sm:max-w-[550px] max-h-[calc(100vh-10rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {categoryToEdit ? "Edit Category" : "Add New Category"}
@@ -240,13 +260,14 @@ export default function CategoriesPage() {
             initialData={
               categoryToEdit
                 ? {
+                    category_id: categoryToEdit.category_id,
                     name: categoryToEdit.name,
-                    description: categoryToEdit.description,
-                    status: categoryToEdit.is_active ? "active" : "inactive",
-                    parentId: categoryToEdit.parentId,
-                    category_id: categoryToEdit._id, // Pass the category ID for proper filtering of parent options
-                    featured: Boolean(categoryToEdit.featured),
                     slug: categoryToEdit.slug || "",
+                    description: categoryToEdit.description || "",
+                    parent_id: categoryToEdit.parent_id || "none",
+                    image_url: categoryToEdit.image_url || "",
+                    is_active: categoryToEdit.is_active,
+                    display_order: categoryToEdit.display_order || 0,
                   }
                 : undefined
             }
@@ -262,8 +283,7 @@ export default function CategoriesPage() {
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the category "
-              {categoryToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete the category "{categoryToDelete?.name}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end space-x-4">

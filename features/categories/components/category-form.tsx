@@ -3,30 +3,23 @@
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useSession } from "next-auth/react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useCategoryStore } from "../store"
-import { CategoryFormData } from "../types"
 import { Switch } from "@/components/ui/switch"
 import { Spinner } from "@/components/ui/spinner"
+import { RequiredField } from "@/components/ui/required-field"
+import { ImageUpload } from "@/components/ui/image-upload"
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  description: z.string().optional(),
-  status: z.enum(["active", "inactive"]),
-  parentId: z.string().optional(),
-  featured: z.boolean().default(false),
-  slug: z.string().optional(),
-}) as z.ZodType<CategoryFormData>
+import { useCategoryStore } from "../store"
+import { CategoryFormData } from "../types"
+import { categoryFormSchema, CategoryFormValues } from "../schema"
 
-// Using the CategoryFormData interface from the types file
+// Using the CategoryFormValues type from the schema file
 
 interface CategoryFormProps {
   initialData?: CategoryFormData
@@ -35,26 +28,43 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormProps) {
+  const { data: session } = useSession()
   const { categories, fetchCategories } = useCategoryStore()
   const [isLoading, setIsLoading] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  
+  // Get tenant ID from session or use default
+  // Handle type issue by using a direct access with fallback
+  const tenantId = (session?.user as any)?.tenant_id || "4c56d0c3-55d9-495b-ae26-0d922d430a42"
+  
+  // Define tenant headers
+  const tenantHeaders = {
+    "X-Tenant-ID": tenantId
+  }
 
-  // Load categories when component mounts
+  // Only load categories when needed for parent dropdown and avoid duplicate requests
   useEffect(() => {
-    setIsLoading(true)
-    fetchCategories()
-      .then(() => setIsLoading(false))
-      .catch(() => setIsLoading(false))
-  }, [fetchCategories])
+    // Skip loading if categories are already loaded
+    if (categories.length === 0) {
+      setIsLoading(true)
+      fetchCategories(undefined, tenantHeaders)
+        .then(() => setIsLoading(false))
+        .catch(() => setIsLoading(false))
+    } else {
+      setIsLoading(false)
+    }
+  }, [fetchCategories, tenantId, categories.length])
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
     defaultValues: {
+      category_id: initialData?.category_id || "",
       name: initialData?.name || "",
-      description: initialData?.description || "",
-      status: initialData?.status || "active",
-      parentId: initialData?.parentId || "none",
-      featured: initialData?.featured || false,
       slug: initialData?.slug || "",
+      description: initialData?.description || "",
+      parent_id: initialData?.parent_id || "none",
+      image_url: initialData?.image_url || "",
+      is_active: initialData?.is_active ?? true,
     },
   })
   
@@ -84,22 +94,32 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
     }
   }, [watchName, form, initialData?.slug]);
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = (values: CategoryFormValues) => {
     // Ensure slug is generated even if the effect hasn't run yet
     if (!values.slug && values.name) {
       values.slug = generateSlug(values.name);
     }
     
+    // Prepare the form data with tenant ID
+    const formData = {
+      ...values,
+      tenant_id: tenantId
+    };
+    
     // If this is an edit, preserve the category_id
     if (initialData?.category_id) {
-      const formData = {
-        ...values,
-        category_id: initialData.category_id
-      };
-      onSubmit(formData);
-    } else {
-      onSubmit(values);
+      formData.category_id = initialData.category_id;
     }
+    
+    // Handle image upload if there's a new image
+    if (imageFile) {
+      // In a real implementation, you would upload the image to a server here
+      // and then set the returned URL to image_url
+      console.log('Image file to upload:', imageFile);
+      // For now, we'll just use the URL that was set via the ImageUpload component
+    }
+    
+    onSubmit(formData);
   }
 
   return (
@@ -110,7 +130,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category Name</FormLabel>
+              <FormLabel>Category Name <RequiredField /></FormLabel>
               <FormControl>
                 <Input placeholder="Electronics, Clothing, etc." {...field} />
               </FormControl>
@@ -127,7 +147,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Slug</FormLabel>
+              <FormLabel>Slug <RequiredField /></FormLabel>
               <FormControl>
                 <Input
                   placeholder="category-slug"
@@ -154,6 +174,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                   placeholder="Describe this category..."
                   className="resize-none"
                   {...field}
+                  value={field.value || ''}
                 />
               </FormControl>
               <FormDescription>
@@ -166,7 +187,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
 
         <FormField
           control={form.control}
-          name="parentId"
+          name="parent_id"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Parent Category (Optional)</FormLabel>
@@ -185,11 +206,17 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                   ) : (
                     categories
                       ?.filter(category => {
-                        // Filter out the current category to prevent circular dependencies
-                        return !currentCategoryId || category._id !== currentCategoryId;
+                        // Filter out the current category to prevent circular dependencies and categories with empty IDs
+                        return (
+                          (!currentCategoryId || category.category_id !== currentCategoryId) && 
+                          !!category.category_id // Ensure category_id is not empty
+                        );
                       })
                       .map((category) => (
-                        <SelectItem key={category._id} value={category._id}>
+                        <SelectItem 
+                          key={category.category_id} 
+                          value={category.category_id || `category-${category.name}`} // Fallback value if category_id is somehow empty
+                        >
                           {category.name}
                         </SelectItem>
                       ))
@@ -203,22 +230,60 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
-          name="featured"
+          name="is_active"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Featured Category</FormLabel>
-                <FormDescription>Featured categories are displayed prominently on your marketplace.</FormDescription>
+            <FormItem>
+              <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">
+                    Active
+                  </FormLabel>
+                  <FormDescription>
+                    Active categories are displayed on your marketplace.
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
               </div>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="image_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category Image</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  id="category-image"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onFileChange={(file) => setImageFile(file)}
+                  height="h-40"
+                  width="w-full"
+                  buttonText="Upload Category Image"
+                  previewAlt={`${form.getValues().name || 'Category'} image`}
+                />
+              </FormControl>
+              <FormDescription>
+                Upload an image representing this category.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Display Order field removed as requested */}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onCancel?.()}>

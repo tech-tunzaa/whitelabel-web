@@ -67,6 +67,12 @@ const data = {
       roles: ["super_owner"],
     },
     {
+      title: "Categories",
+      url: "/dashboard/categories",
+      icon: IconCategory,
+      roles: ["super_owner", "admin", "sub_admin"],
+    },
+    {
       title: "Vendors",
       url: "/dashboard/vendors",
       icon: IconUsers,
@@ -79,22 +85,10 @@ const data = {
       roles: ["super_owner", "admin", "sub_admin"],
     },
     {
-      title: "Catalog",
-      url: "#",
+      title: "Products",
+      url: "/dashboard/products",
       icon: IconPackage,
       roles: ["super_owner", "admin", "sub_admin", "support"],
-      items: [
-        {
-          title: "Products",
-          url: "/dashboard/products",
-          icon: IconPackage,
-        },
-        {
-          title: "Categories",
-          url: "/dashboard/products/categories",
-          icon: IconCategory,
-        },
-      ],
     },
     {
       title: "Orders",

@@ -33,10 +33,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
-import { useCategoryStore } from "@/features/products/categories/store";
+import { useCategoryStore } from "@/features/categories/store";
 import { useVendorStore } from "@/features/vendors/store";
 import { Product } from "../types";
-import { Category } from "../categories/types";
+import { Category } from "../../categories/types";
 
 const ProductVariantSchema = z.object({
   type: z.string().min(1, { message: "Variant type is required." }),
@@ -196,11 +196,7 @@ export function ProductForm({
     <div className="flex flex-col h-full">
       <div className="flex items-center p-4 border-b">
         {onCancel && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-          >
+          <Button variant="ghost" size="icon" onClick={onCancel}>
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>
           </Button>
@@ -219,13 +215,14 @@ export function ProductForm({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-6"
               >
-
                 <FormField
                   control={form.control}
                   name="vendor"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center">Vendor <span className="text-destructive ml-1">*</span></FormLabel>
+                      <FormLabel className="flex items-center">
+                        Vendor <span className="text-destructive ml-1">*</span>
+                      </FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -237,7 +234,10 @@ export function ProductForm({
                         </FormControl>
                         <SelectContent>
                           {vendors.map((vendor) => (
-                            <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                            <SelectItem
+                              key={vendor.id}
+                              value={vendor.id.toString()}
+                            >
                               {vendor.businessName}
                             </SelectItem>
                           ))}
@@ -266,7 +266,10 @@ export function ProductForm({
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center">Product Name <span className="text-destructive ml-1">*</span></FormLabel>
+                              <FormLabel className="flex items-center">
+                                Product Name{" "}
+                                <span className="text-destructive ml-1">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="Premium Wireless Headphones"
@@ -282,7 +285,10 @@ export function ProductForm({
                           name="sku"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center">SKU <span className="text-destructive ml-1">*</span></FormLabel>
+                              <FormLabel className="flex items-center">
+                                SKU{" "}
+                                <span className="text-destructive ml-1">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input placeholder="WH-1000XM4" {...field} />
                               </FormControl>
@@ -295,7 +301,10 @@ export function ProductForm({
                           name="price"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center">Price <span className="text-destructive ml-1">*</span></FormLabel>
+                              <FormLabel className="flex items-center">
+                                Price{" "}
+                                <span className="text-destructive ml-1">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
@@ -323,7 +332,8 @@ export function ProductForm({
                                 />
                               </FormControl>
                               <FormDescription>
-                                Original price before discount, displayed as strikethrough
+                                Original price before discount, displayed as
+                                strikethrough
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -344,7 +354,8 @@ export function ProductForm({
                                 />
                               </FormControl>
                               <FormDescription>
-                                Used to calculate profit margins (not shown to customers)
+                                Used to calculate profit margins (not shown to
+                                customers)
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -355,7 +366,10 @@ export function ProductForm({
                           name="categoryId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center">Category <span className="text-destructive ml-1">*</span></FormLabel>
+                              <FormLabel className="flex items-center">
+                                Category{" "}
+                                <span className="text-destructive ml-1">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
@@ -396,7 +410,10 @@ export function ProductForm({
                         name="description"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center">Description <span className="text-destructive ml-1">*</span></FormLabel>
+                            <FormLabel className="flex items-center">
+                              Description{" "}
+                              <span className="text-destructive ml-1">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="Product description..."
@@ -436,7 +453,8 @@ export function ProductForm({
                                 Non-Deliverable Product
                               </FormLabel>
                               <FormDescription>
-                                Enable for service-based products or items that don't require physical delivery
+                                Enable for service-based products or items that
+                                don't require physical delivery
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -448,16 +466,19 @@ export function ProductForm({
                           </FormItem>
                         )}
                       />
-                      
+
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <FormLabel className="text-base">Product Variants</FormLabel>
+                          <FormLabel className="text-base">
+                            Product Variants
+                          </FormLabel>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const currentVariants = form.getValues("variants") || [];
+                              const currentVariants =
+                                form.getValues("variants") || [];
                               form.setValue("variants", [
                                 ...currentVariants,
                                 { type: "", value: "", price: undefined },
@@ -484,7 +505,12 @@ export function ProductForm({
                                       name={`variants.${index}.type`}
                                       render={({ field }) => (
                                         <FormItem className="flex-1">
-                                          <FormLabel className="flex items-center">Variant Type <span className="text-destructive ml-1">*</span></FormLabel>
+                                          <FormLabel className="flex items-center">
+                                            Variant Type{" "}
+                                            <span className="text-destructive ml-1">
+                                              *
+                                            </span>
+                                          </FormLabel>
                                           <Select
                                             onValueChange={field.onChange}
                                             defaultValue={field.value}
@@ -495,13 +521,27 @@ export function ProductForm({
                                               </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                              <SelectItem value="color">Color</SelectItem>
-                                              <SelectItem value="size">Size</SelectItem>
-                                              <SelectItem value="material">Material</SelectItem>
-                                              <SelectItem value="package">Package</SelectItem>
-                                              <SelectItem value="style">Style</SelectItem>
-                                              <SelectItem value="weight">Weight</SelectItem>
-                                              <SelectItem value="custom">Custom</SelectItem>
+                                              <SelectItem value="color">
+                                                Color
+                                              </SelectItem>
+                                              <SelectItem value="size">
+                                                Size
+                                              </SelectItem>
+                                              <SelectItem value="material">
+                                                Material
+                                              </SelectItem>
+                                              <SelectItem value="package">
+                                                Package
+                                              </SelectItem>
+                                              <SelectItem value="style">
+                                                Style
+                                              </SelectItem>
+                                              <SelectItem value="weight">
+                                                Weight
+                                              </SelectItem>
+                                              <SelectItem value="custom">
+                                                Custom
+                                              </SelectItem>
                                             </SelectContent>
                                           </Select>
                                           <FormMessage />
@@ -513,7 +553,12 @@ export function ProductForm({
                                       name={`variants.${index}.value`}
                                       render={({ field }) => (
                                         <FormItem className="flex-1">
-                                          <FormLabel className="flex items-center">Variant Value <span className="text-destructive ml-1">*</span></FormLabel>
+                                          <FormLabel className="flex items-center">
+                                            Variant Value{" "}
+                                            <span className="text-destructive ml-1">
+                                              *
+                                            </span>
+                                          </FormLabel>
                                           <FormControl>
                                             <Input
                                               placeholder="Red, XL, Plastic, Bundle..."
@@ -529,7 +574,9 @@ export function ProductForm({
                                       name={`variants.${index}.price`}
                                       render={({ field }) => (
                                         <FormItem className="flex-1">
-                                          <FormLabel>Price (Optional)</FormLabel>
+                                          <FormLabel>
+                                            Price (Optional)
+                                          </FormLabel>
                                           <FormControl>
                                             <Input
                                               type="number"
@@ -548,10 +595,13 @@ export function ProductForm({
                                       size="icon"
                                       className="self-end"
                                       onClick={() => {
-                                        const currentVariants = form.getValues("variants") || [];
+                                        const currentVariants =
+                                          form.getValues("variants") || [];
                                         form.setValue(
                                           "variants",
-                                          currentVariants.filter((_, i) => i !== index)
+                                          currentVariants.filter(
+                                            (_, i) => i !== index
+                                          )
                                         );
                                       }}
                                     >
@@ -559,9 +609,12 @@ export function ProductForm({
                                     </Button>
                                   </div>
                                 ))}
-                                {(!form.watch("variants") || form.watch("variants").length === 0) && (
+                                {(!form.watch("variants") ||
+                                  form.watch("variants").length === 0) && (
                                   <p className="text-sm text-muted-foreground">
-                                    No variants added. Add variants if your product comes in different options like colors, sizes, or packages.
+                                    No variants added. Add variants if your
+                                    product comes in different options like
+                                    colors, sizes, or packages.
                                   </p>
                                 )}
                               </div>
@@ -661,7 +714,9 @@ export function ProductForm({
                                 <SelectContent>
                                   <SelectItem value="draft">Draft</SelectItem>
                                   <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="pending">
+                                    Pending
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                               <FormMessage />

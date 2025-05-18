@@ -1,5 +1,6 @@
-import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
+import { Check, Edit, Eye, MoreHorizontal, Power, PowerOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,12 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Category } from "../types/category";
+import { Category } from "../types";
 
 interface CategoryTableProps {
   categories: Category[];
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onToggleStatus?: (category: Category, isActive: boolean) => void;
   onViewDetails?: (category: Category) => void;
 }
 
@@ -20,37 +22,57 @@ export function CategoryTable({
   categories,
   onEdit,
   onDelete,
+  onToggleStatus,
   onViewDetails,
 }: CategoryTableProps) {
   return (
     <div className="rounded-md border">
       <table className="w-full">
         <thead>
-          <tr className="border-b">
+          <tr className="border-b bg-muted/50">
             <th className="p-4 text-left">Name</th>
             <th className="p-4 text-left">Description</th>
             <th className="p-4 text-left">Status</th>
             <th className="p-4 text-left">Parent</th>
+            <th className="p-4 text-left">Image</th>
             <th className="p-4 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {categories.map((category) => (
-            <tr key={category._id} className="border-b">
-              <td className="p-4">{category.name}</td>
-              <td className="p-4">{category.description || "-"}</td>
+            <tr key={category.category_id} className="border-b hover:bg-muted/20">
+              <td className="p-4 font-medium">{category.name}</td>
+              <td className="p-4 max-w-xs truncate">{category.description || "-"}</td>
               <td className="p-4">
                 <Badge
-                  variant={category.status === "active" ? "default" : "secondary"}
+                  variant={category.is_active ? "default" : "destructive"}
+                  className={category.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                 >
-                  {category.status}
+                  {category.is_active ? "Active" : "Inactive"}
                 </Badge>
               </td>
               <td className="p-4">
-                {category.parentId
-                  ? categories.find((c) => c._id === category.parentId)?.name ||
+                {category.parent_id && category.parent_id !== "none"
+                  ? categories.find((c) => c.category_id === category.parent_id)?.name ||
                     "-"
                   : "-"}
+              </td>
+              <td className="p-4">
+                {category.image_url ? (
+                  <div className="relative h-8 w-8 rounded overflow-hidden">
+                    <img 
+                      src={category.image_url} 
+                      alt={category.name} 
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // Replace broken image with placeholder
+                        e.currentTarget.src = "https://placehold.co/32?text=NA";
+                      }}
+                    />
+                  </div>
+                ) : (
+                  "-"
+                )}
               </td>
               <td className="p-4 text-right">
                 <DropdownMenu>
@@ -66,10 +88,27 @@ export function CategoryTable({
                         View Details
                       </DropdownMenuItem>
                     )}
+                    {/* View Image action removed as requested */}
                     <DropdownMenuItem onClick={() => onEdit(category)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
+                    {onToggleStatus && (
+                      <DropdownMenuItem onClick={() => onToggleStatus(category, !category.is_active)}>
+                        {category.is_active ? (
+                          <>
+                            <PowerOff className="mr-2 h-4 w-4" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <Power className="mr-2 h-4 w-4" />
+                            Activate
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    )}
+                    <Separator />
                     <DropdownMenuItem onClick={() => onDelete(category)}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete

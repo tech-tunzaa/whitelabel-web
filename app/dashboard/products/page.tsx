@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import {
-  Plus,
-  Search,
-  RefreshCw
-} from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,13 +27,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 
 import { useProductStore } from "@/features/products/store";
-import { useCategoryStore } from "@/features/products/categories/store";
+import { useCategoryStore } from "@/features/categories/store";
 import { Product } from "@/features/products/types";
 import { ProductTable } from "@/features/products/components/product-table";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { loading, storeError, fetchProducts, deleteProduct } = useProductStore();
+  const { loading, storeError, fetchProducts, deleteProduct } =
+    useProductStore();
   const { fetchCategories } = useCategoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -50,7 +47,7 @@ export default function ProductsPage() {
 
   // Define tenant headers
   const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
   };
 
   const loadProducts = async () => {
@@ -58,12 +55,12 @@ export default function ProductsPage() {
       setError(null);
       const response = await fetchProducts(undefined, tenantHeaders);
       setProducts(response.items || []);
-      
+
       const categoryResponse = await fetchCategories(undefined, tenantHeaders);
       setCategories(categoryResponse.items || []);
     } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again.');
+      console.error("Error fetching products:", err);
+      setError("Failed to load products. Please try again.");
     }
   };
 
@@ -83,8 +80,10 @@ export default function ProductsPage() {
       selectedStatus === "all" || product.status === selectedStatus;
     const matchesCategory =
       selectedCategory === "all" ||
-      (product.categoryIds && product.categoryIds.some((id) => id.toString() === selectedCategory)) ||
-      (product.categoryIds && product.categoryIds.some((id) => id.toString() === selectedCategory));
+      (product.categoryIds &&
+        product.categoryIds.some((id) => id.toString() === selectedCategory)) ||
+      (product.categoryIds &&
+        product.categoryIds.some((id) => id.toString() === selectedCategory));
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
@@ -115,9 +114,7 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (error) {
@@ -139,7 +136,7 @@ export default function ProductsPage() {
           title="Error Loading Products"
           error={{
             message: error,
-            status: "error"
+            status: "error",
           }}
           buttonText="Retry"
           buttonAction={() => loadProducts()}
@@ -217,43 +214,40 @@ export default function ProductsPage() {
               </Badge>
             </TabsTrigger>
           </TabsList>
-            <TabsContent value="all">
-              <ProductTable
-                products={filteredProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}`)
-                }
-                onDelete={openDeleteDialog}
-              />
-            </TabsContent>
-            <TabsContent value="active">
-              <ProductTable
-                products={activeProducts}
-                onEdit={(product) =>
-                  router.push(`/dashboard/products/${product._id}`)
-                }
-                onDelete={openDeleteDialog}
-              />
-            </TabsContent>
-            <TabsContent value="draft">
-              <ProductTable
-                products={pendingProducts}
-                onDelete={openDeleteDialog}
-              />
-            </TabsContent>
+          <TabsContent value="all">
+            <ProductTable
+              products={filteredProducts}
+              onEdit={(product) =>
+                router.push(`/dashboard/products/${product._id}`)
+              }
+              onDelete={openDeleteDialog}
+            />
+          </TabsContent>
+          <TabsContent value="active">
+            <ProductTable
+              products={activeProducts}
+              onEdit={(product) =>
+                router.push(`/dashboard/products/${product._id}`)
+              }
+              onDelete={openDeleteDialog}
+            />
+          </TabsContent>
+          <TabsContent value="draft">
+            <ProductTable
+              products={pendingProducts}
+              onDelete={openDeleteDialog}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
-      <Dialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Product</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this product? This action cannot be
-              undone.
+              Are you sure you want to delete this product? This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end space-x-4">
@@ -263,10 +257,7 @@ export default function ProductsPage() {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteProduct}
-            >
+            <Button variant="destructive" onClick={handleDeleteProduct}>
               Delete
             </Button>
           </div>

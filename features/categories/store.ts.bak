@@ -184,6 +184,11 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
           .replace(/--+/g, '-');
       }
       
+      // Ensure data contains tenant_id if provided in headers
+      if (headers && headers['X-Tenant-ID'] && !data.tenant_id) {
+        data.tenant_id = headers['X-Tenant-ID'];
+      }
+      
       // Create category with the provided data
       const response = await apiClient.post<ApiResponse<any>>('/categories/', data, headers);
       
@@ -232,6 +237,21 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
           .replace(/--+/g, '-');
       }
       
+      // Ensure data contains tenant_id if provided in headers
+      if (headers && headers['X-Tenant-ID'] && !data.tenant_id) {
+        data.tenant_id = headers['X-Tenant-ID'];
+      }
+      
+      // Ensure tenant_id is included in headers
+      if (headers && !headers['X-Tenant-ID'] && data.tenant_id) {
+        headers['X-Tenant-ID'] = data.tenant_id;
+      }
+      
+      // Make sure category_id is included
+      if (!data.category_id && id) {
+        data.category_id = id;
+      }
+      
       // Update category with the provided data
       const response = await apiClient.put<ApiResponse<any>>(`/categories/${id}`, data, headers);
       
@@ -262,29 +282,151 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
     }
   },
 
-  deleteCategory: async (id: string, headers?: Record<string, string>) => {
-    const { setActiveAction, setLoading, setStoreError } = get();
-    try {
-      setActiveAction('delete');
-      setLoading(true);
-      // Delete the category
-      await apiClient.delete<ApiResponse<any>>(`/categories/${id}`, headers);
-      // Category deleted successfully
-      setLoading(false);
-      return true;
-    } catch (error: unknown) {
-      // Error occurred
-      console.error('Error deleting category:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete category';
-      const errorStatus = (error as any)?.response?.status;
-      setStoreError({
-        message: errorMessage,
-        status: errorStatus,
-      });
-      setLoading(false);
-      throw error;
-    } finally {
-      setActiveAction(null);
-    }
   }
+},
+
+createCategory: async (data: any, headers?: Record<string, string>) => {
+  const { setActiveAction, setLoading, setStoreError } = get();
+  try {
+    setActiveAction('create');
+    setLoading(true);
+    
+    // Ensure slug is present if name is provided and slug is missing
+    if (data.name && !data.slug) {
+      data.slug = data.name
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/&/g, '-and-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/--+/g, '-');
+    }
+    
+    // Ensure data contains tenant_id if provided in headers
+    if (headers && headers['X-Tenant-ID'] && !data.tenant_id) {
+      data.tenant_id = headers['X-Tenant-ID'];
+    }
+    
+    // Create category with the provided data
+    const response = await apiClient.post<ApiResponse<any>>('/categories/', data, headers);
+    
+    let categoryData = null;
+    
+    if (response.data && response.data.data) {
+      categoryData = response.data.data;
+    } else if (response.data) {
+      categoryData = response.data;
+    }
+    
+    // Category created successfully
+    setLoading(false);
+    return categoryData;
+  } catch (error: unknown) {
+    // Error occurred
+    console.error('Error creating category:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create category';
+    const errorStatus = (error as any)?.response?.status;
+    setStoreError({
+      message: errorMessage,
+      status: errorStatus,
+    });
+    setLoading(false);
+    throw error;
+  } finally {
+    setActiveAction(null);
+  }
+},
+
+updateCategory: async (id: string, data: any, headers?: Record<string, string>) => {
+  const { setActiveAction, setLoading, setStoreError } = get();
+  try {
+    setActiveAction('update');
+    setLoading(true);
+    
+    // Ensure slug is present if name is provided and slug is missing
+    if (data.name && !data.slug) {
+      data.slug = data.name
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/&/g, '-and-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/--+/g, '-');
+    }
+    
+    // Ensure data contains tenant_id if provided in headers
+    if (headers && headers['X-Tenant-ID'] && !data.tenant_id) {
+      data.tenant_id = headers['X-Tenant-ID'];
+    }
+    
+    // Ensure tenant_id is included in headers
+    if (headers && !headers['X-Tenant-ID'] && data.tenant_id) {
+      headers['X-Tenant-ID'] = data.tenant_id;
+    }
+    
+    // Make sure category_id is included
+    if (!data.category_id && id) {
+      data.category_id = id;
+    }
+    
+    // Update category with the provided data
+    const response = await apiClient.put<ApiResponse<any>>(`/categories/${id}`, data, headers);
+    
+    let categoryData = null;
+    
+    if (response.data && response.data.data) {
+      categoryData = response.data.data;
+    } else if (response.data) {
+      categoryData = response.data;
+    }
+    
+    // Category updated successfully
+    setLoading(false);
+    return categoryData;
+  } catch (error: unknown) {
+    // Error occurred
+    console.error('Error updating category:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
+    const errorStatus = (error as any)?.response?.status;
+    setStoreError({
+      message: errorMessage,
+      status: errorStatus,
+    });
+    setLoading(false);
+    throw error;
+  } finally {
+    setActiveAction(null);
+  }
+},
+
+deleteCategory: async (id: string, headers?: Record<string, string>) => {
+  const { setActiveAction, setLoading, setStoreError } = get();
+  try {
+    setActiveAction('delete');
+    setLoading(true);
+    
+    // Ensure headers are properly set for tenant identification
+    const requestHeaders = { ...headers };
+    
+    // Delete category by ID using headers (not in payload)
+    await apiClient.delete<ApiResponse<any>>(`/categories/${id}`, requestHeaders);
+    
+    setLoading(false);
+    return true;
+  } catch (error: unknown) {
+    console.error('Error deleting category:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete category';
+    const errorStatus = (error as any)?.response?.status;
+    setStoreError({
+      message: errorMessage,
+      status: errorStatus,
+    });
+    setLoading(false);
+    throw error;
+  } finally {
+    setActiveAction(null);
+  }
+},
 }));

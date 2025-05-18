@@ -2,23 +2,48 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Folder, Pencil, RefreshCw, Tag, Trash } from "lucide-react";
+import { useSession } from "next-auth/react";
+import {
+  ArrowLeft,
+  Edit,
+  Folder,
+  Pencil,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Tag,
+  Trash,
+} from "lucide-react";
 import { format } from "date-fns/format";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 import { useProductStore } from "@/features/products/store";
-import { useCategoryStore } from "@/features/products/categories/store";
-import { Category } from "@/features/products/categories/types";
+import { useCategoryStore } from "@/features/categories/store";
+import { Category } from "@/features/categories/types";
 import { Product } from "@/features/products/types";
 import { ProductTable } from "@/features/products/components/product-table";
+import { CategoryForm } from "@/features/categories/components/category-form";
 
 interface CategoryPageProps {
   params: {
@@ -28,6 +53,7 @@ interface CategoryPageProps {
 
 export default function CategoryPage({ params }: CategoryPageProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const { id } = params;
   const [category, setCategory] = useState<Category | null>(null);
   const [parentCategory, setParentCategory] = useState<Category | null>(null);
@@ -35,56 +61,63 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const { fetchCategory, deleteCategory } = useCategoryStore();
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const { fetchCategory, deleteCategory, updateCategory, toggleCategoryStatus } = useCategoryStore();
   const { fetchProducts } = useProductStore();
-  
+
+  // Get tenant ID from session or use default
+  const tenantId = session?.user?.tenant_id || "4c56d0c3-55d9-495b-ae26-0d922d430a42";
+
   // Define tenant headers
   const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+    "X-Tenant-ID": tenantId,
   };
-  
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         // Fetch category details
         const categoryData = await fetchCategory(id, tenantHeaders);
         setCategory(categoryData);
-        
+
         // If the category has a parent, fetch parent details
-        if (categoryData.parentId) {
+        if (categoryData.parent_id && categoryData.parent_id !== "none") {
           try {
-            const parentData = await fetchCategory(categoryData.parentId, tenantHeaders);
+            const parentData = await fetchCategory(
+              categoryData.parent_id,
+              tenantHeaders
+            );
             setParentCategory(parentData);
           } catch (error) {
-            console.error('Error fetching parent category:', error);
+            console.error("Error fetching parent category:", error);
             // Don't set global error for this - just log it
           }
         }
-        
+
         // Fetch associated products
         const filter = { categoryId: id };
         const productsResponse = await fetchProducts(filter, tenantHeaders);
         setProducts(productsResponse.items || []);
       } catch (err) {
-        console.error('Error fetching category:', err);
-        setError('Failed to load category details. Please try again.');
+        console.error("Error fetching category:", err);
+        setError("Failed to load category details. Please try again.");
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, [id, fetchCategory, fetchProducts]);
 
   const getStatusBadge = (status: boolean | undefined) => {
     switch (status) {
       case true:
-        return <Badge variant="default">Active</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Active</Badge>;
       case false:
-        return <Badge variant="secondary">Inactive</Badge>;
+        return <Badge variant="destructive">Inactive</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -94,26 +127,58 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     try {
       await deleteCategory(id, tenantHeaders);
       toast.success("Category deleted successfully");
-      router.push("/dashboard/products/categories");
+      router.push("/dashboard/categories");
     } catch (error) {
       toast.error("Failed to delete category");
       setIsDeleteDialogOpen(false);
     }
   };
 
+  const handleEditCategory = async (formData: any) => {
+    try {
+      // Ensure tenant_id and category_id are included in the payload
+      const categoryData = {
+        ...formData,
+        tenant_id: tenantId,
+        category_id: id,
+      };
+      await updateCategory(id, categoryData, tenantHeaders);
+      setIsFormDialogOpen(false);
+      toast.success("Category updated successfully");
+      // Reload the data
+      const updatedCategory = await fetchCategory(id, tenantHeaders);
+      setCategory(updatedCategory);
+    } catch (error) {
+      toast.error("Failed to update category");
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!category) return;
+
+    try {
+      const newStatus = !category.is_active;
+      await toggleCategoryStatus(id, newStatus, tenantHeaders);
+      toast.success(`Category ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      // Reload the data
+      const updatedCategory = await fetchCategory(id, tenantHeaders);
+      setCategory(updatedCategory);
+    } catch (error) {
+      toast.error(`Failed to ${category.is_active ? 'deactivate' : 'activate'} category`);
+    }
+  };
+
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
-  
-  if (error && !loading || !category) {
+
+  if ((error && !loading) || !category) {
     return (
       <ErrorCard
         title="Error Loading Category"
         error={error}
         buttonText="Back to Categories"
-        buttonAction={() => router.push("/dashboard/products/categories")}
+        buttonAction={() => router.push("/dashboard/categories")}
         buttonIcon={ArrowLeft}
       />
     );
@@ -125,16 +190,14 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/dashboard/products/categories")}
+          onClick={() => router.push("/dashboard/categories")}
           className="mr-4"
         >
           <ArrowLeft className="h-4 w-4" />
           <span className="sr-only">Back</span>
         </Button>
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {category.name}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">{category.name}</h1>
           <p className="text-sm text-muted-foreground">
             Category ID: {category.category_id}
           </p>
@@ -159,63 +222,79 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                   <div>
                     <h3 className="text-xl font-semibold">{category.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Created: {category.created_at ? format(new Date(category.created_at), "MM/dd/yyyy") : 'N/A'}
+                      Created:{" "}
+                      {category.created_at
+                        ? format(new Date(category.created_at), "MM/dd/yyyy")
+                        : "N/A"}
                     </p>
                   </div>
                 </div>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium">Status</p>
-                    <div className="mt-1">{getStatusBadge(category.is_active)}</div>
+                    <div className="mt-1">
+                      {getStatusBadge(category.is_active)}
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Parent Category</p>
                     <p className="text-sm">
                       {parentCategory ? (
-                        <Button 
-                          variant="link" 
-                          className="p-0 h-auto text-sm font-normal" 
-                          onClick={() => router.push(`/dashboard/products/categories/${parentCategory._id}`)}
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-sm font-normal"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/categories/${parentCategory.category_id}`
+                            )
+                          }
                         >
                           <Tag className="mr-1 h-3 w-3" /> {parentCategory.name}
                         </Button>
-                      ) : 'None'}
+                      ) : (
+                        "None"
+                      )}
                     </p>
                   </div>
                 </div>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div>
                   <p className="text-sm font-medium mb-2">Description</p>
-                  <p className="text-sm whitespace-pre-wrap">{category.description || 'No description provided.'}</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {category.description || "No description provided."}
+                  </p>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Products in this Category</CardTitle>
                 <CardDescription>
-                  {products.length} product{products.length !== 1 ? 's' : ''} in this category
+                  {products.length} product{products.length !== 1 ? "s" : ""} in
+                  this category
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {products.length > 0 ? (
                   <ProductTable
                     products={products}
-                    onEdit={(product) => router.push(`/dashboard/products/${product._id}`)}
+                    onEdit={(product) =>
+                      router.push(`/dashboard/products/${product.product_id}`)
+                    }
                   />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No products found in this category.</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4" 
-                      onClick={() => router.push('/dashboard/products/add')}
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => router.push("/dashboard/products/add")}
                     >
                       Add a product
                     </Button>
@@ -224,7 +303,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               </CardContent>
             </Card>
           </div>
-          
+
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -234,11 +313,17 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm font-medium">Category Status</p>
-                    <div className="mt-1">{getStatusBadge(category.is_active)}</div>
+                    <div className="mt-1">
+                      {getStatusBadge(category.is_active)}
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-sm">{category.updated_at ? format(new Date(category.updated_at), "MM/dd/yyyy") : 'N/A'}</p>
+                    <p className="text-sm">
+                      {category.updated_at
+                        ? format(new Date(category.updated_at), "MM/dd/yyyy")
+                        : "N/A"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Products Count</p>
@@ -250,12 +335,30 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                 <Button 
                   variant="outline" 
                   className="w-full" 
+                  onClick={() => setIsFormDialogOpen(true)}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Category
                 </Button>
-                <Button 
-                  variant="default" 
+                <Button
+                  variant={category?.is_active ? "destructive" : "default"}
+                  className="w-full mt-4"
+                  onClick={handleToggleStatus}
+                >
+                  {category?.is_active ? (
+                    <>
+                      <PowerOff className="h-4 w-4 mr-2" />
+                      Deactivate Category
+                    </>
+                  ) : (
+                    <>
+                      <Power className="h-4 w-4 mr-2" />
+                      Activate Category
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="default"
                   className="w-full mt-4"
                   onClick={() => setIsDeleteDialogOpen(true)}
                 >
@@ -269,16 +372,14 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{category.name}"? This action cannot be
-              undone and will remove the category from products that use it.
+              Are you sure you want to delete "{category.name}"? This action
+              cannot be undone and will remove the category from products that
+              use it.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end space-x-4">
@@ -288,13 +389,37 @@ export default function CategoryPage({ params }: CategoryPageProps) {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteCategory}
-            >
+            <Button variant="destructive" onClick={handleDeleteCategory}>
               Delete
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] max-h-[calc(100vh-10rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+            <DialogDescription>
+              Update the details for this category.
+            </DialogDescription>
+          </DialogHeader>
+          {category && (
+            <CategoryForm
+              initialData={{
+                category_id: category.category_id,
+                name: category.name,
+                slug: category.slug,
+                description: category.description,
+                parent_id: category.parent_id,
+                image_url: category.image_url,
+                is_active: category.is_active,
+              }}
+              onSubmit={handleEditCategory}
+              onCancel={() => setIsFormDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
