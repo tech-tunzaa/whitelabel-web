@@ -34,38 +34,62 @@ export function TenantContent() {
   
   // Fetch tenants only once when component mounts
   useEffect(() => {
-    const loadTenants = async () => {
-      try {
-        await fetchTenants();
-        setDataEverLoaded(true);
-      } catch (error) {
-        if (!dataEverLoaded) {
-          // console.error('Failed to fetch tenants:', error);
+    // Only fetch if data has never been loaded
+    if (!dataEverLoaded && tenants.length === 0) {
+      const loadTenants = async () => {
+        try {
+          await fetchTenants();
+          setDataEverLoaded(true);
+        } catch (error) {
+          console.error('Failed to fetch tenants:', error);
         }
-      }
-    };
-    
-    loadTenants();
-  }, [fetchTenants, dataEverLoaded]);
+      };
+      
+      loadTenants();
+    } else if (tenants.length > 0 && !dataEverLoaded) {
+      // Mark as loaded if we already have data
+      setDataEverLoaded(true);
+    }
+  }, [fetchTenants, dataEverLoaded, tenants.length]);
 
   // Handle activation/deactivation with loading state management
   const handleActivateTenant = useCallback(async (tenantId: string) => {
     try {
-      await updateTenant(tenantId, { is_active: true });
+      // Update the tenant and get the response
+      const updatedTenant = await updateTenant(tenantId, { is_active: true });
+      
+      // Update the tenant in the local state without a full API refetch
+      const updatedTenants = tenants.map(t => 
+        t.id === tenantId ? { ...t, is_active: true } : t
+      );
+      
+      // Set the updated tenants array
+      useTenantStore.getState().setTenants(updatedTenants);
+      
       toast.success("Tenant activated successfully");
     } catch (error) {
       toast.error("Failed to activate tenant");
     }
-  }, [updateTenant]);
+  }, [updateTenant, tenants]);
 
   const handleDeactivateTenant = useCallback(async (tenantId: string) => {
     try {
-      await updateTenant(tenantId, { is_active: false });
+      // Update the tenant and get the response
+      const updatedTenant = await updateTenant(tenantId, { is_active: false });
+      
+      // Update the tenant in the local state without a full API refetch
+      const updatedTenants = tenants.map(t => 
+        t.id === tenantId ? { ...t, is_active: false } : t
+      );
+      
+      // Set the updated tenants array
+      useTenantStore.getState().setTenants(updatedTenants);
+      
       toast.success("Tenant deactivated successfully");
     } catch (error) {
       toast.error("Failed to deactivate tenant");
     }
-  }, [updateTenant]);
+  }, [updateTenant, tenants]);
 
   // Handle retry if there's an error
   const handleRetry = useCallback(() => {
@@ -155,25 +179,28 @@ export function TenantContent() {
 
             <TabsContent value="all" className="space-y-4">
               <TenantTable
-                tenants={tenants}
+                tenants={filteredTenants}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
+                isLoading={loading && dataEverLoaded} 
               />
             </TabsContent>
 
             <TabsContent value="active" className="space-y-4">
               <TenantTable
-                tenants={tenants.filter((t) => t.is_active)}
+                tenants={filteredTenants}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
+                isLoading={loading && dataEverLoaded}
               />
             </TabsContent>
 
             <TabsContent value="inactive" className="space-y-4">
               <TenantTable
-                tenants={tenants.filter((t) => !t.is_active)}
+                tenants={filteredTenants}
                 onActivateTenant={handleActivateTenant}
                 onDeactivateTenant={handleDeactivateTenant}
+                isLoading={loading && dataEverLoaded}
               />
             </TabsContent>
           </Tabs>

@@ -85,6 +85,7 @@ const authConfig = {
             name: name,
             role: role as "super_owner" | "admin" | "sub_admin" | "support",
             accessToken: "abcxyz",
+            ...(role !== "super_owner" && { tenant_id: "4c56d0c3-55d9-495b-ae26-0d922d430a42" }),
           };
 
           // // Check if the response is OK and a user object is returned

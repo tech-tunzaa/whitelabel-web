@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, use, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, SaveAllIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { toast } from 'sonner';
@@ -11,42 +11,51 @@ import { TenantForm } from "@/features/tenants/components/tenant-form";
 import { useTenantStore } from "@/features/tenants/store";
 
 interface TenantEditPageProps {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 export default function TenantEditPage({ params }: TenantEditPageProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const tenantStore = useTenantStore();
-  const params_unwrapped = use(params);
-  const id = params_unwrapped.id;
+  const tenantId = params.id;
   const { tenant, loading, storeError } = tenantStore;
-  const hasFetchedRef = useRef(false);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
 
   useEffect(() => {
-    // Only fetch once when the component mounts and if we don't have the tenant already
-    if (!hasFetchedRef.current && !loading) {
-      hasFetchedRef.current = true;
-      tenantStore.fetchTenant(id);
+    // Fetch tenant data if not already loaded
+    if (!fetchAttempted && tenantId) {
+      setFetchAttempted(true);
+      tenantStore.fetchTenant(tenantId).catch((error) => {
+        console.error("Error fetching tenant:", error);
+      });
     }
-  }, [id]);
+  }, [tenantId, tenantStore, fetchAttempted]);
 
   const handleSubmit = async (data: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await tenantStore.updateTenant(id, data);
+      await tenantStore.updateTenant(tenantId, data);
       toast.success("Tenant updated successfully");
-      router.push("/dashboard/tenants");
     } catch (error) {
-      // console.error("Error updating tenant:", error);
       toast.error("Failed to update tenant. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Show loading state while fetching
+  if (loading && !isSubmitting && !tenant) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+
+  // Show error state if fetch failed
   if (!loading && storeError && !tenant) {
     return (
       <ErrorCard
@@ -69,7 +78,7 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push("/dashboard/tenants")}
+            onClick={() => router.back()}
             className="mr-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -84,22 +93,32 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
             </p>
           </div>
         </div>
+        <Button 
+          type="submit"
+          form="marketplace-tenant-form"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Spinner size="sm" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <SaveAllIcon className="mr-2" />
+              Submit Changes
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
         {tenant && (
           <TenantForm 
-            initialData={{
-              ...tenant,
-              modules: {
-                payments: tenant.modules?.payments || false,
-                promotions: tenant.modules?.promotions || false,
-                inventory: tenant.modules?.inventory || false,
-              }
-            }} 
+            id="marketplace-tenant-form"
+            initialData={tenant}
             onSubmit={handleSubmit} 
             isSubmitting={isSubmitting}
-            id={id}
           />
         )}
       </div>

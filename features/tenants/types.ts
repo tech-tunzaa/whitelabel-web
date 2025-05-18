@@ -64,6 +64,7 @@ export type Tenant = {
   admin_email: string;
   admin_phone: string;
   is_active: boolean;
+  fee?: string;
   trial_ends_at: string | null;
   plan: string | null;
   modules: TenantModules;

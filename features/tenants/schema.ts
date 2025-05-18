@@ -2,13 +2,13 @@ import { z } from "zod";
 
 // Define schemas
 export const brandingSchema = z.object({
-  logoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  logoUrl: z.string().url("Invalid URL").optional().or(z.literal("")).nullable(),
   theme: z.object({
     logo: z.object({
-      primary: z.string().url("Invalid URL").optional().or(z.literal("")),
-      secondary: z.string().url("Invalid URL").optional().or(z.literal("")),
-      icon: z.string().url("Invalid URL").optional().or(z.literal("")),
-    }),
+      primary: z.string().url("Invalid URL").optional().or(z.literal("")).nullable(),
+      secondary: z.string().url("Invalid URL").optional().or(z.literal("")).nullable(),
+      icon: z.string().url("Invalid URL").optional().or(z.literal("")).nullable(),
+    }).optional().nullable(),
     colors: z.object({
       primary: z.string().regex(/^#[0-9A-F]{6}$/i, {
         message: "Please enter a valid hex color code.",
@@ -42,20 +42,7 @@ export const brandingSchema = z.object({
   }),
 });
 
-export const modulesSchema = z.object({
-  key: z.string().optional(),
-  value: z.boolean().optional(),
-});
-
-export const revenueSchema = z.object({
-  total_revenue: z.string().optional(),
-  commission_rate: z.string().min(1, {
-    message: "Commission rate is required",
-  }),
-  platform_fee: z.string().min(1, {
-    message: "Platform fee is required",
-  }),
-});
+export const modulesSchema = z.record(z.boolean()).optional().nullable();
 
 export const tenantFormSchema = z.object({
   name: z.string().min(2, {
@@ -88,13 +75,11 @@ export const tenantFormSchema = z.object({
   vehicle_types: z.array(z.string()).min(1, {
     message: "At least one vehicle type is required.",
   }),
-  fee: z.string().optional().or(z.literal("")),
+  fee: z.number().optional().or(z.literal("")),
   trial_ends_at: z.string().optional().or(z.literal("")),
   is_active: z.boolean().optional(),
   modules: modulesSchema,
   branding: brandingSchema,
 });
-// Workaround for schemas that should be optional in some contexts
-// Use this in the component conditional validation
 
 export type TenantFormValues = z.infer<typeof tenantFormSchema>;

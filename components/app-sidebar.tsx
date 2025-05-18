@@ -182,7 +182,7 @@ const data = {
   navSecondary: [
     {
       title: "Marketplace Settings",
-      url: "/dashboard/marketplace/edit",
+      url: "/dashboard/tenants/marketplace",
       icon: IconSettings,
       roles: ["admin"],
     },
@@ -197,14 +197,12 @@ const data = {
       url: "/dashboard/auth/users",
       icon: IconUsers,
       roles: ["super_owner", "admin", "sub_admin"],
-      items: [],
     },
     {
       title: "User Roles",
       url: "/dashboard/auth/roles",
-      icon: IconUsers,
+      icon: IconUserShield,
       roles: ["super_owner", "admin", "sub_admin"],
-      items: [],
     },
     {
       title: "Get Help",

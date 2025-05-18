@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, use } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+import { ArrowLeft, Edit, ExternalLink, Settings, Languages, Globe, Calendar, CreditCard } from "lucide-react";
+import { platformModules, isModuleEnabled } from "@/features/settings/data/modules";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
-import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,28 +19,39 @@ import { useTenantStore } from "@/features/tenants/store";
 import { Tenant } from "@/features/tenants/types";
 
 interface TenantPageProps {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 export default function TenantPage({ params }: TenantPageProps) {
   const router = useRouter();
   const tenantStore = useTenantStore();
-  const params_unwrapped = use(params);
-  const id = params_unwrapped.id;
+  const tenantId = params.id;
   const { tenant, loading, storeError } = tenantStore;
+  const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Only fetch if tenant is not already loaded or there's no error
-    if (!tenant && !storeError && !loading) {
-      tenantStore.fetchTenant(id);
+    // Fetch tenant data if not already loaded
+    if (!fetchAttempted && tenantId) {
+      setFetchAttempted(true);
+      tenantStore.fetchTenant(tenantId).catch((error) => {
+        console.error("Error fetching tenant:", error);
+      });
     }
-  }, [id, tenant, storeError, loading, tenantStore.fetchTenant]);
+  }, [tenantId, tenantStore, fetchAttempted]);
 
-  if (loading) {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Not set";
+    return format(new Date(dateString), "MM/dd/yyyy");
+  };
+
+  if (loading && !tenant) {
     return (
-      <Spinner />
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
     );
   }
 
@@ -75,304 +87,389 @@ export default function TenantPage({ params }: TenantPageProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center p-4 border-b">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/tenants")}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {tenant.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Tenant ID: {tenant.id}
-          </p>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/dashboard/tenants")}
+            className="shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+          
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage 
+                src={tenant.branding?.theme?.logo?.primary || tenant.branding?.logoUrl} 
+                alt={tenant.name} 
+              />
+              <AvatarFallback style={{ backgroundColor: tenant.branding?.theme?.colors?.primary }}>
+                {tenant.name.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{tenant.name}</h1>
+              <p className="text-muted-foreground text-sm flex items-center gap-1">
+                <Globe className="h-3 w-3" />
+                <a 
+                  href={tenant.domain.startsWith('http') ? tenant.domain : `https://${tenant.domain}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:underline flex items-center"
+                >
+                  {tenant.domain}
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </p>
+            </div>
+          </div>
         </div>
-        <Badge variant={tenant.is_active ? "default" : "secondary"} className="ml-auto">
-          {tenant.is_active ? "Active" : "Inactive"}
-        </Badge>
+        
+        <div className="flex items-center gap-2">
+          <Badge 
+            variant={tenant.is_active ? "default" : "destructive"} 
+            className={tenant.is_active ? "bg-green-500 hover:bg-green-600 px-2 py-1" : "px-2 py-1"}
+          >
+            {tenant.is_active ? "Active" : "Inactive"}
+          </Badge>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/dashboard/tenants/${tenantId}/edit`)}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+        </div>
       </div>
 
-      <div className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
+      {/* Content */}
+      <div className="p-4 overflow-auto space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
+          {/* Main Content - 5 columns */}
+          <div className="md:col-span-5 space-y-6">
+            {/* Overview Card */}
             <Card>
-              <CardHeader>
-                <CardTitle>Tenant Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center mb-6">
-                  <Avatar className="h-24 w-24 mr-6">
-                    <AvatarImage src={tenant.branding?.theme?.logo?.primary || tenant.branding?.logoUrl} alt={tenant.name} />
-                    <AvatarFallback>{tenant.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{tenant.name}</h3>
-                    <p className="text-sm text-muted-foreground">Domain: <a href={`${tenant.domain}`}>{tenant.domain}</a></p>
-                  </div>
-                  <div className="ml-auto flex">
-                    <p className="text-sm font-medium text-muted-foreground">Status: </p>
-                    <Badge variant={tenant.is_active ? "default" : "secondary"}>
-                      {tenant.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-center">
+                  <CardTitle>Overview</CardTitle>
+                  <Badge variant={tenant.is_active ? "outline" : "secondary"}>
+                    {tenant.is_active ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Admin Email</p>
-                    <p className="text-sm"><a href={`mailto:${tenant.admin_email}`}>{tenant.admin_email || "Not specified"}</a></p>
+              </CardHeader>
+              
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                      <Globe className="h-4 w-4" /> Country & Currency
+                    </p>
+                    <p className="text-sm flex items-center gap-2">
+                      <Badge variant="outline">{tenant.country_code || "Not specified"}</Badge>
+                      <Badge variant="outline">{tenant.currency || "Not specified"}</Badge>
+                    </p>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium">Admin Phone</p>
-                    <p className="text-sm"><a href={`tel:${tenant.admin_phone}`}>{tenant.admin_phone || "Not specified"}</a></p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Country</p>
-                    <Badge variant="outline">{tenant.country_code || "Not specified"}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Currency</p>
-                    <Badge variant="outline">{tenant.currency || "Not specified"}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Languages</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tenant.languages?.map((lang, index) => (
-                        <Badge key={index} variant="outline">
-                          {lang}
-                        </Badge>
-                      )) || <Badge variant="outline">Not specified</Badge>}
+                  
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                      <Languages className="h-4 w-4" /> Supported Languages
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {tenant.languages && tenant.languages.length > 0 ? (
+                        tenant.languages.map((lang, index) => (
+                          <Badge key={index} variant="outline">
+                            {lang}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">None specified</span>
+                      )}
                     </div>
                   </div>
-                  <div className="col-span-3">
-                    <p className="text-sm font-medium">Modules</p>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(tenant.modules).map(([module, enabled]) => (
-                        <Badge key={module} variant={enabled ? "default" : "secondary"}>
-                          {module}
-                        </Badge>
-                      ))}
-                    </div>
+                  
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                      <Calendar className="h-4 w-4" /> Created On
+                    </p>
+                    <p className="text-sm">{formatDate(tenant.createdAt)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Modules Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Modules</CardTitle>
+                <CardDescription>
+                  Modules currently enabled for this tenant
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {platformModules.map((moduleConfig) => {
+                    const enabled = isModuleEnabled(tenant.modules, moduleConfig.name);
+
+                    return (
+                      <Card key={moduleConfig.name} className={`border py-1 ${enabled ? 'border-primary/30' : 'border-muted'}`}>
+                        <CardContent className="p-4 items-center">
+                          <div className="flex justify-between" >
+                            <div className="flex items-center gap-2">
+                              <div className={`p-2 rounded-md ${enabled ? 'bg-primary/10' : 'bg-muted'}`}>
+                                <Settings className={`h-4 w-4 ${enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                              </div>
+                              <div>
+                                <span className="font-medium">{moduleConfig.label}</span>
+                              </div>
+                            </div>
+                            <Badge variant={enabled ? "default" : "outline"}>
+                              {enabled ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground p-1">{moduleConfig.description}</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Revenue Summary */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Revenue Summary</CardTitle>
+                  <CardDescription>
+                    Overview of tenant's revenue and transactions
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  This Month
+                </Button>
+              </CardHeader>
+              
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground">Total Revenue</p>
+                        <p className="text-2xl font-bold">{tenant.currency} {tenant?.metadata?.revenue_summary?.total || "0.00"}</p>
+                        <div className="flex items-center text-xs text-green-500">
+                          <span>+{tenant?.metadata?.revenue_summary?.growth || "0"}%</span>
+                          <span className="text-muted-foreground ml-1">vs last month</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground">Commission</p>
+                        <p className="text-2xl font-bold">{tenant.currency} {tenant?.metadata?.revenue_summary?.commission || "0.00"}</p>
+                        <p className="text-xs text-muted-foreground">Rate: {tenant?.metadata?.commission_rate || "0"}%</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-muted-foreground">Transactions</p>
+                        <p className="text-2xl font-bold">{tenant?.metadata?.revenue_summary?.transactions || "0"}</p>
+                        <p className="text-xs text-muted-foreground">Last 30 days</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Billing History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing History</CardTitle>
+                <CardDescription>
+                  Recent billing activity and payment history
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                {tenant.billing_history && tenant.billing_history.length > 0 ? (
+                  <div className="space-y-4">
+                    {tenant.billing_history.slice(0, 5).map((bill, index) => (
+                      <div key={bill.id || index} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
+                        <div className="flex flex-col">
+                          <p className="font-medium">{bill.description}</p>
+                          <p className="text-sm text-muted-foreground">{format(new Date(bill.date), "MM/dd/yyyy")}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-right">
+                            {tenant.currency} {bill.amount}
+                          </p>
+                          <Badge variant={bill.status === 'paid' ? 'default' : bill.status === 'pending' ? 'outline' : 'destructive'} className="capitalize">
+                            {bill.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <CreditCard className="h-12 w-12 text-muted-foreground mb-2 opacity-20" />
+                    <p className="text-muted-foreground">No billing history available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Sidebar - 2 columns */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Contact Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-lg">{tenant.admin_email || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Phone</p>
-                    <p className="text-lg">{tenant.admin_phone || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Country</p>
-                    <p className="text-lg">{tenant.country_code || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Currency</p>
-                    <p className="text-lg">{tenant.currency || "Not provided"}</p>
-                  </div>
+              
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Admin Email</p>
+                  <p className="text-sm break-all">
+                    <a 
+                      href={`mailto:${tenant.admin_email}`} 
+                      className="hover:underline flex items-center"
+                    >
+                      {tenant.admin_email || "Not provided"}
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Admin Phone</p>
+                  <p className="text-sm">
+                    <a 
+                      href={`tel:${tenant.admin_phone}`} 
+                      className="hover:underline flex items-center"
+                    >
+                      {tenant.admin_phone || "Not provided"}
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Subscription Information */}
             <Card>
               <CardHeader>
-                <CardTitle>Additional Information</CardTitle>
+                <CardTitle>Subscription</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Domain</p>
-                    <p className="text-sm">{tenant.domain || "Not specified"}</p>
+              
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Plan</p>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm capitalize">{tenant.plan || "No plan"}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Languages</p>
-                    <p className="text-sm">{tenant.languages?.join(', ') || "Not specified"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Updated At</p>
-                    <p className="text-sm">{new Date(tenant.updatedAt).toLocaleDateString() || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">User ID</p>
-                    <p className="text-sm">{tenant.user_id || "N/A"}</p>
-                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Subscription Fee</p>
+                  <p className="text-sm font-semibold">
+                    {tenant.fee ? `${tenant.fee} ${tenant.currency}/month` : "Not set"}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Trial Ends</p>
+                  <p className="text-sm">{formatDate(tenant.trial_ends_at)}</p>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Branding Colors Preview */}
             <Card>
               <CardHeader>
-                <CardTitle>Billing History</CardTitle>
+                <CardTitle>Brand Colors</CardTitle>
               </CardHeader>
+              
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">Billing History</h3>
-                    <p className="text-sm text-muted-foreground">Last 6 months</p>
-                  </div>
-                  <div className="space-y-4">
-                    {tenant.billing_history && tenant.billing_history.length > 0 ? (
-                      tenant.billing_history.map((bill) => (
-                        <div key={bill.id} className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{bill.description}</p>
-                            <p className="text-sm text-muted-foreground">{bill.date}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{bill.amount} {tenant.currency}</p>
-                            <p className="text-sm text-muted-foreground">{bill.status}</p>
-                          </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {tenant.branding?.theme?.colors && Object.entries(tenant.branding.theme.colors).map(([colorName, value]) => {
+                    // Skip nested color objects
+                    if (typeof value === 'string') {
+                      return (
+                        <div key={colorName} className="flex items-center gap-2">
+                          <div 
+                            className="w-6 h-6 rounded-full border" 
+                            style={{ backgroundColor: value }}
+                          />
+                          <span className="text-xs capitalize">{colorName}</span>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No billing history available</p>
-                    )}
-                  </div>
+                      );
+                    }
+                    return null;
+                  })}
                 </div>
               </CardContent>
             </Card>
-
-          </div>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Trial Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Plan</p>
-                    <p className="text-lg">{tenant.plan || "No plan"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Status</p>
-                    <Badge variant={tenant.is_active ? "default" : "destructive"}>
-                      {tenant.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Trial End Date</p>
-                    <p className="text-lg">{tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString() : "Not available"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Created At</p>
-                    <p className="text-lg">{new Date(tenant.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tenant Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium">Plan</p>
-                    <p className="text-sm">{tenant.plan || "Not specified"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Status</p>
-                    <Badge variant={tenant.is_active ? "default" : "secondary"}>
-                      {tenant.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Trial Ends At</p>
-                    <p className="text-sm">
-                      {tenant.trial_ends_at
-                        ? new Date(tenant.trial_ends_at).toLocaleDateString()
-                        : "Not specified"}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-              <Separator />
-              <CardFooter>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                  <div>
-                    <p className="text-sm font-medium">Created At</p>
-                    <p className="text-sm">{tenant.createdAt ? format(new Date(tenant.createdAt), 'MMM d, yyyy') : "Not specified"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-sm">{tenant.updatedAt ? format(new Date(tenant.updatedAt), 'MMM d, yyyy') : "Not specified"}</p>
-                  </div>
-                  {tenant.trial_ends_at && (
-                    <div>
-                      <p className="text-sm font-medium">Trial Ends At</p>
-                      <p className="text-sm">{format(new Date(tenant.trial_ends_at), 'MMM d, yyyy')}</p>
-                    </div>
-                  )}
-                </div>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Branding</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Primary Logo</p>
-                    <img className="w-24 h-24" src={tenant.branding?.theme?.logo?.primary} alt="Primary Logo" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Secondary Logo</p>
-                    <img className="w-24 h-24" src={tenant.branding?.theme?.logo?.secondary} alt="Secondary Logo" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Icon</p>
-                    <img className="w-24 h-24" src={tenant.branding?.theme?.logo?.icon} alt="Icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
+            
+            {/* Tenant Actions */}
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4 flex flex-col">
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push(`/dashboard/tenants/${tenant.id}/edit`)}
-                  >
-                    Edit Tenant
-                  </Button>
-                  <Button
-                    onClick={() => {
-                    // Call the tenant store's update tenant function to toggle the active status
-                    tenantStore.updateTenant(tenant.id, {
-                      ...tenant,
-                      is_active: !tenant.is_active
-                    });
+              
+              <CardContent className="space-y-3">
+                <Button 
+                  variant={tenant.is_active ? "destructive" : "default"}
+                  className="w-full"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    try {
+                      setIsSubmitting(true);
+                      await tenantStore.updateTenant(tenantId, { 
+                        is_active: !tenant.is_active 
+                      });
+                      toast.success(tenant.is_active 
+                        ? "Tenant deactivated successfully" 
+                        : "Tenant activated successfully"
+                      );
+                    } catch (error) {
+                      toast.error("Failed to update tenant status");
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
-                    variant={tenant.is_active ? "destructive" : "default"}
-                  >
-                    {tenant.is_active ? "Deactivate" : "Activate"} Tenant
-                  </Button>
-                </div>
+                >
+                  {isSubmitting ? (
+                    <Spinner size="sm" color="white" />
+                  ) : (
+                    tenant.is_active ? "Deactivate Tenant" : "Activate Tenant"
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/tenants/${tenantId}/edit`)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Tenant
+                </Button>
               </CardContent>
             </Card>
           </div>

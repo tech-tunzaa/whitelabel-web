@@ -75,16 +75,24 @@ export const MultiSelect = ({
                 >
                   {option.label}
                   {!readOnly && (
-                    <button
-                      type="button"
-                      className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation()
                         toggleOption(option.value)
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleOption(option.value)
+                        }
+                      }}
                     >
                       <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </button>
+                    </span>
                   )}
                 </Badge>
               ))

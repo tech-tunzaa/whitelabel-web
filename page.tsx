@@ -22,21 +22,16 @@ interface MarketplacePageProps {
 export default function MarketplacePage({ params }: MarketplacePageProps) {
   const router = useRouter();
   const { data: session } = useSession();
+  const userRole = session?.user?.role || "";
+  const isSuperOwner = userRole === "super_owner";
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const tenantStore = useTenantStore();
   const { tenant, loading, storeError } = tenantStore;
   const hasFetchedRef = useRef(false);
 
-  let currentTenantId = params.id;
-
-  console.log("Params", params);
-
-  if (currentTenantId === "edit") {
-    //Temporary fallback
-    currentTenantId = "4c56d0c3-55d9-495b-ae26-0d922d430a42";
-    // return <div>No tenant ID provided</div>;
-  }
+  const currentTenantId = params.id;
 
   useEffect(() => {
     // Only fetch once when the component mounts
@@ -77,29 +72,14 @@ export default function MarketplacePage({ params }: MarketplacePageProps) {
           status: storeError?.status ? String(storeError.status) : "error",
         }}
         buttonText="Back to Dashboard"
-        buttonAction={() => router.push("/dashboard")}
+        buttonAction={() => router.push("/dashboard/tenants")}
         buttonIcon={ArrowLeft}
       />
     );
   }
 
-  if (loading) {
+  if (loading && !isSubmitting) {
     return <Spinner />;
-  }
-
-  if (!tenant && !loading && storeError) {
-    return (
-      <ErrorCard
-        title="Error Loading Marketplace"
-        error={{
-          message: storeError?.message || "Failed to load marketplace settings",
-          status: storeError?.status ? String(storeError.status) : "error",
-        }}
-        buttonText="Back to Dashboard"
-        buttonAction={() => router.push("/dashboard")}
-        buttonIcon={ArrowLeft}
-      />
-    );
   }
 
   return (
@@ -128,7 +108,7 @@ export default function MarketplacePage({ params }: MarketplacePageProps) {
                 form="marketplace-tenant-form"
                 disabled={isSubmitting}
               >
-                {isSubmitting && <Spinner size="sm" className="mr-2" />}
+                {isSubmitting && <Spinner size="sm" color="white" />}
                 Save Changes
               </Button>
             </>

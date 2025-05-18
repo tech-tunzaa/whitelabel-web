@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,15 +31,16 @@ interface TenantTableProps {
   tenants: Tenant[];
   onActivateTenant: (tenantId: string) => void;
   onDeactivateTenant: (tenantId: string) => void;
+  isLoading?: boolean;
 }
 
 export function TenantTable({
   tenants,
   onActivateTenant,
   onDeactivateTenant,
+  isLoading = false,
 }: TenantTableProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
 
   // Handle undefined tenants
   if (!tenants || tenants.length === 0) {
@@ -49,21 +51,24 @@ export function TenantTable({
     );
   }
 
-  // Filter tenants based on status
-  const filteredTenants = tenants.filter((tenant) => {
-    if (typeof tenant.is_active === "boolean") {
-      return tenant.is_active;
-    }
-    return true;
-  });
+  // Format dates consistently to prevent hydration errors
+  const formatDate = (dateString: string) => {
+    // Using a simple and consistent date format without locale dependency
+    return format(new Date(dateString), "MM/dd/yyyy");
+  };
 
   const getStatusBadge = (status: boolean) => {
     switch (status) {
       case true:
-        return <Badge variant="default">Active</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Active</Badge>;
       case false:
         return <Badge variant="destructive">Inactive</Badge>;
     }
+  };
+  
+  // Handler for table row clicks
+  const handleRowClick = (tenantId: string) => {
+    router.push(`/dashboard/tenants/${tenantId}`);
   };
 
   return (
@@ -82,7 +87,19 @@ export function TenantTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tenants.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-10 text-muted-foreground"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                    <span>Loading tenants...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : tenants.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={7}
@@ -93,7 +110,11 @@ export function TenantTable({
               </TableRow>
             ) : (
               tenants.map((tenant) => (
-                <TableRow key={tenant.id} className="cursor-pointer">
+                <TableRow 
+                  key={tenant.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleRowClick(tenant.id)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -141,11 +162,7 @@ export function TenantTable({
                   </TableCell>
                   <TableCell>{getStatusBadge(tenant.is_active)}</TableCell>
                   <TableCell>
-                    {new Date(tenant.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                    })}
+                    {formatDate(tenant.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -163,14 +180,6 @@ export function TenantTable({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/dashboard/marketplace/${tenant.id}`);
-                          }}
-                        >
-                          Marketplace Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
                             router.push(`/dashboard/tenants/${tenant.id}`);
                           }}
                         >
@@ -182,7 +191,7 @@ export function TenantTable({
                             router.push(`/dashboard/tenants/${tenant.id}/edit`);
                           }}
                         >
-                          Edit
+                          Marketplace Settings
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
 
