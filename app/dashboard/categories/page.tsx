@@ -245,7 +245,7 @@ export default function CategoriesPage() {
           }
           setIsFormDialogOpen(open);
         }}>
-        <DialogContent className="sm:max-w-[550px] max-h-[calc(100vh-10rem)] overflow-y-auto">
+        <DialogContent className="sm:max-w-[550px] min-w-[700px] max-h-[calc(100vh-10rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {categoryToEdit ? "Edit Category" : "Add New Category"}

@@ -141,7 +141,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="slug"
@@ -189,11 +189,11 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           control={form.control}
           name="parent_id"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="flex flex-col w-1/2">
               <FormLabel>Parent Category (Optional)</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select parent category" />
                   </SelectTrigger>
                 </FormControl>
@@ -233,10 +233,36 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
 
         <FormField
           control={form.control}
+          name="image_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category Image</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  id="category-image"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onFileChange={(file) => setImageFile(file)}
+                  height="h-36"
+                  width="w-full"
+                  buttonText="Upload Category Image"
+                  previewAlt={`${form.getValues().name || 'Category'} image`}
+                />
+              </FormControl>
+              <FormDescription>
+                Upload an image representing this category.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="is_active"
           render={({ field }) => (
             <FormItem>
-              <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="flex flex-row items-center justify-between rounded-lg border p-4 w-full">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">
                     Active
@@ -252,32 +278,6 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                   />
                 </FormControl>
               </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="image_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category Image</FormLabel>
-              <FormControl>
-                <ImageUpload
-                  id="category-image"
-                  value={field.value}
-                  onChange={field.onChange}
-                  onFileChange={(file) => setImageFile(file)}
-                  height="h-40"
-                  width="w-full"
-                  buttonText="Upload Category Image"
-                  previewAlt={`${form.getValues().name || 'Category'} image`}
-                />
-              </FormControl>
-              <FormDescription>
-                Upload an image representing this category.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
