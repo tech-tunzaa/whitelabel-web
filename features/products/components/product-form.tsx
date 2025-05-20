@@ -83,6 +83,16 @@ interface ProductFormProps {
   isSubmitting?: boolean;
 }
 
+// Helper function for generating slug from name
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .trim();
+};
+
 export function ProductForm({
   initialData,
   onSubmit,
@@ -99,6 +109,7 @@ export function ProductForm({
   const tabValidationMap = {
     basic: [
       "name", 
+      "slug",
       "sku", 
       "category_ids",
       "tags"
@@ -195,9 +206,13 @@ export function ProductForm({
       setFormError(null);
       setInternalIsSubmitting(true);
       
+      // Generate slug from name if not provided
+      const slug = data.slug || generateSlug(data.name);
+      
       // Ensure images don't have File objects when sending to API
       const cleanedData = {
         ...data,
+        slug,
         images: data.images?.map(img => ({
           url: img.url,
           alt: img.alt || "",
@@ -247,6 +262,21 @@ export function ProductForm({
       setActiveTab(nextTab);
     }
   };
+
+  // Add effect to update slug when name changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "name") {
+        const productName = value.name as string;
+        if (productName && !form.getValues("slug")) {
+          const generatedSlug = generateSlug(productName);
+          form.setValue("slug", generatedSlug);
+        }
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   return (
     <div className="flex flex-col h-full">
@@ -364,6 +394,26 @@ export function ProductForm({
                                   placeholder="Premium Wireless Headphones"
                                 />
                               </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={formControl}
+                          name="slug"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Slug</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="premium-wireless-headphones"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                URL-friendly version of the product name. Auto-generated if left empty.
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}

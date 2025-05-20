@@ -32,7 +32,10 @@ export const productFormSchema = z.object({
     name: z.string().min(2, {
         message: "Product name must be at least 2 characters.",
     }),
-    slug: z.string().optional(),
+    slug: z.string().optional()
+        .refine(val => !val || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val), {
+            message: "Slug must contain only lowercase letters, numbers, and hyphens"
+        }),
     description: z.string().min(10, {
         message: "Description must be at least 10 characters.",
     }),
