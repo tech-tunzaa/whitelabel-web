@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Upload, X } from "lucide-react"
+import { Upload, X, Loader } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { uploadDocument } from "@/lib/services/document-upload.service"
 
 interface ImageUploadProps {
   id: string
@@ -31,8 +32,10 @@ export function ImageUpload({
   readOnly = false,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(value || null)
+  const [isUploading, setIsUploading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -43,12 +46,34 @@ export function ImageUpload({
     }
 
     // Create URL for preview
-    const url = URL.createObjectURL(file)
-    setPreviewUrl(url)
-    onChange(url)
+    const localUrl = URL.createObjectURL(file)
+    setPreviewUrl(localUrl)
     
-    if (onFileChange) {
-      onFileChange(file)
+    // Upload the file
+    try {
+      setIsUploading(true)
+      setError(null)
+      
+      // Upload to server
+      const response = await uploadDocument(file, true);
+      
+      // Use CDN URL from response
+      const serverUrl = response.fileCDNUrl;
+      setPreviewUrl(serverUrl);
+      onChange(serverUrl);
+      
+      // Call onFileChange if provided
+      if (onFileChange) {
+        onFileChange(file);
+      }
+    } catch (err) {
+      console.error("Image upload error:", err);
+      setError(err instanceof Error ? err.message : "Failed to upload image");
+      
+      // Keep the local preview but indicate error
+      onChange(localUrl);
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -56,6 +81,7 @@ export function ImageUpload({
     e.preventDefault()
     e.stopPropagation()
     setPreviewUrl(null)
+    setError(null)
     onChange("")
   }
 
@@ -66,8 +92,18 @@ export function ImageUpload({
           <img
             src={previewUrl}
             alt={previewAlt}
-            className="object-contain w-full h-full"
+            className={`object-contain w-full h-full ${error ? 'opacity-60' : ''}`}
           />
+          {isUploading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/30">
+              <Loader className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+          {error && (
+            <div className="absolute bottom-0 left-0 right-0 bg-destructive text-destructive-foreground p-1 text-xs text-center">
+              Upload failed. Please try again.
+            </div>
+          )}
           {!readOnly && (
             <Button
               type="button"
@@ -75,6 +111,7 @@ export function ImageUpload({
               size="icon"
               className="absolute top-2 right-2 h-6 w-6"
               onClick={clearImage}
+              disabled={isUploading}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -92,14 +129,20 @@ export function ImageUpload({
             id={id}
             accept="image/*"
             onChange={handleFileChange}
+            disabled={isUploading}
           />
           <Button
             type="button"
             variant="outline"
             onClick={() => document.getElementById(id)?.click()}
             className={`${width} ${height} border-dashed flex flex-col gap-2 items-center justify-center`}
+            disabled={isUploading}
           >
-            <Upload className="h-6 w-6" />
+            {isUploading ? (
+              <Loader className="h-6 w-6 animate-spin" />
+            ) : (
+              <Upload className="h-6 w-6" />
+            )}
             <span>{buttonText}</span>
             <span className="text-xs text-muted-foreground">
               PNG, JPG, SVG (max 2MB)

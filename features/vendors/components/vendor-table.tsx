@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Check, Edit, Eye, MoreHorizontal, RefreshCw, XCircle } from "lucide-react";
+import { Check, Edit, Eye, MoreHorizontal, RefreshCw, XCircle, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,10 +30,27 @@ import { Spinner } from "@/components/ui/spinner";
 
 import { VendorListResponse } from "../types";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 interface VendorTableProps {
   vendors: VendorListResponse["items"];
   onVendorClick: (vendor: VendorListResponse["items"][0]) => void;
-  onStatusChange?: (vendorId: string, status: string) => Promise<void>;
+  onStatusChange?: (vendorId: string, status: string, rejectionReason?: string) => Promise<void>;
 }
 
 export function VendorTable({
@@ -43,6 +60,11 @@ export function VendorTable({
 }: VendorTableProps) {
   const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectVendorId, setRejectVendorId] = useState<string | null>(null);
+  const [rejectionType, setRejectionType] = useState("incomplete_documents");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
 
   // Filter vendors by various status combinations
   const allApprovedVendors = vendors.filter(
@@ -67,6 +89,17 @@ export function VendorTable({
     action: 'approve' | 'reject' | 'activate' | 'deactivate'
   ) => {
     if (!onStatusChange || !vendorId) return; // Skip if no ID or handler
+
+    // For rejection, show the dialog instead of immediate action
+    if (action === 'reject') {
+      setRejectVendorId(vendorId);
+      setRejectionType("incomplete_documents");
+      setCustomReason("");
+      setRejectionReason("");
+      setShowRejectDialog(true);
+      return;
+    }
+
     try {
       setProcessingId(vendorId);
       
@@ -76,15 +109,14 @@ export function VendorTable({
         case 'approve':
           status = 'approved';
           break;
-        case 'reject':
-          status = 'rejected';
-          break;
         case 'activate':
-          is_active = true;
+          status = 'active';
           break;
         case 'deactivate':
-          is_active = false;
+          status = 'inactive';
           break;
+        default:
+          return;
       }
       
       await onStatusChange(vendorId, status);
@@ -95,13 +127,55 @@ export function VendorTable({
     }
   };
 
+  // Handle the rejection confirmation
+  const handleRejectConfirm = async () => {
+    if (!rejectVendorId || !onStatusChange) return;
+    
+    try {
+      setProcessingId(rejectVendorId);
+      
+      // Prepare rejection reason
+      let finalReason = rejectionType === "other" 
+        ? customReason 
+        : getRejectionReasonText(rejectionType);
+      
+      await onStatusChange(rejectVendorId, "rejected", finalReason);
+      setShowRejectDialog(false);
+    } catch (error) {
+      console.error("Error rejecting vendor:", error);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Helper to get rejection reason text based on type
+  const getRejectionReasonText = (type: string) => {
+    switch (type) {
+      case "incomplete_documents":
+        return "Incomplete or missing verification documents";
+      case "invalid_documents":
+        return "Invalid or expired verification documents";
+      case "business_information":
+        return "Inconsistent business information";
+      case "policy_violation":
+        return "Violation of platform policies";
+      default:
+        return customReason;
+    }
+  };
+
   // Helper function to get badge variant based on status
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status: string, isActive: boolean = true) => {
+    // If the vendor is verified but not active, show special status
+    if (status === "approved" && !isActive) {
+      return "outline";
+    }
+
     switch (status) {
       case "approved":
-        return "default";
+        return "success";
       case "pending":
-        return "secondary";
+        return "warning";
       case "rejected":
         return "destructive";
       default:
@@ -179,6 +253,88 @@ export function VendorTable({
         <PendingTab />
         <RejectedTab />
       </Tabs>
+
+      {/* Rejection Dialog */}
+      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please select a reason for rejecting this vendor. This will be visible to the vendor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <RadioGroup value={rejectionType} onValueChange={setRejectionType} className="space-y-3">
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="incomplete_documents" id="incomplete_documents" />
+                <Label htmlFor="incomplete_documents" className="font-normal leading-tight">
+                  <div className="font-medium">Incomplete Documents</div>
+                  <div className="text-sm text-muted-foreground">Required verification documents are missing</div>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="invalid_documents" id="invalid_documents" />
+                <Label htmlFor="invalid_documents" className="font-normal leading-tight">
+                  <div className="font-medium">Invalid Documents</div>
+                  <div className="text-sm text-muted-foreground">Provided documents are invalid or expired</div>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="business_information" id="business_information" />
+                <Label htmlFor="business_information" className="font-normal leading-tight">
+                  <div className="font-medium">Business Information Issues</div>
+                  <div className="text-sm text-muted-foreground">Inconsistent or incomplete business information</div>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="policy_violation" id="policy_violation" />
+                <Label htmlFor="policy_violation" className="font-normal leading-tight">
+                  <div className="font-medium">Policy Violation</div>
+                  <div className="text-sm text-muted-foreground">Vendor does not comply with platform policies</div>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-2">
+                <RadioGroupItem value="other" id="other" />
+                <Label htmlFor="other" className="font-normal leading-tight">
+                  <div className="font-medium">Other Reason</div>
+                  <div className="text-sm text-muted-foreground">Provide a custom reason for rejection</div>
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {rejectionType === "other" && (
+              <div className="mt-4">
+                <Label htmlFor="custom-reason">Custom Reason</Label>
+                <Textarea
+                  id="custom-reason"
+                  placeholder="Please provide a detailed reason for rejecting this vendor"
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingId === rejectVendorId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRejectConfirm();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={processingId === rejectVendorId || (rejectionType === "other" && !customReason.trim())}
+            >
+              {processingId === rejectVendorId ? (
+                <Spinner className="mr-2 h-4 w-4" />
+              ) : (
+                <AlertTriangle className="mr-2 h-4 w-4" />
+              )}
+              Reject Vendor
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
@@ -254,11 +410,28 @@ export function VendorTable({
                       <TableCell>
                         <Badge
                           variant={getStatusBadgeVariant(
-                            vendor.verification_status || "pending"
+                            vendor.verification_status || "pending",
+                            vendor.is_active
                           )}
+                          className={`${
+                            vendor.verification_status === "approved" && vendor.is_active
+                              ? "bg-green-500 hover:bg-green-600 text-white"
+                              : vendor.verification_status === "approved" && !vendor.is_active
+                              ? "bg-slate-200 text-slate-800 border-slate-400"
+                              : vendor.verification_status === "pending"
+                              ? "bg-amber-500 hover:bg-amber-600 text-white"
+                              : vendor.verification_status === "rejected"
+                              ? "bg-red-500 hover:bg-red-600 text-white"
+                              : ""
+                          }`}
                         >
                           {getStatusDisplayText(vendor)}
                         </Badge>
+                        {vendor.verification_status === "rejected" && vendor.rejection_reason && (
+                          <div className="hidden group-hover:block absolute mt-1 bg-white p-2 rounded shadow-md text-xs max-w-xs z-10">
+                            {vendor.rejection_reason}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {formatDate(vendor.created_at)}

@@ -1,23 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 import { ProductForm } from "@/features/products/components/product-form";
 import { useProductStore } from "@/features/products/store";
+import { ProductFormValues } from "@/features/products/schema";
 
 export default function AddProductPage() {
   const router = useRouter();
   const { createProduct } = useProductStore();
+  const { data: session } = useSession();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: ProductFormValues) => {
     try {
-      await createProduct(data);
+      setIsSubmitting(true);
+      
+      // Ensure tenant ID is included
+      const tenantId = (session?.user as any)?.tenant_id;
+      if (!tenantId) {
+        throw new Error("Missing tenant ID");
+      }
+      
+      // Add headers for the API request
+      const headers = { "X-Tenant-ID": tenantId };
+      
+      // Create the product
+      await createProduct(data, headers);
       toast.success("Product created successfully");
       router.push("/dashboard/products");
     } catch (error) {
-      toast.error("Failed to create product");
       console.error("Error creating product:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create product");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -26,22 +45,14 @@ export default function AddProductPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* <div className="flex items-center p-4 border-b">
-        <div className="ml-4">
-          <h1 className="text-2xl font-bold tracking-tight">Add New Product</h1>
-          <p className="text-muted-foreground">
-            Create a new product for your marketplace
-          </p>
-        </div>
-      </div> */}
-
-      <div className="container mx-auto py-5">
-        <ProductForm
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
-      </div>
+    <div className="h-full">
+      <ProductForm
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={isSubmitting}
+        title="Create New Product"
+        description="Add a new product to your marketplace"
+      />
     </div>
   );
 }

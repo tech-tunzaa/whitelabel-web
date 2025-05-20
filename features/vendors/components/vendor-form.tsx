@@ -1,26 +1,18 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  Loader2,
-  Store,
-  ArrowLeft,
-  Upload,
-  RefreshCw,
-  Building2,
-  CreditCard,
-  FileText,
-  Truck,
-} from "lucide-react";
+import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useFieldArray, Control } from "react-hook-form";
+import { Spinner } from "@/components/ui/spinner";
+import { Plus, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label"
 import {
   Form,
   FormControl,
@@ -33,320 +25,218 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { DocumentUpload } from "@/components/ui/document-upload";
-import { PhoneInput } from "@/components/ui/phone-input";
 import { RequiredField } from "@/components/ui/required-field";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { ColorPicker } from "@/components/ui/color-picker";
-import { Spinner } from "@/components/ui/spinner";
-import { ErrorCard } from "@/components/ui/error-card";
+import { DocumentUpload, DocumentWithMeta } from "@/components/ui/document-upload";
 
-import { countries } from "@/features/settings/data/localization";
-import { vendorFormSchema } from "../schema";
-import { VendorFormValues } from "../types";
+import { DOCUMENT_TYPES, DocumentTypeOption } from "@/features/settings/data/document-types";
+import { VendorFormValues, StoreBanner } from "../types";
+import { Category } from "@/features/categories/types";
+import { Tenant } from "@/features/tenants/types";
+import { useCategoryStore } from "@/features/categories/store";
 import { useTenantStore } from "@/features/tenants/store";
-
-// Default values that match the API structure
-const defaultValues: Partial<VendorFormValues> = {
-  tenant_id: "",
-  business_name: "",
-  display_name: "",
-  contact_email: "",
-  contact_phone: "",
-  website: "",
-  address_line1: "",
-  address_line2: "",
-  city: "",
-  state_province: "",
-  postal_code: "",
-  country: "Tanzania",
-  tax_id: "",
-  bank_account: {
-    bank_name: "",
-    account_number: "",
-    account_name: "",
-    swift_code: "",
-    branch_code: "",
-  },
-  store: {
-    store_name: "",
-    store_slug: "",
-    description: "",
-    branding: {
-      logo_url: "",
-      colors: {
-        primary: "#3182CE",
-        secondary: "#E2E8F0",
-        accent: "#ED8936",
-        text: "#000000",
-        background: "#FFFFFF",
-      },
-    },
-  },
-};
-
-const businessCategories = [
-  "Apparel",
-  "Electronics",
-  "Food & Beverages",
-  "Handmade Goods",
-  "Health & Beauty",
-  "Home & Garden",
-  "Services",
-  "Other",
-];
-
-const banks = [
-  { id: "bank-001", name: "CRDB Bank" },
-  { id: "bank-002", name: "NMB Bank" },
-  { id: "bank-003", name: "NBC Bank" },
-  { id: "bank-004", name: "Stanbic Bank" },
-  { id: "bank-005", name: "Absa Bank" },
-  { id: "bank-006", name: "DTB Bank" },
-  { id: "bank-007", name: "Exim Bank" },
-  { id: "bank-008", name: "KCB Bank" },
-  { id: "bank-009", name: "Bank of Africa" },
-  { id: "bank-010", name: "Standard Chartered Bank" },
-  { id: "bank-011", name: "Equity Bank" },
-  { id: "bank-012", name: "Access Bank" },
-  { id: "bank-013", name: "Bank M" },
-  { id: "bank-014", name: "Azania Bank" },
-  { id: "bank-015", name: "TIB Bank" },
-  { id: "bank-016", name: "Other" },
-];
+import { useVendorStore } from "../store";
+import { vendorFormSchema } from "../schema";
 
 interface VendorFormProps {
   onSubmit: (data: VendorFormValues) => void;
   onCancel?: () => void;
   initialData?: Partial<VendorFormValues> & { id?: string };
-  isEditable?: boolean;
   id?: string;
   isSubmitting?: boolean;
 }
 
-export function VendorForm({
+export function VendorFormNew({
   onSubmit,
   onCancel,
   initialData,
-  isEditable = true,
   id,
   isSubmitting: externalIsSubmitting,
 }: VendorFormProps) {
   const { data: session } = useSession();
+  const tenantId = (session?.user as any)?.tenant_id || "";
   const userRole = session?.user?.role || "";
   const isSuperOwner = userRole === "super_owner";
-  const isAddPage = !initialData?.id;
-
-  const { fetchTenants } = useTenantStore();
-
-  useEffect(() => {
-    fetchTenants();
-  }, [fetchTenants]);
-
-  const tenants = useTenantStore((state) => state.tenants);
-
-  // Form state management
-  const [activeTab, setActiveTab] = useState("business");
-  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
-  const isSubmitting =
-    externalIsSubmitting !== undefined
-      ? externalIsSubmitting
-      : internalIsSubmitting;
-  const [formError, setFormError] = useState<string | null>(null);
   
-  // Form ref to prevent bubbling
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // Document uploads
-  const [identityDocs, setIdentityDocs] = useState<File[]>([]);
-  const [businessDocs, setBusinessDocs] = useState<File[]>([]);
-  const [bankDocs, setBankDocs] = useState<File[]>([]);
-  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<
-    Record<string, string>
-  >({});
-  const [businessDocsExpiry, setBusinessDocsExpiry] = useState<
-    Record<string, string>
-  >({});
-  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>(
-    {}
-  );
-
-  // Logo upload
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-
-  // Form validation tabs mapping
+  // Tab validation mapping - which fields belong to which tab
   const tabValidationMap = {
     business: [
-      "tenant_id",
-      "business_name",
-      "display_name",
-      "contact_email",
+      "tenant_id", 
+      "business_name", 
+      "display_name", 
+      "contact_email", 
       "contact_phone",
-      "tax_id",
+      "categories",
+      "commission_rate"
     ],
     store: [
-      "store.store_name",
-      "store.store_slug",
-      "store.description",
-      "store.branding.colors.primary",
-      "store.branding.colors.secondary",
-      "store.branding.colors.accent",
-      "store.branding.colors.text",
-      "store.branding.colors.background",
+      "store.store_name", 
+      "store.store_slug", 
+      "store.description"
     ],
     address: [
-      "address_line1",
-      "city",
-      "state_province",
-      "postal_code",
-      "country",
+      "address_line1", 
+      "city", 
+      "state_province", 
+      "postal_code", 
+      "country"
     ],
     banking: [
-      "bank_account.bank_name",
-      "bank_account.account_number",
-      "bank_account.account_name",
+      "bank_account.bank_name", 
+      "bank_account.account_number", 
+      "bank_account.account_name"
     ],
-    documents: [], // Documents are optional
+    documents: [] // Documents are optional
   };
 
-  const tabFlow = [
-    "business",
-    "store",
-    "address",
-    "banking",
-    "documents",
-    "review",
-  ];
+  const tabFlow = ["business", "store", "address", "banking", "documents", "review"];
 
+  // State for component
+  const [activeTab, setActiveTab] = useState("business");
+  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  
+  // Determine if form is submitting from either external or internal state
+  const isSubmitting = externalIsSubmitting || internalIsSubmitting;
+  const isAddPage = !initialData?.id;
+
+  // Get tenants and categories
+  const { fetchTenants } = useTenantStore();
+  const { fetchCategories } = useCategoryStore();
+  const tenants = useTenantStore((state) => state.tenants);
+  const categories = useCategoryStore((state) => state.categories);
+
+  // Initialize React Hook Form with explicit type to fix TypeScript errors
   const form = useForm<VendorFormValues>({
-    resolver: zodResolver(vendorFormSchema),
-    defaultValues: initialData
-      ? { ...defaultValues, ...initialData }
-      : defaultValues,
-    mode: "onBlur",
-    shouldFocusError: false,
+    resolver: zodResolver(vendorFormSchema) as any,
+    mode: "onSubmit",
+    defaultValues: initialData || {
+      tenant_id: tenantId,
+      business_name: "",
+      display_name: "",
+      contact_email: "",
+      contact_phone: "",
+      website: "",
+      address_line1: "",
+      address_line2: "",
+      city: "",
+      state_province: "",
+      postal_code: "",
+      country: "Tanzania",
+      tax_id: "",
+      categories: [],
+      commission_rate: 0,
+      bank_account: {
+        bank_name: "",
+        account_number: "",
+        account_name: "",
+        swift_bic: "",
+        branch_code: ""
+      },
+      store: {
+        store_name: "",
+        store_slug: "",
+        description: "",
+        logo_url: "",
+        banners: []
+      },
+      verification_documents: [],
+    }
   });
+  
+  // For FormControl types to work with nested fields, we cast to specific type
+  const formControl = form.control as Control<VendorFormValues>;
 
-  // Tab navigation with field validation
-  const nextTab = useCallback(() => {
+  // Set up field array for banners with proper typing
+  const { fields: bannerFields, append: appendBanner, remove: removeBanner } = useFieldArray({
+    control: formControl,
+    name: "store.banners"
+  });
+  
+  // Default banner to add when "Add Banner" is clicked
+  const defaultBanner = {
+    title: "",
+    image_url: "",
+    alt_text: "",
+    display_order: bannerFields.length,
+    is_active: true,
+    start_date: "",
+    end_date: ""
+  };
+
+  // Fetch tenants and categories on component mount
+  useEffect(() => {
+    fetchTenants();
+    // Fetch categories for the correct tenant
+    fetchCategories(undefined, { "X-Tenant-ID": tenantId })
+      .then(() => {
+        console.log("Categories fetched successfully");
+      })
+      .catch(error => {
+        console.error("Error fetching categories:", error);
+      });
+  }, [fetchTenants, fetchCategories, tenantId]);
+
+  // Log categories for debugging
+  useEffect(() => {
+    console.log("Categories in state:", categories);
+  }, [categories]);
+
+  // Get API functions from store
+  const { createVendor, updateVendor } = useVendorStore();
+
+  // Navigation functions
+  const nextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
-    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1)
-      return;
+    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1) return;
 
     // Get fields to validate for the current tab
     const fieldsToValidate =
       tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
 
-    // Validate all required fields in the current tab
-    const result = fieldsToValidate.every((field) =>
-      form.trigger(field as any)
-    );
+    // Validate only if we're going to the next tab via the Next button
+    if (fieldsToValidate.length > 0) {
+      // Trigger validation for all required fields in the current tab
+      const result = fieldsToValidate.every((field) =>
+        form.trigger(field as any)
+      );
 
-    if (result) {
-      setActiveTab(tabFlow[currentTabIndex + 1]);
+      if (result) {
+        // If validation passes, go to next tab
+        setActiveTab(tabFlow[currentTabIndex + 1]);
+      } else {
+        toast.error("Please complete all required fields before proceeding.");
+      }
     } else {
-      toast.error("Please complete all required fields before proceeding.");
+      // If there are no fields to validate, just go to the next tab
+      setActiveTab(tabFlow[currentTabIndex + 1]);
     }
-  }, [activeTab, form, tabFlow, tabValidationMap]);
+  };
 
-  const prevTab = useCallback(() => {
+  const prevTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex > 0) {
+      // Going back doesn't trigger validation
       setActiveTab(tabFlow[currentTabIndex - 1]);
     }
-  }, [activeTab, tabFlow]);
+  };
 
   // Handle file upload for form submission
   const handleFileUpload = useCallback((file: File, fieldName: string) => {
     console.log(`Uploading file for ${fieldName}:`, file);
-    return `https://storage.example.com/${fieldName}/${file.name}`;
   }, []);
 
-  // Handle form submission with error handling and validation
-  const handleFormSubmit = useCallback(
-    async (data: VendorFormValues) => {
-      try {
-        setFormError(null);
-        setInternalIsSubmitting(true);
-
-        // Process files if needed
-        if (logoFile) {
-          const logoUrl = await handleFileUpload(logoFile, "logos");
-          data.store.branding.logo_url = logoUrl;
-        }
-
-        // Convert document files to verification documents
-        if (identityDocs.length || businessDocs.length || bankDocs.length) {
-          const verificationDocs = [];
-
-          for (const file of identityDocs) {
-            const docUrl = await handleFileUpload(file, "identity");
-            verificationDocs.push({
-              document_type: "identity",
-              document_url: docUrl,
-              verification_status: "pending" as const,
-            });
-          }
-
-          for (const file of businessDocs) {
-            const docUrl = await handleFileUpload(file, "business");
-            verificationDocs.push({
-              document_type: "business_registration",
-              document_url: docUrl,
-              verification_status: "pending" as const,
-            });
-          }
-          
-          for (const file of bankDocs) {
-            const docUrl = await handleFileUpload(file, "banking");
-            verificationDocs.push({
-              document_type: "banking",
-              document_url: docUrl,
-              verification_status: "pending" as const,
-            });
-          }
-
-          data.verification_documents = verificationDocs;
-        }
-
-        await onSubmit(data);
-
-        // Success would typically be handled by the parent component
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "An error occurred";
-        setFormError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setInternalIsSubmitting(false);
-      }
-    },
-    [logoFile, identityDocs, businessDocs, bankDocs, handleFileUpload, onSubmit]
-  );
-
-  // Handle form errors by navigating to the tab with the first error
-  const handleFormError = useCallback((errors: any) => {
-    // Find which tab has errors
-    const tabWithErrors = findTabWithErrors(errors);
-
-    // Switch to the tab containing errors
-    setActiveTab(tabWithErrors);
-    toast.error("Please fix the validation errors before submitting");
-
-    // Log validation errors for debugging
-    console.error("Form validation errors:", errors);
-  }, []);
-
-  // Function to find which tab contains field errors
+  // Function to find which tab contains field errors - exactly matching tenant form implementation
   const findTabWithErrors = (errors: any): string => {
     // Check each field against our tab mapping to find which tab has errors
     for (const [tabName, fields] of Object.entries(tabValidationMap)) {
@@ -377,179 +267,305 @@ export function VendorForm({
     return activeTab;
   };
 
-  // If there's a form error and we're not loading, show error card
-  if (formError && !isSubmitting) {
-    return (
-      <ErrorCard
-        title={`Failed to ${isAddPage ? "create" : "update"} vendor`}
-        error={{ status: "Error", message: formError }}
-        buttonText="Try Again"
-        buttonAction={() => setFormError(null)}
-        buttonIcon={RefreshCw}
-      />
-    );
-  }
+  // Handle form submission with error handling and validation navigation - matching tenant form
+  const handleFormSubmit = useCallback(
+    async (data: VendorFormValues, e?: React.BaseSyntheticEvent) => {
+      try {
+        setFormError(null);
+        setInternalIsSubmitting(true);
+
+        // Make a clean copy of form data
+        const dataToSubmit = JSON.parse(JSON.stringify(data));
+
+        // For non-superOwner users, set tenant_id from session
+        if (!isSuperOwner && tenantId) {
+          dataToSubmit.tenant_id = tenantId;
+        }
+        
+        // Process files: Extract actual File objects to handle separately
+        const filesToUpload: File[] = [];
+        
+        if (dataToSubmit.verification_documents) {
+          dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
+            // If this document has an actual File object, save it for upload
+            if (doc.file) {
+              filesToUpload.push(doc.file);
+              // Clone the document without the file property 
+              const { file, ...docWithoutFile } = doc;
+              return docWithoutFile;
+            }
+            return doc;
+          });
+        }
+
+        console.log("Submitting vendor data:", dataToSubmit);
+        console.log("Files to upload:", filesToUpload.length);
+        
+        await onSubmit(dataToSubmit);
+        
+        // Reset to first tab after successful submission
+        setActiveTab("business");
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "An unknown error occurred";
+        
+        setFormError(errorMessage);
+        console.error("Form submission error:", error);
+        toast.error(errorMessage);
+      } finally {
+        setInternalIsSubmitting(false);
+      }
+    },
+    [onSubmit, isSuperOwner, tenantId]
+  );
+
+  // Handle form errors by navigating to the tab with the first error
+  const handleFormError = useCallback((errors: any) => {
+    console.log("Form validation errors:", errors);
+    
+    // Immediately find which tab has errors
+    const tabWithErrors = findTabWithErrors(errors);
+
+    // Always switch to the tab containing errors
+    setActiveTab(tabWithErrors);
+
+    // Show a toast message to guide the user
+    toast.error("Please fix the validation errors before submitting");
+
+    // Scroll to the first error field if possible
+    setTimeout(() => {
+      const firstErrorElement = document.querySelector('.form-error-field');
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }, []);
+
+  // Handle business name change
+  const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const businessName = e.target.value;
+    
+    // Only set store name if it's empty or not set yet
+    const currentStoreName = form.getValues('store.store_name');
+    if (!currentStoreName) {
+      form.setValue('store.store_name', businessName, { shouldValidate: false });
+    }
+    
+    // Only set store slug if it's empty or not set yet
+    const currentStoreSlug = form.getValues('store.store_slug');
+    if (!currentStoreSlug) {
+      // Create a slug from the business name
+      const slug = businessName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      form.setValue('store.store_slug', slug, { shouldValidate: false });
+    }
+  };
 
   return (
-    <fieldset disabled={isSubmitting}>
+    <div className="space-y-6">
+      {formError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+      
       <Card className="w-full">
         <CardContent className="p-6">
           <Form {...form}>
-            <form
-              id={id}
-              ref={formRef}
-              onSubmit={form.handleSubmit(handleFormSubmit, handleFormError)}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <FormField
-                control={form.control}
-                name="tenant_id"
-                render={({ field }) => (
-                  <FormItem className="mb-6">
-                    <FormLabel>
-                      Marketplace <RequiredField />
-                    </FormLabel>
-                    <Select
-                      disabled={!isEditable}
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a marketplace" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tenants.map((tenant) => (
-                          <SelectItem key={tenant.id} value={tenant.id}>
-                            {tenant.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Select the marketplace for this vendor
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-6">
-                  <TabsTrigger value="business">Business</TabsTrigger>
-                  <TabsTrigger value="store">Store</TabsTrigger>
-                  <TabsTrigger value="address">Address</TabsTrigger>
-                  <TabsTrigger value="banking">Banking</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="review">Review</TabsTrigger>
-                </TabsList>
-
-                <BusinessTab />
-
-                <StoreTab />
-
-                <AddressTab />
-
-                <BankingTab />
-
-                <DocumentsTab />
-
-                <ReviewTab />
-              </Tabs>
-
-              {isEditable && (
-                <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
-                  {activeTab !== "review" ? (
-                    <div className="flex gap-2">
-                      {activeTab !== tabFlow[0] && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={prevTab}
+            <form id={id || "marketplace-vendor-form"} onSubmit={form.handleSubmit(handleFormSubmit, handleFormError)}>
+              {/* Save isEditable in a local variable to fix reference issues throughout the form */}
+              <fieldset disabled={isSubmitting} className="space-y-6">
+                {/* Tenant selector (superowner only) */}
+                {isSuperOwner && (
+                  <FormField
+                    control={formControl}
+                    name="tenant_id"
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>
+                          Tenant <RequiredField />
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
                         >
-                          Previous
-                        </Button>
-                      )}
-                      <Button 
-                        type="button" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          nextTab();
-                        }}
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select a tenant" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {tenants
+                              .filter(tenant => tenant.id && tenant.id.trim() !== '')
+                              .map((tenant) => (
+                                <SelectItem
+                                  key={tenant.id || `tenant-${Math.random()}`}
+                                  value={tenant.id}
+                                >
+                                  {tenant.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-sm text-muted-foreground">
+                          The tenant this vendor belongs to
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Tabs for form sections */}
+                <Tabs defaultValue="business" value={activeTab} className="mt-2" onValueChange={value => setActiveTab(value)}>
+                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+                    <TabsTrigger value="business" className="text-center">Business</TabsTrigger>
+                    <TabsTrigger value="store" className="text-center">Store</TabsTrigger>
+                    <TabsTrigger value="address" className="text-center">Address</TabsTrigger>
+                    <TabsTrigger value="banking" className="text-center">Banking</TabsTrigger>
+                    <TabsTrigger value="documents" className="text-center">Documents</TabsTrigger>
+                    <TabsTrigger value="review" className="text-center">Review</TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="mt-6">
+                    <BusinessTab />
+                    <StoreTab />
+                    <AddressTab />
+                    <BankingTab />
+                    <DocumentsTab />
+                    <ReviewTab />
+                  </div> 
+                </Tabs>
+
+                {/* Navigation Buttons - moved to the right */}
+                <div className="flex justify-end mt-6">
+                  <div className="flex gap-2">
+                    {/* Cancel button */}
+                    {onCancel && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                    
+                    {/* Previous button */}
+                    {activeTab !== tabFlow[0] && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={prevTab}
+                        disabled={isSubmitting}
+                      >
+                        Previous
+                      </Button>
+                    )}
+                    
+                    {/* Next button - show except on last tab */}
+                    {activeTab !== tabFlow[tabFlow.length - 1] && (
+                      <Button
+                        type="button"
+                        onClick={nextTab}
+                        disabled={isSubmitting}
                       >
                         Next
                       </Button>
-                    </div>
-                  ) : (
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <Spinner size="sm" color="white" />
-                          Processing...
-                        </>
-                      ) : (
-                        "Submit"
-                      )}
-                    </Button>
-                  )}
+                    )}
+                    
+                    {/* Save button - only on last tab */}
+                    {activeTab === tabFlow[tabFlow.length - 1] && (
+                      <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Spinner size="sm" color="white" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>Save Vendor</>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              )}
+              </fieldset>
             </form>
           </Form>
         </CardContent>
       </Card>
-    </fieldset>
+    </div>
   );
 
+  // Business Tab Component
   function BusinessTab() {
+    const control = formControl;
+    // Access categories from the store
+    const categoryItems = useCategoryStore((state) => state.categories);
     return (
-      <TabsContent value="business" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="business" className="space-y-6 pt-4">
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Business Information</h3>
           <p className="text-sm text-muted-foreground">
             Provide your business details to get started.
           </p>
         </div>
+        
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
-            control={form.control}
+            control={control}
             name="business_name"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Business Name <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="business_name"
-                    placeholder="Your business name"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="Your business name"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Call the business name change handler
+                      handleBusinessNameChange(e);
+                    }}
                   />
                 </FormControl>
-                <FormDescription>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
                   The official name of your business.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
           <FormField
-            control={form.control}
+            control={control}
             name="display_name"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Display Name <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="display_name"
-                    placeholder="Display name for your business"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="Display name for your business"
                   />
                 </FormControl>
-                <FormDescription>
-                  How your business name will be displayed to customers.
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  How your business will be displayed to customers.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -559,50 +575,39 @@ export function VendorForm({
 
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
-            control={form.control}
+            control={control}
             name="contact_email"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Email <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="contact_email"
-                    placeholder="Email address"
-                    type="email"
                     {...field}
-                    readOnly={!isEditable}
+                    type="email"
+                    className="mt-2"
+                    placeholder="contact@yourbusiness.com"
                   />
                 </FormControl>
-                <FormDescription>
-                  Your business contact email address.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
           <FormField
-            control={form.control}
+            control={control}
             name="contact_phone"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Phone <RequiredField />
                 </FormLabel>
                 <FormControl>
-                  <PhoneInput
-                    id="contact_phone"
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    disabled={!isEditable}
-                    ref={field.ref}
+                  <PhoneInput 
+                    {...field}
                   />
                 </FormControl>
-                <FormDescription>
-                  Your business contact phone number.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -611,44 +616,72 @@ export function VendorForm({
 
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
-            control={form.control}
+            control={control}
+            name="website"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Website
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    className="mt-2"
+                    placeholder="https://yourbusiness.com"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={control}
             name="tax_id"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Tax ID <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="tax_id"
-                    placeholder="Tax ID"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="TIN or business tax ID"
                   />
                 </FormControl>
-                <FormDescription>
-                  Your business tax identification number.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+        </div>
+
+        {/* Categories field with multi-select */}
+        <div>
           <FormField
-            control={form.control}
-            name="website"
+            control={control}
+            name="categories"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>Website</FormLabel>
+              <FormItem>
+                <FormLabel>
+                  Business Categories <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <Input
-                    id="website"
-                    placeholder="https://yourbusiness.com"
-                    {...field}
-                    readOnly={!isEditable}
+                  <MultiSelect
+                    options={categoryItems
+                      .filter(category => (category._id || category.category_id) && category.name)
+                      .map(category => ({
+                        label: category.name,
+                        value: category.category_id || category._id
+                      }))}
+                    selected={field.value || []}
+                    onChange={field.onChange}
+                    placeholder="Select business categories"
+                    className="mt-2"
                   />
                 </FormControl>
-                <FormDescription>
-                  Your business website URL (optional).
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  Select one or more categories that describe your business.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -656,85 +689,109 @@ export function VendorForm({
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="commission_rate"
-          render={({ field }) => (
-            <FormItem onClick={(e) => e.stopPropagation()}>
-              <FormLabel>Commission Rate</FormLabel>
-              <FormControl>
-                <Input
-                  id="commission_rate"
-                  placeholder="e.g. 10%"
-                  {...field}
-                  readOnly={!isEditable}
-                />
-              </FormControl>
-              <FormDescription>
-                Commission rate for products sold through the marketplace (if
-                applicable).
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Commission Rate field */}
+        <div>
+          <FormField
+            control={control}
+            name="commission_rate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Commission Rate <RequiredField />
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    className="mt-2"
+                    placeholder="e.g. 10"
+                  />
+                </FormControl>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  The commission rate for this vendor (e.g. 10%).
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
       </TabsContent>
     );
   }
 
+  // Store Tab Component
   function StoreTab() {
+    // Handle business name changes through form field change
+    const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const businessName = e.target.value;
+      
+      // Only set store name if it's empty or not set yet
+      const currentStoreName = form.getValues('store.store_name');
+      if (!currentStoreName) {
+        form.setValue('store.store_name', businessName, { shouldValidate: false });
+      }
+      
+      // Only set store slug if it's empty or not set yet
+      const currentStoreSlug = form.getValues('store.store_slug');
+      if (!currentStoreSlug) {
+        // Create a slug from the business name
+        const slug = businessName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+        form.setValue('store.store_slug', slug, { shouldValidate: false });
+      }
+    };
+    
     return (
-      <TabsContent value="store" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="store" className="space-y-6 pt-4">
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Store Information</h3>
           <p className="text-sm text-muted-foreground">
-            Set up your online storefront details.
+            Provide details about your online store.
           </p>
         </div>
-
+        
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="store.store_name"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Store Name <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="store_name"
-                    placeholder="Your store name"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="Your store name"
                   />
                 </FormControl>
-                <FormDescription>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
                   The name of your online store.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
           <FormField
             control={form.control}
             name="store.store_slug"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
-                  Store URL Slug <RequiredField />
+                  Store URL <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="store_slug"
-                    placeholder="your-store-name"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="your-store"
                   />
                 </FormControl>
-                <FormDescription>
-                  Used in your store's URL: marketplace.com/stores/
-                  {field.value || "your-store-name"}
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  The URL for your store: https://example.com/<strong>{field.value || 'your-store'}</strong>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -742,59 +799,52 @@ export function VendorForm({
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="store.description"
-          render={({ field }) => (
-            <FormItem onClick={(e) => e.stopPropagation()}>
-              <FormLabel>
-                Store Description <RequiredField />
-              </FormLabel>
-              <FormControl>
-                <Textarea
-                  id="store_description"
-                  placeholder="Tell customers about your store..."
-                  className="min-h-[100px] resize-none"
-                  {...field}
-                  readOnly={!isEditable}
-                />
-              </FormControl>
-              <FormDescription>
-                Describe what your store offers to customers.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Store Branding</h3>
           <FormField
             control={form.control}
-            name="store.branding.logo_url"
+            name="store.description"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>Store Logo</FormLabel>
+              <FormItem>
+                <FormLabel>
+                  Store Description <RequiredField />
+                </FormLabel>
                 <FormControl>
-                  <ImageUpload
-                    id="store_logo"
-                    value={field.value}
-                    onChange={(url) => {
-                      field.onChange(url);
-                    }}
-                    onRemove={() => field.onChange("")}
-                    onUpload={(file) => {
-                      // Set the file for later processing during submission
-                      setLogoFile(file);
-                      // For preview purposes, we can use a temporary URL
-                      const previewUrl = URL.createObjectURL(file);
-                      field.onChange(previewUrl);
-                    }}
-                    disabled={!isEditable}
+                  <textarea
+                    {...field}
+                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+                    placeholder="Describe your store and what you sell..."
                   />
                 </FormControl>
-                <FormDescription>
-                  Upload your store logo (recommended size: 400x400px).
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  Provide a description of your store to help customers understand what you offer.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="store.logo_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Store Logo
+                </FormLabel>
+                <FormControl>
+                  <ImageUpload
+                    id="store-logo-upload"
+                    value={field.value as string}
+                    onChange={field.onChange}
+                    className="mt-2"
+                    previewAlt="Store Logo"
+                    buttonText="Upload Logo"
+                  />
+                </FormControl>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  Upload your store logo image.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -802,201 +852,266 @@ export function VendorForm({
           />
         </div>
 
+        {/* Store Banners Repeater Field */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Brand Colors</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="store.branding.colors.primary"
-              render={({ field }) => (
-                <FormItem onClick={(e) => e.stopPropagation()}>
-                  <FormLabel>
-                    Primary Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      id="primary_color"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={!isEditable}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="store.branding.colors.secondary"
-              render={({ field }) => (
-                <FormItem onClick={(e) => e.stopPropagation()}>
-                  <FormLabel>
-                    Secondary Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      id="secondary_color"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={!isEditable}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="store.branding.colors.accent"
-              render={({ field }) => (
-                <FormItem onClick={(e) => e.stopPropagation()}>
-                  <FormLabel>
-                    Accent Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      id="accent_color"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={!isEditable}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="flex items-center justify-between">
+            <h4 className="text-md font-medium">Store Banners</h4>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => appendBanner(defaultBanner)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Banner
+            </Button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="store.branding.colors.text"
-              render={({ field }) => (
-                <FormItem onClick={(e) => e.stopPropagation()}>
-                  <FormLabel>
-                    Text Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      id="text_color"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={!isEditable}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="store.branding.colors.background"
-              render={({ field }) => (
-                <FormItem onClick={(e) => e.stopPropagation()}>
-                  <FormLabel>
-                    Background Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      id="background_color"
-                      value={field.value}
-                      onChange={field.onChange}
-                      disabled={!isEditable}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          
+          {bannerFields.map((bannerField, index) => (
+            <div key={bannerField.id} className="border rounded-md p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h5 className="text-sm font-medium">Banner {index + 1}</h5>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeBanner(index)}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name={`store.banners.${index}.title`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Banner Title <RequiredField />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="mt-2"
+                          placeholder="banner title"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={formControl}
+                  name={`store.banners.${index}.alt_text`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Alt Text <RequiredField />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="mt-2"
+                          placeholder="Alternative text for accessibility"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={formControl}
+                  name={`store.banners.${index}.image_url`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Banner Image <RequiredField />
+                      </FormLabel>
+                      <FormControl>
+                        <ImageUpload
+                          id={`banner-image-${index}`}
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="w-60 object-fit"
+                          previewAlt={`Banner ${index + 1}`}
+                          buttonText="Upload Banner"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name={`store.banners.${index}.is_active`}
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col justify-content-center">
+                      <FormLabel>
+                        Active Status
+                      </FormLabel>
+                      <FormControl>
+                        <Select
+                          onValueChange={(value) => field.onChange(value === "true")}
+                          defaultValue={String(field.value)}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="mt-2">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="true">Active</SelectItem>
+                            <SelectItem value="false">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name={`store.banners.${index}.start_date`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Start Date
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="date"
+                          className="mt-2"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name={`store.banners.${index}.end_date`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        End Date
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="date"
+                          className="mt-2"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </TabsContent>
-    );
+    )
   }
 
+  // Address Tab Component
   function AddressTab() {
     return (
-      <TabsContent value="address" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="address" className="space-y-6 pt-4">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Business Address</h3>
+          <h3 className="text-lg font-medium">Address Information</h3>
           <p className="text-sm text-muted-foreground">
-            Provide your business location information.
+            Provide your business address details.
           </p>
         </div>
-
-        <FormField
-          control={form.control}
-          name="address_line1"
-          render={({ field }) => (
-            <FormItem onClick={(e) => e.stopPropagation()}>
-              <FormLabel>
-                Address Line 1 <RequiredField />
-              </FormLabel>
-              <FormControl>
-                <Input
-                  id="address_line1"
-                  placeholder="123 Main St"
-                  {...field}
-                  readOnly={!isEditable}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="address_line2"
-          render={({ field }) => (
-            <FormItem onClick={(e) => e.stopPropagation()}>
-              <FormLabel>Address Line 2</FormLabel>
-              <FormControl>
-                <Input
-                  id="address_line2"
-                  placeholder="Suite 101"
-                  {...field}
-                  readOnly={!isEditable}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="address_line1"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Address Line 1 <RequiredField />
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    className="mt-2"
+                    placeholder="Street address, P.O. box, etc."
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="address_line2"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Address Line 2
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    className="mt-2"
+                    placeholder="Apartment, suite, unit, building, floor, etc."
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="city"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   City <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="city"
-                    placeholder="City"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="City"
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
           <FormField
             control={form.control}
             name="state_province"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   State/Province <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="state_province"
-                    placeholder="State or Province"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="State, province, region"
                   />
                 </FormControl>
                 <FormMessage />
@@ -1010,44 +1125,45 @@ export function VendorForm({
             control={form.control}
             name="postal_code"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Postal Code <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
-                    id="postal_code"
-                    placeholder="Postal code"
                     {...field}
-                    readOnly={!isEditable}
+                    className="mt-2"
+                    placeholder="Postal code"
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
           <FormField
             control={form.control}
             name="country"
             render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
+              <FormItem>
                 <FormLabel>
                   Country <RequiredField />
                 </FormLabel>
                 <Select
-                  disabled={!isEditable}
                   onValueChange={field.onChange}
-                  value={field.value}
+                  defaultValue={field.value}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a country" />
-                  </SelectTrigger>
+                  <FormControl>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                  </FormControl>
                   <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.code} value={country.name}>
-                        {country.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="Tanzania">Tanzania</SelectItem>
+                    <SelectItem value="Kenya">Kenya</SelectItem>
+                    <SelectItem value="Uganda">Uganda</SelectItem>
+                    <SelectItem value="Rwanda">Rwanda</SelectItem>
+                    {/* Add more countries as needed */}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -1056,476 +1172,328 @@ export function VendorForm({
           />
         </div>
       </TabsContent>
-    );
+    )
   }
 
+  // Banking Tab Component
   function BankingTab() {
     return (
-      <TabsContent value="banking" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="banking" className="space-y-6 pt-4">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Banking Information</h3>
+          <h3 className="text-xl font-medium">Banking Information</h3>
           <p className="text-sm text-muted-foreground">
-            Provide your banking details for payments and settlements.
+            Provide your business banking details for payments.
           </p>
         </div>
 
-        <FormField
-          control={form.control}
-          name="bank_account.bank_name"
-          render={({ field }) => (
-            <FormItem onClick={(e) => e.stopPropagation()}>
-              <FormLabel>
-                Bank Name <RequiredField />
-              </FormLabel>
-              <Select
-                disabled={!isEditable}
-                onValueChange={field.onChange}
-                value={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a bank" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {banks.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.name}>
-                      {bank.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="bank_account.account_number"
-            render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>
-                  Account Number <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    id="account_number"
-                    placeholder="Account number"
-                    {...field}
-                    readOnly={!isEditable}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="bank_account.account_name"
-            render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>
-                  Account Name <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    id="account_name"
-                    placeholder="Account holder name"
-                    {...field}
-                    readOnly={!isEditable}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="bank_account.swift_code"
-            render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>Swift Code</FormLabel>
-                <FormControl>
-                  <Input
-                    id="swift_code"
-                    placeholder="Swift code (optional)"
-                    {...field}
-                    readOnly={!isEditable}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="bank_account.branch_code"
-            render={({ field }) => (
-              <FormItem onClick={(e) => e.stopPropagation()}>
-                <FormLabel>Branch Code</FormLabel>
-                <FormControl>
-                  <Input
-                    id="branch_code"
-                    placeholder="Branch code (optional)"
-                    {...field}
-                    readOnly={!isEditable}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="space-y-4">
+          {/* Bank Information */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <FormField
+              control={formControl}
+              name="bank_account.bank_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Bank Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="CRDB Bank"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={formControl}
+              name="bank_account.account_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Account Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Business name on the account"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <FormField
+              control={formControl}
+              name="bank_account.account_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Account Number <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="12345678901"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={formControl}
+              name="bank_account.branch_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Branch Code
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="123"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <FormField
+              control={formControl}
+              name="bank_account.swift_bic"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    SWIFT/BIC Code
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="EXAMPLECODE"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
       </TabsContent>
     );
   }
-
+  
+  // Documents Tab Component
   function DocumentsTab() {
+    // Separate state for existing and new documents
+    const [existingDocuments, setExistingDocuments] = useState<any[]>(
+      initialData?.verification_documents || []
+    );
+    const [newDocuments, setNewDocuments] = useState<any[]>([]);
+    
+    // Update form values whenever documents change
+    useEffect(() => {
+      // Combine both existing and new documents for the form value
+      const allDocuments = [...existingDocuments, ...newDocuments];
+      
+      form.setValue("verification_documents", allDocuments, {
+        shouldValidate: false,
+        shouldDirty: true,
+        shouldTouch: false
+      });
+    }, [existingDocuments, newDocuments]);
+    
+    // Handle adding/updating a new document
+    const handleAddNewDocument = (newDoc: DocumentWithMeta) => {
+      setNewDocuments(prev => {
+        // Look for existing document with the same file name
+        const index = prev.findIndex(doc => doc.file_name === newDoc.file_name);
+        
+        if (index >= 0) {
+          // Update existing document
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            ...newDoc
+          };
+          return updated;
+        } else {
+          // Add new document
+          return [...prev, {
+            ...newDoc,
+            verification_status: "pending",
+            document_url: ""
+          }];
+        }
+      });
+    };
+    
+    // Handle removing a new document
+    const handleRemoveNewDocument = (fileName: string) => {
+      setNewDocuments(prev => 
+        prev.filter(doc => doc.file_name !== fileName)
+      );
+    };
+    
+    // Handle removing an existing document
+    const handleRemoveExistingDocument = (documentId: string) => {
+      setExistingDocuments(prev => 
+        prev.filter(doc => (doc.document_id !== documentId) && (doc.id !== documentId))
+      );
+    };
+
     return (
-      <TabsContent value="documents" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="documents" className="space-y-4 mt-4">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Identity Documents</h3>
+          <h3 className="text-lg font-medium">Document Verification</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload verification documents to prove your identity and business ownership
+          </p>
+
+          {/* Improved Document Upload Component */}
           <DocumentUpload
-            id="identity_documents"
-            label="National ID, Passport, Driver's License, etc."
-            description="Upload clear images of relevant identity documents. You may add an expiry date for any document that requires renewal."
-            files={identityDocs}
-            setFiles={setIdentityDocs}
-            expiryDates={identityDocsExpiry}
-            setExpiryDates={setIdentityDocsExpiry}
-          />
-        </div>
-
-        <Separator />
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Business Documents</h3>
-          <DocumentUpload
-            id="business_documents"
-            label="Business Registration, License, Certificates, etc."
-            description="Upload clear images of all required business documents. Set expiry dates for any licenses or certificates that require renewal."
-            files={businessDocs}
-            setFiles={setBusinessDocs}
-            expiryDates={businessDocsExpiry}
-            setExpiryDates={setBusinessDocsExpiry}
-          />
-        </div>
-
-        <Separator />
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Banking Information</h3>
-          <DocumentUpload
-            id="banking_documents"
-            label="Bank Statements, Financial Records, etc."
-            description="Upload bank account information and financial records. You may set expiry dates for documents like statements that need to be renewed."
-            files={bankDocs}
-            setFiles={setBankDocs}
-            expiryDates={bankDocsExpiry}
-            setExpiryDates={setBankDocsExpiry}
+            existingDocuments={existingDocuments}
+            newDocuments={newDocuments}
+            documentTypes={DOCUMENT_TYPES}
+            onAddNewDocument={handleAddNewDocument}
+            onRemoveNewDocument={handleRemoveNewDocument}
+            onRemoveExistingDocument={handleRemoveExistingDocument}
+            label="Upload Business Documents"
+            description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
           />
         </div>
       </TabsContent>
     );
   }
 
+  // Review Tab Component
   function ReviewTab() {
+    // Only get values when the tab is opened
+    const [reviewValues, setReviewValues] = useState(() => form.getValues());
+    
+    // Update values when tab becomes active
+    useEffect(() => {
+      if (activeTab === 'review') {
+        setReviewValues(form.getValues());
+      }
+    }, [activeTab]);
+    
     return (
-      <TabsContent value="review" className="space-y-6 pt-4" onClick={(e) => e.stopPropagation()}>
+      <TabsContent value="review" className="space-y-6 pt-4">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Review Your Information</h3>
+          <h3 className="text-xl font-medium">Review Vendor Information</h3>
           <p className="text-sm text-muted-foreground">
-            Review your information before submitting.
+            Review all information before submission. Make sure all required fields are complete.
           </p>
         </div>
 
         <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium mb-4">Business Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <div className="space-y-6">
+              {/* Business Info Review */}
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Business Name
-                </h4>
-                <p className="text-base">
-                  {form.watch("business_name") || "—"}
-                </p>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Business Information</h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Business Name</dt>
+                    <dd>{reviewValues.business_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Display Name</dt>
+                    <dd>{reviewValues.display_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Contact Email</dt>
+                    <dd>{reviewValues.contact_email || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Contact Phone</dt>
+                    <dd>{reviewValues.contact_phone || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Website</dt>
+                    <dd>{reviewValues.website || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Tax ID</dt>
+                    <dd>{reviewValues.tax_id || "Not provided"}</dd>
+                  </div>
+                </dl>
               </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Display Name
-                </h4>
-                <p className="text-base">{form.watch("display_name") || "—"}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Email
-                </h4>
-                <p className="text-base">
-                  {form.watch("contact_email") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Phone
-                </h4>
-                <p className="text-base">
-                  {form.watch("contact_phone") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Tax ID
-                </h4>
-                <p className="text-base">{form.watch("tax_id") || "—"}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Website
-                </h4>
-                <p className="text-base">{form.watch("website") || "—"}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Commission Rate
-                </h4>
-                <p className="text-base">
-                  {form.watch("commission_rate") || "—"}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <Separator />
+              {/* Address Info Review */}
+              <div>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Address Information</h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Address</dt>
+                    <dd>
+                      {reviewValues.address_line1 || '-'}<br />
+                      {reviewValues.address_line2 && <>{reviewValues.address_line2}<br /></>}
+                      {reviewValues.city && reviewValues.state_province ? `${reviewValues.city}, ${reviewValues.state_province} ${reviewValues.postal_code}` : '-'}<br />
+                      {reviewValues.country || '-'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
 
-          <div>
-            <h3 className="text-lg font-medium mb-4">Store Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Banking Info Review */}
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Store Name
-                </h4>
-                <p className="text-base">
-                  {form.watch("store.store_name") || "—"}
-                </p>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Banking Information</h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Bank Name</dt>
+                    <dd>{reviewValues.bank_account?.bank_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Account Name</dt>
+                    <dd>{reviewValues.bank_account?.account_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Account Number</dt>
+                    <dd>{reviewValues.bank_account?.account_number || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Branch Code</dt>
+                    <dd>{reviewValues.bank_account?.branch_code || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">SWIFT/BIC</dt>
+                    <dd>{reviewValues.bank_account?.swift_bic || "Not provided"}</dd>
+                  </div>
+                </dl>
               </div>
+
+              {/* Documents Review */}
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Store URL Slug
-                </h4>
-                <p className="text-base">
-                  {form.watch("store.store_slug") || "—"}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                Store Description
-              </h4>
-              <p className="text-base">
-                {form.watch("store.description") || "—"}
-              </p>
-            </div>
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                Brand Colors
-              </h4>
-              <div className="flex flex-wrap gap-3 mt-2">
-                <div className="flex items-center">
-                  <div
-                    className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{
-                      backgroundColor: form.watch(
-                        "store.branding.colors.primary"
-                      ),
-                    }}
-                  />
-                  <span className="text-sm">Primary</span>
-                </div>
-                <div className="flex items-center">
-                  <div
-                    className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{
-                      backgroundColor: form.watch(
-                        "store.branding.colors.secondary"
-                      ),
-                    }}
-                  />
-                  <span className="text-sm">Secondary</span>
-                </div>
-                <div className="flex items-center">
-                  <div
-                    className="w-6 h-6 rounded-full mr-2 border border-gray-200"
-                    style={{
-                      backgroundColor: form.watch(
-                        "store.branding.colors.accent"
-                      ),
-                    }}
-                  />
-                  <span className="text-sm">Accent</span>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Documents Uploaded</h4>
+                <div className="text-sm">
+                  {reviewValues.verification_documents && reviewValues.verification_documents.length > 0 ? (
+                    <ul className="list-disc pl-5">
+                      {reviewValues.verification_documents.map((doc, index) => (
+                        <li key={index}>
+                          {doc.document_type}: {doc.file_name}
+                          {doc.expiry_date && <span className="ml-2 text-muted-foreground">Expires: {doc.expiry_date}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground">No documents uploaded</p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-medium mb-4">Business Address</h3>
-            <p className="text-base">
-              {form.watch("address_line1") || "—"}
-              {form.watch("address_line2")
-                ? `, ${form.watch("address_line2")}`
-                : ""}
-            </p>
-            <p className="text-base">
-              {form.watch("city") || "—"}, {form.watch("state_province") || "—"}{" "}
-              {form.watch("postal_code") || "—"}
-            </p>
-            <p className="text-base">{form.watch("country") || "—"}</p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-medium mb-4">Banking Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Bank Name
-                </h4>
-                <p className="text-base">
-                  {form.watch("bank_account.bank_name") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Account Number
-                </h4>
-                <p className="text-base">
-                  {form.watch("bank_account.account_number") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Account Name
-                </h4>
-                <p className="text-base">
-                  {form.watch("bank_account.account_name") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Swift Code
-                </h4>
-                <p className="text-base">
-                  {form.watch("bank_account.swift_code") || "—"}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Branch Code
-                </h4>
-                <p className="text-base">
-                  {form.watch("bank_account.branch_code") || "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-medium mb-4">Uploaded Documents</h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Identity Documents
-                </h4>
-                {identityDocs.length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {identityDocs.map((file) => (
-                      <li key={file.name} className="text-sm">
-                        {file.name}
-                        {identityDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - Expires: {identityDocsExpiry[file.name]}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No identity documents uploaded.
-                  </p>
-                )}
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Business Documents
-                </h4>
-                {businessDocs.length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {businessDocs.map((file) => (
-                      <li key={file.name} className="text-sm">
-                        {file.name}
-                        {businessDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - Expires: {businessDocsExpiry[file.name]}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No business documents uploaded.
-                  </p>
-                )}
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  Banking Documents
-                </h4>
-                {bankDocs.length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {bankDocs.map((file) => (
-                      <li key={file.name} className="text-sm">
-                        {file.name}
-                        {bankDocsExpiry[file.name] && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - Expires: {bankDocsExpiry[file.name]}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No banking documents uploaded.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            By submitting this application, you confirm that all information
-            provided is accurate and complete. The vendor application will be
-            reviewed by our team, and you will be notified once a decision has
-            been made.
-          </p>
         </div>
       </TabsContent>
     );

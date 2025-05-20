@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Search, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,10 +46,9 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Define tenant headers
-  const tenantHeaders = {
-    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
-  };
+  const { data: session } = useSession();
+  const tenantId = (session?.user as any)?.tenant_id || "";
+  const tenantHeaders = tenantId ? { "X-Tenant-ID": tenantId } : {};
 
   const loadProducts = async () => {
     try {
@@ -98,7 +98,7 @@ export default function ProductsPage() {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     try {
-      await deleteProduct(productToDelete._id, tenantHeaders);
+      await deleteProduct(productToDelete.product_id, tenantHeaders);
       setIsDeleteDialogOpen(false);
       setProductToDelete(null);
       toast.success("Product deleted successfully");
@@ -184,7 +184,7 @@ export default function ProductsPage() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category._id} value={category._id}>
+                  <SelectItem key={category.product_id} value={category.product_id}>
                     {category.name}
                   </SelectItem>
                 ))}
@@ -194,31 +194,11 @@ export default function ProductsPage() {
         </div>
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="all">
-              All Products
-              <Badge variant="secondary" className="ml-2">
-                {filteredProducts.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="active">
-              Active
-              <Badge variant="secondary" className="ml-2">
-                {activeProducts.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="draft">
-              Draft
-              <Badge variant="secondary" className="ml-2">
-                {pendingProducts.length}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
           <TabsContent value="all">
             <ProductTable
               products={filteredProducts}
               onEdit={(product) =>
-                router.push(`/dashboard/products/${product._id}`)
+                router.push(`/dashboard/products/${product.product_id}`)
               }
               onDelete={openDeleteDialog}
             />
@@ -227,7 +207,7 @@ export default function ProductsPage() {
             <ProductTable
               products={activeProducts}
               onEdit={(product) =>
-                router.push(`/dashboard/products/${product._id}`)
+                router.push(`/dashboard/products/${product.product_id}`)
               }
               onDelete={openDeleteDialog}
             />

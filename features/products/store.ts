@@ -185,7 +185,7 @@ export const useProductStore = create<ProductStore>()(
         setActiveAction('update');
         setLoading(true);
         
-        const response = await apiClient.put<ApiResponse<any>>(`/products/${id}/`, data, headers);
+        const response = await apiClient.put<ApiResponse<any>>(`/products/${id}`, data, headers);
         
         let productData = null;
         
@@ -217,7 +217,7 @@ export const useProductStore = create<ProductStore>()(
         setActiveAction('delete');
         setLoading(true);
         
-        const response = await apiClient.delete<ApiResponse<any>>(`/products/${id}/`, undefined, headers);
+        const response = await apiClient.delete<ApiResponse<any>>(`/products/${id}`, undefined, headers);
         
         setLoading(false);
         return response.data;

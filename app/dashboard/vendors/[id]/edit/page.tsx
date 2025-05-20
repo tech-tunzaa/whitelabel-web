@@ -1,71 +1,87 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, RefreshCw } from "lucide-react";
-import { use } from "react";
-
-import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+import { ArrowLeft, SaveAllIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
-import { VendorForm } from "@/features/vendors/components/vendor-form";
+import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import { VendorFormNew } from "@/features/vendors/components/vendor-form";
 import { useVendorStore } from "@/features/vendors/store";
-import { toast } from "sonner";
 
 interface VendorEditPageProps {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 export default function VendorEditPage({ params }: VendorEditPageProps) {
   const router = useRouter();
-  const unwrappedParams = use(params);
-  const id = unwrappedParams.id;
-  const { vendor, loading, storeError, fetchVendor, updateVendor } = useVendorStore();
+  const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Define tenant headers
-  const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
-  };
-
-  // Use ref to prevent duplicate API calls
-  const fetchRequestRef = useRef(false);
+  const vendorStore = useVendorStore();
+  const vendorId = params.id;
+  const { vendor, loading, storeError } = vendorStore;
+  const [fetchAttempted, setFetchAttempted] = useState(false);
   
-  useEffect(() => {
-    // Only fetch if not already fetched
-    if (!fetchRequestRef.current) {
-      fetchRequestRef.current = true;
-      fetchVendor(id, tenantHeaders);
-    }
-  }, [id, fetchVendor]);
+  // Get tenant ID from session for the API header
+  const tenantId = (session?.user as any)?.tenant_id;
 
-  const handleUpdateVendor = async (data: any) => {
+  useEffect(() => {
+    // Fetch vendor data if not already loaded
+    if (!fetchAttempted && vendorId) {
+      setFetchAttempted(true);
+      
+      // Set up headers with tenant ID
+      const headers: Record<string, string> = {};
+      if (tenantId) {
+        headers['X-Tenant-ID'] = tenantId;
+      }
+      
+      vendorStore.fetchVendor(vendorId, headers).catch((error) => {
+        console.error("Error fetching vendor:", error);
+      });
+    }
+  }, [vendorId, vendorStore, fetchAttempted, tenantId]);
+
+  const handleSubmit = async (data: Record<string, any>) => {
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      await updateVendor(id, data, tenantHeaders);
+      // Set up headers with tenant ID
+      const headers: Record<string, string> = {};
+      if (tenantId) {
+        headers['X-Tenant-ID'] = tenantId;
+      }
+      
+      await vendorStore.updateVendor(vendorId, data, headers);
       toast.success("Vendor updated successfully");
-      router.push(`/dashboard/vendors/${id}`);
     } catch (error) {
-      console.error("Failed to update vendor:", error);
-      toast.error("Failed to update vendor");
+      toast.error("Failed to update vendor. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  // Show loading state while fetching
+  if (loading && !isSubmitting && !vendor) {
     return (
-      <Spinner />
+      <div className="h-full flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
-  if (!vendor && !loading && storeError) {
+  // Show error state if vendor fetch failed
+  if (!loading && !vendor && storeError) {
     return (
-      <ErrorCard 
+      <ErrorCard
         title="Failed to load vendor"
-        error={storeError}
+        error={{
+          status: storeError.status?.toString() || "Error",
+          message: storeError.message || "Failed to load vendor"
+        }}
         buttonText="Back to Vendors"
         buttonAction={() => router.push("/dashboard/vendors")}
         buttonIcon={ArrowLeft}
@@ -80,7 +96,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push("/dashboard/vendors")}
+            onClick={() => router.push(`/dashboard/vendors/${vendorId}`)}
             className="mr-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -88,19 +104,33 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Edit Vendor: {vendor.business_name}
+              Edit Vendor: {vendor?.business_name}
             </h1>
             <p className="text-muted-foreground">
               Update vendor information and settings
             </p>
           </div>
         </div>
+        <Button 
+          type="submit" 
+          form="marketplace-vendor-form" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <div className="mr-2"><Spinner size="sm" color="white" /></div>
+              Updating...
+            </>
+          ) : (
+            <>Save Changes</>
+          )}
+        </Button>
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <VendorForm 
-          initialData={vendor} 
-          onSubmit={handleUpdateVendor}
+        <VendorFormNew
+          onSubmit={handleSubmit}
+          initialData={vendor as any}
           isSubmitting={isSubmitting}
         />
       </div>
