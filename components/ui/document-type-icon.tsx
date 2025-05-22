@@ -10,7 +10,7 @@ import {
   Archive,
   FileEdit
 } from "lucide-react"
-import { getDocumentTypeFromName } from "@/lib/services/document-upload.service"
+import { getFileTypeFromName } from "@/lib/services/file-upload.service"
 
 interface DocumentTypeIconProps {
   fileName: string
@@ -42,7 +42,7 @@ export function DocumentTypeIcon({
     }
   } else {
     // Fallback to extension check
-    docType = getDocumentTypeFromName(fileName)
+    docType = getFileTypeFromName(fileName)
   }
 
   // Return appropriate icon

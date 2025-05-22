@@ -55,6 +55,7 @@ export const vendorFormSchema = z.object({
   contact_email: z.string().email("Please enter a valid email address"),
   contact_phone: z.string().min(10, "Please enter a valid phone number"),
   website: z.string().url("Website must be a valid URL").or(z.literal("")).optional(),
+  // policy: z.string().url("Policy document must be a valid URL").or(z.literal("")).optional(),
 
   // Address information
   address_line1: z.string().min(1, "Address line 1 is required"),
@@ -64,17 +65,65 @@ export const vendorFormSchema = z.object({
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
 
-  // Business details
-  tax_id: z.string().min(1, "Tax ID is required"),
-  categories: z.array(z.string()).min(1, "At least one category is required"),
+  // Business information
+  tax_id: z.string().optional(),
+  categories: z.array(z.string()).min(0),
   commission_rate: z.string().min(1, "Commission rate is required"),
-  bank_account: bankAccountSchema,
 
-  // Store details
-  store: storeSchema,
+  // Bank account information
+  bank_account: z.object({
+    bank_name: z.string().min(1, "Bank name is required"),
+    account_number: z.string().min(1, "Account number is required"),
+    account_name: z.string().min(1, "Account name is required"),
+    swift_bic: z.string().optional(),
+    branch_code: z.string().optional(),
+  }),
 
-  // Optional fields
-  verification_documents: z.array(verificationDocumentSchema).optional(),
+  // Store information
+  store: z.object({
+    store_name: z.string().min(2, "Store name must be at least 2 characters"),
+    store_slug: z.string().min(2, "Store slug must be at least 2 characters"),
+    description: z.string().min(10, "Description must be at least 10 characters"),
+    logo_url: z.string().url("Logo must be a valid URL").or(z.literal("")).optional(),
+    banners: z.array(
+      z.object({
+        title: z.string().optional(),
+        image_url: z.string().url("Banner image must be a valid URL").or(z.literal("")),
+        alt_text: z.string().optional(),
+        display_order: z.number().optional(),
+        is_active: z.boolean().optional(),
+        start_date: z.string().optional(),
+        end_date: z.string().optional(),
+      })
+    ).optional().default([]),
+  }),
+
+  // Verification documents
+  verification_documents: z.array(
+    z.object({
+      document_id: z.string().optional(),
+      id: z.string().optional(),
+      // document_type: z.string().min(1, "Document type is required"),
+      file_name: z.string().optional(),
+      file_url: z.string().url("Document must be a valid URL").or(z.literal("")).optional(),
+      document_url: z.string().url("Document must be a valid URL").or(z.literal("")).optional(),
+      expiry_date: z.string().optional(),
+      verification_status: z.enum(["pending", "approved", "rejected"]).optional(),
+    })
+  ).optional().default([]),
+
+  // User information for account creation
+  user: z.object({
+    first_name: z.string().min(2, "First name must be at least 2 characters"),
+    last_name: z.string().min(2, "Last name must be at least 2 characters"),
+    // email: z.string().email("Please enter a valid email address").optional(),
+    phone_number: z.string().optional(),
+    password: z.string().optional(),
+  }).optional(),
+
+  // Fields for existing records
+  vendor_id: z.string().optional(),
+  id: z.string().optional(),
 });
 
 // The type is now imported from types.ts

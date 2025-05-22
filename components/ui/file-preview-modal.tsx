@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react"
 import { X, ZoomIn, ZoomOut, RotateCw, Download, ExternalLink, FileSymlink, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { isPdfFile, isImageFile, getDocumentType } from "@/lib/services/document-upload.service"
+import { isPdfFile, isImageFile, getDocumentType } from "@/lib/services/file-upload.service"
 
-interface ImagePreviewModalProps {
+interface FilePreviewModalProps {
   src: string
   alt: string
   onClose: () => void
   isOpen: boolean
 }
 
-export function ImagePreviewModal({ src, alt, onClose, isOpen }: ImagePreviewModalProps) {
+export function FilePreviewModal({ src, alt, onClose, isOpen }: FilePreviewModalProps) {
   const [scale, setScale] = useState(1)
   const [rotation, setRotation] = useState(0)
   const [error, setError] = useState<string | null>(null)

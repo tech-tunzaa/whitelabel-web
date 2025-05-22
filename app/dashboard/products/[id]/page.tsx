@@ -39,7 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
-import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
+import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { toast } from "sonner";
 
 import { useProductStore } from "@/features/products/store";
@@ -256,17 +256,32 @@ export default function ProductPage({ params }: ProductPageProps) {
   const getCategoryNames = (categoryIds: string[]) => {
     if (!categories || !categoryIds || !categoryIds.length) return "None";
     
-    return categoryIds.map(id => {
-      const category = categories.find(c => (c._id === id || c.category_id === id));
-      return category?.name || "Unknown";
-    }).join(", ");
+    return (
+      <div className="flex flex-wrap gap-2">
+        {categoryIds.map(id => {
+          const category = categories.find(c => (c._id === id || c.category_id === id));
+          if (!category) return null;
+          
+          return (
+            <Badge 
+              key={id}
+              variant="secondary"
+              className="hover:bg-secondary/80 cursor-pointer"
+              onClick={() => router.push(`/dashboard/categories/${category.category_id || category._id}`)}
+            >
+              {category.name || "Unknown"}
+            </Badge>
+          );
+        })}
+      </div>
+    );
   };
   
   const formatPrice = (price: number | undefined) => {
     if (price === undefined || price === null) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD"
+      currency: "TZS"
     }).format(price);
   };
 
@@ -338,34 +353,71 @@ export default function ProductPage({ params }: ProductPageProps) {
             Edit
           </Button>
           {product.verification_status === "approved" ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleStatusChange("pending")}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <Spinner className="mr-2 h-4 w-4" />
+            <>
+              {product.is_active ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleStatusChange("inactive")}
+                  disabled={isUpdating}
+                  className="text-red-600 border-red-600"
+                >
+                  {isUpdating ? (
+                    <Spinner className="mr-2 h-4 w-4" />
+                  ) : (
+                    <X className="mr-2 h-4 w-4" />
+                  )}
+                  Deactivate
+                </Button>
               ) : (
-                <X className="mr-2 h-4 w-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleStatusChange("active")}
+                  disabled={isUpdating}
+                  className="text-green-600 border-green-600"
+                >
+                  {isUpdating ? (
+                    <Spinner className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  Activate
+                </Button>
               )}
-              Deactivate
-            </Button>
+            </>
           ) : (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => handleStatusChange("approved")}
-              disabled={isUpdating}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isUpdating ? (
-                <Spinner className="mr-2 h-4 w-4" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Activate
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusChange("pending")}
+                className="text-green-600 border-green-600"
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <Spinner className="mr-2 h-4 w-4" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                Approve
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRejectDialog(true)}
+                disabled={isUpdating}
+                className="text-red-600 border-red-600"
+              >
+                {isUpdating ? (
+                  <Spinner className="mr-2 h-4 w-4" />
+                ) : (
+                  <X className="mr-2 h-4 w-4" />
+                )}
+                Reject
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -396,7 +448,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">Categories</p>
-                    <p>{getCategoryNames(product.category_ids || product.categoryIds || [])}</p>
+                    {getCategoryNames(product.category_ids)}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">Vendor</p>
@@ -534,7 +586,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-muted-foreground">Price Adjustment</p>
-                            <p>{formatPrice(variant.price)}</p>
+                            <p>{formatPrice(variant.price + product.sale_price)}</p>
                           </div>
                         </div>
                       </div>
@@ -734,7 +786,7 @@ export default function ProductPage({ params }: ProductPageProps) {
       </div>
       
       {/* Image Preview Modal */}
-      <ImagePreviewModal
+      <FilePreviewModal
         src={previewImage || ""}
         alt="Product Image"
         isOpen={!!previewImage}

@@ -9,37 +9,104 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 // import { Pagination } from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useVendorStore } from "@/features/vendors/store";
-import { VendorListResponse } from "@/features/vendors/types";
+import { VendorFilter, VendorListResponse } from "@/features/vendors/types";
 import { VendorTable } from "@/features/vendors/components/vendor-table";
+import { useSession } from "next-auth/react";
 
 export default function VendorsPage() {
   const router = useRouter();
+  const session = useSession();
+  const tenantId = session?.data?.user?.tenant_id;
   const { vendors, loading, storeError, fetchVendors, updateVendorStatus } = useVendorStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("all");
+  const [isTabLoading, setIsTabLoading] = useState(false);
   const pageSize = 10;
 
   // Define tenant headers
   const tenantHeaders = {
-    'X-Tenant-ID': '4c56d0c3-55d9-495b-ae26-0d922d430a42'
+    'X-Tenant-ID': tenantId
   };
 
+  // Define filter based on active tab
+  const getFilters = (): VendorFilter => {
+    const baseFilter: VendorFilter = {
+      skip: (currentPage - 1) * pageSize,
+      limit: pageSize
+    };
+
+    // Add search filter if available
+    if (searchQuery) {
+      baseFilter.search = searchQuery;
+    }
+
+    // Add filter based on the active tab
+    switch (activeTab) {
+      case "all":
+        return {
+          ...baseFilter,
+          verification_status: "approved"
+        }
+      case "active":
+        return { 
+          ...baseFilter, 
+          verification_status: "approved", 
+          is_active: true 
+        };
+      case "inactive":
+        return { 
+          ...baseFilter, 
+          verification_status: "approved", 
+          is_active: false 
+        };
+      case "pending":
+        return { 
+          ...baseFilter, 
+          verification_status: "pending" 
+        };
+      case "rejected":
+        return { 
+          ...baseFilter, 
+          verification_status: "rejected" 
+        };
+      default:
+        return baseFilter;
+    }
+  };
+
+  // Fetch vendors when tab changes or page changes
   useEffect(() => {
-    // Pass tenant headers to the fetchVendors function
-    fetchVendors(undefined, tenantHeaders);
-  }, [fetchVendors]);
+    const fetchVendorsData = async () => {
+      try {
+        setIsTabLoading(true);
+        const filters = getFilters();
+        await fetchVendors(filters, tenantHeaders);
+      } catch (error) {
+        console.error("Error fetching vendors:", error);
+      } finally {
+        setIsTabLoading(false);
+      }
+    };
+
+    fetchVendorsData();
+  }, [fetchVendors, activeTab, currentPage, searchQuery]);
 
   const handleVendorClick = (vendor: VendorListResponse["items"][0]) => {
     router.push(`/dashboard/vendors/${vendor.vendor_id}`);
   };
 
-  const handleStatusChange = async (vendorId: string, status: any) => {
+  const handleStatusChange = async (vendorId: string, status: string, rejectionReason?: string) => {
     try {
-      // Pass tenant headers to the updateVendorStatus function
-      await updateVendorStatus(vendorId, status, tenantHeaders);
+      // Pass tenant headers and rejection reason to the updateVendorStatus function
+      await updateVendorStatus(vendorId, status, tenantHeaders, rejectionReason);
+      
+      // Refresh the vendor list after status change
+      const filters = getFilters();
+      fetchVendors(filters, tenantHeaders);
     } catch (error) {
       console.error("Failed to update vendor status:", error);
     }
@@ -51,9 +118,6 @@ export default function VendorsPage() {
     
     const query = searchQuery.toLowerCase();
     
-    // Log vendor structure to debug
-    console.log('Filtering vendor:', vendor);
-    
     return (
       vendor.business_name?.toLowerCase().includes(query) ||
       vendor.display_name?.toLowerCase().includes(query) ||
@@ -61,18 +125,14 @@ export default function VendorsPage() {
       vendor.contact_phone?.toLowerCase().includes(query)
     );
   }) || [];
-  
-  // Log the filtered results to debug
-  console.log('Filtered vendors count:', filteredVendors.length);
 
-  // Paginate vendors
-  const totalPages = Math.ceil(filteredVendors.length / pageSize);
-  const displayedVendors = filteredVendors.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setCurrentPage(1); // Reset to first page when changing tabs
+  };
 
-  if (loading) {
+  if (loading && vendors.length === 0) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -88,7 +148,9 @@ export default function VendorsPage() {
           </Button>
         </div>
 
-        <Spinner />
+        <div className="flex items-center justify-center h-64">
+          <Spinner />
+        </div>
       </div>
     );
   }
@@ -112,9 +174,12 @@ export default function VendorsPage() {
         <div>
           <ErrorCard
             title="Failed to load vendors"
-            error={storeError}
+            error={{
+              status: storeError.status?.toString() || "Error",
+              message: storeError.message || "An error occurred"
+            }}
             buttonText="Retry"
-            buttonAction={() => fetchVendors(undefined, tenantHeaders)}
+            buttonAction={() => fetchVendors(getFilters(), tenantHeaders)}
             buttonIcon={RefreshCw}
           />
         </div>
@@ -154,21 +219,30 @@ export default function VendorsPage() {
           </div>
         </div>
 
-        <VendorTable
-          vendors={displayedVendors}
-          onVendorClick={handleVendorClick}
-          onStatusChange={handleStatusChange}
-        />
-
-        {/* {totalPages > 1 && (
-          <div className="flex justify-center mt-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsTrigger value="all">All Vendors</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+          
+          {isTabLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Spinner />
+            </div>
+          ) : (
+            <VendorTable
+              vendors={filteredVendors}
+              onVendorClick={handleVendorClick}
+              onStatusChange={handleStatusChange}
+              activeTab={activeTab}
             />
-          </div>
-        )} */}
+          )}
+        </Tabs>
+
+        {/* Pagination would go here */}
       </div>
     </div>
   );

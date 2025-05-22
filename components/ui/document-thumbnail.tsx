@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Calendar, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DocumentPreview } from "./document-preview"
+import { FilePreviewModal } from "./file-preview-modal"
 
 interface DocumentWithExpiry {
   name: string
@@ -42,7 +42,6 @@ export function DocumentThumbnail({ document, className }: DocumentThumbnailProp
 
   const docStatus = getDocumentStatus(document.expiryDate)
   const isPdf = document.url?.toLowerCase().endsWith(".pdf")
-  const fileType = isPdf ? "pdf" : "image"
 
   return (
     <>
@@ -92,12 +91,11 @@ export function DocumentThumbnail({ document, className }: DocumentThumbnailProp
         </CardContent>
       </Card>
 
-      <DocumentPreview
+      <FilePreviewModal
         isOpen={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        documentUrl={document.url || "/placeholder.svg"}
-        documentName={document.name}
-        documentType={fileType}
+        src={document.url || "/placeholder.svg"}
+        alt={document.name}
       />
     </>
   )

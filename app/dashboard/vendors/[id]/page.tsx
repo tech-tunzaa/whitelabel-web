@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 import {
@@ -27,7 +28,11 @@ import {
   XCircle,
   Trash2,
   FileSymlink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  DollarSign,
+  TrendingUp,
+  ShoppingCart,
+  RefreshCw
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -50,9 +55,9 @@ import { ErrorCard } from "@/components/ui/error-card";
 
 import { useVendorStore } from "@/features/vendors/store";
 import { Vendor, VerificationDocument } from "@/features/vendors/types";
-import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
+import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog";
-import { isImageFile, isPdfFile } from "@/lib/services/document-upload.service";
+import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 
 interface VendorPageProps {
   params: {
@@ -62,6 +67,8 @@ interface VendorPageProps {
 
 export default function VendorPage({ params }: VendorPageProps) {
   const router = useRouter();
+  const session = useSession();
+  const tenant_id = session?.data?.user?.tenant_id;
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   const { vendor, loading, storeError, fetchVendor, updateVendorStatus } =
@@ -86,7 +93,7 @@ export default function VendorPage({ params }: VendorPageProps) {
 
   // Define tenant headers
   const tenantHeaders = {
-    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+    "X-Tenant-ID": tenant_id,
   };
 
   // Use ref to prevent duplicate API calls
@@ -133,6 +140,7 @@ export default function VendorPage({ params }: VendorPageProps) {
   const vendorEmail = vendor?.contact_email || vendor?.email || "";
   const vendorLogo = vendor?.store?.branding?.logo_url || vendor?.logo || "/placeholder.svg";
   const vendorDocuments = vendor?.verification_documents || [];
+  const rejectionReason = vendor?.rejection_reason || "";
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not specified";
@@ -173,7 +181,7 @@ export default function VendorPage({ params }: VendorPageProps) {
       type: doc.document_type || "",
       name: doc.file_name || "Document",
       url: doc.file_url || doc.document_url,
-      expiryDate: doc.expiry_date
+      expiryDate: doc.expires_at || doc.expiry_date
     });
   };
   
@@ -312,36 +320,6 @@ export default function VendorPage({ params }: VendorPageProps) {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          {vendor.verification_status === "approved" ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleStatusChange("pending")}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <Spinner className="mr-2 h-4 w-4" />
-              ) : (
-                <X className="mr-2 h-4 w-4" />
-              )}
-              Deactivate
-            </Button>
-          ) : (
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => handleStatusChange("approved")}
-              disabled={isUpdating}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isUpdating ? (
-                <Spinner className="mr-2 h-4 w-4" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Activate
-            </Button>
-          )}
         </div>
       </div>
 
@@ -586,8 +564,14 @@ export default function VendorPage({ params }: VendorPageProps) {
                             
                             <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
                               <span>Submitted: {formatDate(doc.submitted_at)}</span>
-                              {doc.verified_at && <span>Verified: {formatDate(doc.verified_at)}</span>}
+                              <span>Expires: {formatDate(doc.expires_at || doc.expiry_date) || "N/A"}</span>
                             </div>
+                            
+                            {doc.verified_at && (
+                              <div className="flex justify-between items-center mt-1 text-xs text-muted-foreground">
+                                <span>Verified: {formatDate(doc.verified_at)}</span>
+                              </div>
+                            )}
                             
                             {doc.rejection_reason && (
                               <div className="mt-2 p-2 bg-red-50 text-red-800 rounded-sm text-xs">
@@ -617,32 +601,137 @@ export default function VendorPage({ params }: VendorPageProps) {
               </CardContent>
             </Card>
             
+            {/* Revenue Summary Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Revenue Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ShoppingCart className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="text-sm">Total Orders</span>
+                    </div>
+                    <span className="font-medium">0</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="text-sm">Total Revenue</span>
+                    </div>
+                    <span className="font-medium">$0.00</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Percent className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="text-sm">Commission</span>
+                    </div>
+                    <span className="font-medium">{vendor.commission_rate || 0}%</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="text-sm">This Month</span>
+                    </div>
+                    <span className="font-medium">$0.00</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
             {/* Actions Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button
-                  variant={vendorStatus === "approved" ? "destructive" : "success"}
-                  className={`w-full ${vendorStatus === "approved" ? "" : "bg-green-600 hover:bg-green-700"}`}
-                  disabled={isUpdating}
-                  onClick={() => handleStatusChange(vendorStatus === "approved" ? "pending" : "approved")}
-                >
-                  {isUpdating ? (
-                    <Spinner className="h-4 w-4 mr-2" />
-                  ) : vendorStatus === "approved" ? (
-                    <>
-                      <X className="h-4 w-4 mr-2" />
-                      Deactivate Vendor
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
+                {/* Show different actions based on vendor status */}
+                {vendorStatus === "pending" && (
+                  <>
+                    <Button
+                      variant="success"
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      disabled={isUpdating}
+                      onClick={() => handleStatusChange("approved")}
+                    >
+                      {isUpdating ? (
+                        <Spinner className="h-4 w-4 mr-2" color="white" />
+                      ) : (
+                        <Check className="h-4 w-4 mr-2" />
+                      )}
                       Approve Vendor
-                    </>
-                  )}
-                </Button>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      disabled={isUpdating}
+                      onClick={() => handleStatusChange("rejected")}
+                    >
+                      {isUpdating ? (
+                        <Spinner className="h-4 w-4 mr-2" color="white" />
+                      ) : (
+                        <X className="h-4 w-4 mr-2" />
+                      )}
+                      Reject Vendor
+                    </Button>
+                  </>
+                )}
+                
+                {vendorStatus === "rejected" && (
+                  <Button
+                    variant="success"
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    disabled={isUpdating}
+                    onClick={() => handleStatusChange("approved")}
+                  >
+                    {isUpdating ? (
+                      <Spinner className="h-4 w-4 mr-2" color="white" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Reconsider Vendor
+                  </Button>
+                )}
+                
+                {vendorStatus === "approved" && (
+                  <Button
+                    variant={vendor.is_active ? "destructive" : "success"}
+                    className={`w-full ${!vendor.is_active ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    disabled={isUpdating}
+                    onClick={() => handleStatusChange(vendor.is_active ? "inactive" : "active")}
+                  >
+                    {isUpdating ? (
+                      <Spinner className="h-4 w-4 mr-2" color="white" />
+                    ) : vendor.is_active ? (
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Deactivate Vendor
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Activate Vendor
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Show rejection reason if rejected */}
+                {vendorStatus === "rejected" && rejectionReason && (
+                  <div className="mt-2 p-3 bg-red-50 rounded-md">
+                    <p className="text-sm text-red-800">
+                      <span className="font-semibold">Rejection Reason:</span> {rejectionReason}
+                    </p>
+                  </div>
+                )}
+                
                 <Button
                   variant="outline"
                   className="w-full"
@@ -680,7 +769,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                         onClick={handleDeleteVendor} 
                         disabled={isDeleting}
                       >
-                        {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
+                        {isDeleting && <Spinner className="mr-2 h-3 w-3" color="white" />}
                         Confirm Delete
                       </Button>
                     </div>
@@ -693,7 +782,7 @@ export default function VendorPage({ params }: VendorPageProps) {
       </div>
       
       {/* Image Preview Modal */}
-      <ImagePreviewModal
+      <FilePreviewModal
         src={previewImage || ""}
         alt="Document Preview"
         isOpen={!!previewImage}

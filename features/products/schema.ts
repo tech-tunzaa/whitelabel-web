@@ -74,7 +74,13 @@ export const productFormSchema = z.object({
     is_featured: z.boolean().default(false),
     promotion: z.string().nullish(),
     tenant_id: z.string().min(1, "Tenant ID is required"),
-});
+}).refine(
+    (data) => !data.has_variants || data.variants.length > 0,
+    {
+        message: "At least one variant must be added when product has variants",
+        path: ["variants"]
+    }
+);
 
 // Export the type
 export type ProductFormValues = z.infer<typeof productFormSchema>; 

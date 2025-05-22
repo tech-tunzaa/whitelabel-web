@@ -4,7 +4,7 @@ import * as React from "react"
 import { Upload, X, Loader } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { uploadDocument } from "@/lib/services/document-upload.service"
+import { uploadFile } from "@/lib/services/file-upload.service"
 
 interface ImageUploadProps {
   id: string
@@ -55,7 +55,7 @@ export function ImageUpload({
       setError(null)
       
       // Upload to server
-      const response = await uploadDocument(file, true);
+      const response = await uploadFile(file, true);
       
       // Use CDN URL from response
       const serverUrl = response.fileCDNUrl;

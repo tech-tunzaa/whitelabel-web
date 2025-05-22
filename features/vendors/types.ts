@@ -7,6 +7,7 @@ export type VendorFormValues = {
   contact_email: string;
   contact_phone: string;
   website?: string;
+  policy?: string;
   address_line1: string;
   address_line2?: string;
   city: string;
@@ -30,7 +31,18 @@ export type VendorFormValues = {
     logo_url?: string;
     banners: StoreBanner[];
   };
-  verification_documents?: VerificationDocument[];
+  verification_documents: VerificationDocument[];
+  user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone_number: string;
+    password: string;
+    access_token?: string | null;
+  };
+  // For responses/edit forms when we have a vendor ID
+  vendor_id?: string;
+  id?: string;
 };
 
 // Generic API response type
@@ -65,6 +77,7 @@ export type VerificationDocument = {
   rejection_reason?: string;
   submitted_at?: string;
   verified_at?: string;
+  file_id?: string;
 };
 
 // Store Banner Type
@@ -90,35 +103,44 @@ export type Store = {
   updated_at?: string;
 };
 
-// Vendor Type
+// Vendor entity type
 export type Vendor = {
   _id?: string;
-  id?: string; // Keep for backward compatibility
-  vendor_id?: string;
+  id?: string;
+  vendor_id: string;
   tenant_id: string;
-  user_id: string;
+  user_id?: string;
   business_name: string;
   display_name: string;
   contact_email: string;
   contact_phone: string;
   website?: string;
+  policy?: string;
+  logo?: string;
   address_line1: string;
   address_line2?: string;
   city: string;
   state_province: string;
   postal_code: string;
   country: string;
-  tax_id: string;
-  bank_account: BankAccount;
+  tax_id?: string;
+  categories?: string[];
+  commission_rate?: number | string;
+  bank_account?: {
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    swift_bic?: string;
+    branch_code?: string;
+  };
   verification_documents?: VerificationDocument[];
-  verification_status?: "pending" | "approved" | "rejected";
-  commission_rate?: string;
-  is_active?: boolean;
-  rating?: number;
-  approved_at?: string;
-  store?: Store;
+  verification_status: "pending" | "approved" | "rejected";
+  rejection_reason?: string;
+  is_active: boolean;
+  is_deleted?: boolean;
   created_at?: string;
   updated_at?: string;
+  approved_at?: string;
 };
 
 // Error Type

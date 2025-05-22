@@ -4,7 +4,7 @@ import * as React from "react"
 import { Upload, X, Loader, PlusCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { uploadDocument } from "@/lib/services/document-upload.service"
+import { uploadFile } from "@/lib/services/file-upload.service"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export interface ImageFile {
@@ -65,7 +65,7 @@ export function MultiImageUpload({
         setCurrentUploadIndex(imageIndex)
         
         // Upload to server
-        const response = await uploadDocument(file, true)
+        const response = await uploadFile(file, true)
         
         // Update with CDN URL
         const serverUrl = response.fileCDNUrl

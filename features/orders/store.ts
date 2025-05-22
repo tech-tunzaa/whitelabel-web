@@ -54,7 +54,7 @@ interface OrderStore {
   createOrder: (data: any, headers?: Record<string, string>) => Promise<Order>;
   updateOrder: (orderId: string, data: Partial<Order>) => Promise<Order>;
   deleteOrder: (orderId: string) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<Order>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, headers?: Record<string, string>) => Promise<Order>;
   updatePaymentStatus: (
     id: string,
     paymentStatus: PaymentStatus,
@@ -525,7 +525,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
     }
   },
 
-  updateOrderStatus: async (orderId: string, status: OrderStatus) => {
+  updateOrderStatus: async (orderId: string, status: OrderStatus, headers?: Record<string, string>) => {
     const { setActiveAction, setLoading, setStoreError, orders, setOrders } =
       get();
     try {
@@ -533,7 +533,8 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       setLoading(true);
       const response = await apiClient.put<OrderApiResponse>(
         `/orders/${orderId}/status`,
-        { status }
+        { status },
+        headers
       );
 
       let updatedOrder: Order | null = null;

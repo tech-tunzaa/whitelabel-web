@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { VendorFormNew } from "@/features/vendors/components/vendor-form";
+import { Vendor, VendorFormValues } from "@/features/vendors/types";
 
 export default function VendorAddPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function VendorAddPage() {
   const vendorStore = useVendorStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (data: Record<string, any>) => {
+  const handleSubmit = async (data: VendorFormValues): Promise<Vendor | undefined> => {
     setIsSubmitting(true);
     try {
       // Ensure we have user_id from session or fallback to default
@@ -36,18 +37,20 @@ export default function VendorAddPage() {
       toast.success("Vendor created successfully");
 
       // Navigate to the vendor details page for the newly created vendor
-      if (newVendor && (newVendor.id || newVendor._id || newVendor.vendor_id)) {
-        router.push(
-          `/dashboard/vendors/${
-            newVendor.id || newVendor._id || newVendor.vendor_id
-          }`
-        );
+      if (newVendor && (newVendor.vendor_id)) {
+        setTimeout(() => {
+          router.push(`/dashboard/vendors/$newVendor.vendor_id`);
+        }, 500); // Give a moment for store creation to complete
       } else {
         router.push("/dashboard/vendors");
       }
+      
+      // Return the new vendor data for subsequent operations (like store creation)
+      return newVendor;
     } catch (error) {
       console.error("Error creating vendor:", error);
       toast.error("Failed to create vendor. Please try again.");
+      return undefined;
     } finally {
       setIsSubmitting(false);
     }

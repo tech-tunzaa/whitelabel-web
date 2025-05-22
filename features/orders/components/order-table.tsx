@@ -1,7 +1,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Edit, Eye, Trash2 } from "lucide-react";
+import { 
+  MoreHorizontal, 
+  Edit, 
+  Eye, 
+  Trash2, 
+  CheckCircle, 
+  TruckIcon, 
+  PackageIcon, 
+  ShieldX,
+  RefreshCcw,
+  Clock,
+  Ban
+} from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +32,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -29,15 +46,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { OrderStatusBadge } from "./order-status-badge";
 import { useOrderStore } from "../store";
-import { Order } from "../types";
+import { Order, OrderStatus } from "../types";
 
 interface OrderTableProps {
   orders: Order[];
   onEdit?: (order: Order) => void;
   onDelete?: (order: Order) => void;
   onViewDetails?: (order: Order) => void;
+  onStatusChange?: (orderId: string, status: OrderStatus) => void;
 }
 
 export function OrderTable({
@@ -45,43 +64,151 @@ export function OrderTable({
   onEdit,
   onDelete,
   onViewDetails,
+  onStatusChange,
 }: OrderTableProps) {
   const router = useRouter();
-  const { updateOrderStatus, toggleOrderFlag } = useOrderStore();
+  const { updateOrderStatus } = useOrderStore();
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedAction, setSelectedAction] = useState<OrderStatus | null>(null);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "Tzs",
+      currency: currency,
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+      return format(date, "MMM dd, yyyy");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
+    }
   };
 
+  // Get the status icon based on order status
+  const getStatusIcon = (status: string) => {
+    const statusIcons: Record<string, any> = {
+      "pending": <Clock className="h-4 w-4 mr-1" />,
+      "processing": <PackageIcon className="h-4 w-4 mr-1" />,
+      "confirmed": <CheckCircle className="h-4 w-4 mr-1" />,
+      "shipped": <TruckIcon className="h-4 w-4 mr-1" />,
+      "delivered": <CheckCircle className="h-4 w-4 mr-1" />,
+      "completed": <CheckCircle className="h-4 w-4 mr-1" />,
+      "cancelled": <Ban className="h-4 w-4 mr-1" />,
+      "refunded": <RefreshCcw className="h-4 w-4 mr-1" />,
+      "partially_refunded": <RefreshCcw className="h-4 w-4 mr-1" />,
+    };
+    
+    return statusIcons[status] || <ShieldX className="h-4 w-4 mr-1" />;
+  };
+
+  // Get status badge variant
+  const getStatusVariant = (status: string) => {
+    const variantMap: Record<string, string> = {
+      "pending": "default",
+      "processing": "secondary",
+      "confirmed": "default",
+      "shipped": "secondary",
+      "delivered": "secondary",
+      "completed": "default",
+      "cancelled": "destructive",
+      "refunded": "destructive",
+      "partially_refunded": "destructive",
+    };
+    
+    return variantMap[status] || "secondary";
+  };
+
+  // Get available actions based on current status
+  const getAvailableActions = (order: Order) => {
+    const currentStatus = order.status;
+    
+    // Define transitions based on the current status
+    // Using a function approach to avoid TypeScript issues with the keys
+    const getTransitions = (status: string): OrderStatus[] => {
+      switch(status) {
+        case "pending":
+          return ["processing", "cancelled"];
+        case "processing":
+          // Using 'confirmed' which might not be in the OrderStatus type
+          return ["shipped", "cancelled"];
+        case "confirmed":
+          return ["shipped", "cancelled"];
+        case "shipped":
+          return ["delivered", "cancelled"];
+        case "delivered":
+          return ["completed"];
+        case "completed":
+          return ["refunded"];
+        case "cancelled":
+          return ["pending"];
+        case "refunded":
+        case "partially_refunded":
+          return [];
+        default:
+          return [];
+      }
+    };
+    
+    return getTransitions(currentStatus);
+  };
+
+  // Handle status change
+  const handleStatusChange = (order: Order, newStatus: OrderStatus) => {
+    setSelectedOrder(order);
+    setSelectedAction(newStatus);
+    
+    // For certain status changes, show confirmation dialog
+    if (newStatus === "cancelled" || newStatus === "refunded") {
+      if (newStatus === "cancelled") {
+        setIsCancelDialogOpen(true);
+      } else if (newStatus === "refunded") {
+        setIsRefundDialogOpen(true);
+      }
+    } else {
+      // Otherwise process the change directly
+      processStatusChange(order, newStatus);
+    }
+  };
+  
+  // Process the actual status change
+  const processStatusChange = (order: Order, newStatus: OrderStatus) => {
+    if (onStatusChange) {
+      onStatusChange(order.order_id, newStatus);
+      toast.success(`Order status updated to ${newStatus}`);
+    } else {
+      // Fallback to the built-in function if onStatusChange is not provided
+      updateOrderStatus(order.order_id, newStatus);
+      toast.success(`Order status updated to ${newStatus}`);
+    }
+  };
+
+  // Handle refund confirmation
   const handleRefund = () => {
-    if (!selectedOrder) return;
-    updateOrderStatus(selectedOrder.id, "refunded");
-    toast.success("Refund processed successfully");
+    if (!selectedOrder || !selectedAction) return;
+    processStatusChange(selectedOrder, selectedAction);
     setIsRefundDialogOpen(false);
     setSelectedOrder(null);
+    setSelectedAction(null);
   };
 
+  // Handle cancel confirmation
   const handleCancel = () => {
-    if (!selectedOrder) return;
-    updateOrderStatus(selectedOrder.id, "cancelled");
-    toast.success("Order cancelled successfully");
+    if (!selectedOrder || !selectedAction) return;
+    processStatusChange(selectedOrder, selectedAction);
     setIsCancelDialogOpen(false);
     setSelectedOrder(null);
+    setSelectedAction(null);
   };
 
   return (
@@ -91,7 +218,9 @@ export function OrderTable({
           <TableRow>
             <TableHead>Order Number</TableHead>
             <TableHead>Customer</TableHead>
+            <TableHead>Date</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Payment</TableHead>
             <TableHead>Total</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -99,16 +228,18 @@ export function OrderTable({
         <TableBody>
           {orders.map((order) => (
             <TableRow
-              key={order._id}
-              className={order.flagged ? "bg-amber-50" : undefined}
+              key={order.order_id}
+              className={((order as any).flagged || (order as any).is_flagged) ? "bg-amber-50" : undefined}
             >
               <TableCell className="font-medium">
-                #{order.order_number}
-                {order.flagged && (
-                  <Badge variant="destructive" className="ml-2">
-                    Issue
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1">
+                  <span>#{order.order_number}</span>
+                  {((order as any).flagged || (order as any).is_flagged) && (
+                    <Badge variant="destructive" className="ml-1">
+                      Issue
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
@@ -116,17 +247,43 @@ export function OrderTable({
                     {order.shipping_address.first_name}{" "}
                     {order.shipping_address.last_name}
                   </span>
+                  <span className="text-xs text-muted-foreground">
+                    {order.shipping_address.email}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="cursor-default">
+                      {order.created_at}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Order placed: {order.created_at}</p>
+                      {order.updated_at && <p>Last update: {order.updated_at}</p>}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </TableCell>
+              <TableCell>
                 <Badge
-                  variant={order.status === "pending" ? "default" : "secondary"}
+                  variant={getStatusVariant(order.status) as "default" | "destructive" | "outline" | "secondary"}
+                  className="flex items-center whitespace-nowrap"
                 >
-                  {order.status}
+                  {getStatusIcon(order.status)}
+                  <span className="capitalize">{order.status.replace(/_/g, ' ')}</span>
                 </Badge>
               </TableCell>
               <TableCell>
-                {order.totals.total} {order.currency}
+                <Badge
+                  variant={order.payment_status === "paid" ? "default" : "secondary"}
+                  className="capitalize"
+                >
+                  {order.payment_status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {formatCurrency(order.totals.total, order.currency)}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -136,23 +293,56 @@ export function OrderTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    
                     {onViewDetails && (
                       <DropdownMenuItem onClick={() => onViewDetails(order)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
                     )}
+                    
                     {onEdit && (
                       <DropdownMenuItem onClick={() => onEdit(order)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
                     )}
+                    
+                    {/* Order Status Actions */}
+                    {getAvailableActions(order).length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Clock className="mr-2 h-4 w-4" />
+                            Update Status
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                              {getAvailableActions(order).map((action) => (
+                                <DropdownMenuItem 
+                                  key={action}
+                                  onClick={() => handleStatusChange(order, action)}
+                                >
+                                  {getStatusIcon(action)}
+                                  <span className="capitalize">{action.replace(/_/g, ' ')}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                      </>
+                    )}
+                    
                     {onDelete && (
-                      <DropdownMenuItem onClick={() => onDelete(order)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onDelete(order)} className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Order
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -178,8 +368,16 @@ export function OrderTable({
           <DialogHeader>
             <DialogTitle>Issue Refund</DialogTitle>
             <DialogDescription>
-              Are you sure you want to issue a refund for this order? This
-              action cannot be undone.
+              {selectedOrder && (
+                <>
+                  Are you sure you want to issue a refund for order #{selectedOrder.order_number}? 
+                  This action cannot be undone.
+                  <div className="mt-2 p-2 border rounded bg-muted">
+                    <p>Order Total: {formatCurrency(selectedOrder.totals.total, selectedOrder.currency)}</p>
+                    <p>Customer: {selectedOrder.shipping_address.first_name} {selectedOrder.shipping_address.last_name}</p>
+                  </div>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -202,8 +400,17 @@ export function OrderTable({
           <DialogHeader>
             <DialogTitle>Cancel Order</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel this order? This action cannot be
-              undone.
+              {selectedOrder && (
+                <>
+                  Are you sure you want to cancel order #{selectedOrder.order_number}? 
+                  This action cannot be undone.
+                  <div className="mt-2 p-2 border rounded bg-muted">
+                    <p>Order Total: {formatCurrency(selectedOrder.totals.total, selectedOrder.currency)}</p>
+                    <p>Current Status: <span className="capitalize">{selectedOrder.status.replace(/_/g, ' ')}</span></p>
+                    <p>Customer: {selectedOrder.shipping_address.first_name} {selectedOrder.shipping_address.last_name}</p>
+                  </div>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

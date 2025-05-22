@@ -67,9 +67,9 @@ export default function EditProductPage() {
       const headers = { "X-Tenant-ID": tenantId };
       
       // Update the product - using the product_id from the loaded product
-      await updateProduct(product.product_id || product._id, data, headers);
+      await updateProduct(product.product_id, data, headers);
       toast.success("Product updated successfully");
-      router.push("/dashboard/products");
+      router.push(`/dashboard/products/${product.product_id}`);
     } catch (err) {
       console.error("Error updating product:", err);
       setError(err instanceof Error ? err.message : "Failed to update product");
@@ -86,7 +86,7 @@ export default function EditProductPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Spinner size="lg" />
+        <Spinner />
       </div>
     );
   }

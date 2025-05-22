@@ -38,18 +38,37 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { DocumentUpload, DocumentWithMeta } from "@/components/ui/document-upload";
+import { FileUpload } from "@/components/ui/file-upload";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 
 import { DOCUMENT_TYPES, DocumentTypeOption } from "@/features/settings/data/document-types";
-import { VendorFormValues, StoreBanner } from "../types";
+import { VendorFormValues, VerificationDocument as VendorVerificationDocument, StoreBanner } from "../types";
 import { Category } from "@/features/categories/types";
 import { Tenant } from "@/features/tenants/types";
 import { useCategoryStore } from "@/features/categories/store";
 import { useTenantStore } from "@/features/tenants/store";
 import { useVendorStore } from "../store";
 import { vendorFormSchema } from "../schema";
+import { cn } from "@/lib/utils";
+
+// Define the VerificationDocument type to match expected structure
+type VerificationDocument = {
+  id?: string;
+  document_id?: string;
+  document_type: string;
+  file_name: string;
+  file_url?: string;
+  document_url?: string;
+  document_number?: string;
+  expiry_date?: string;
+  verification_status?: "pending" | "approved" | "rejected";
+  rejection_reason?: string;
+  file_id?: string;
+};
 
 interface VendorFormProps {
-  onSubmit: (data: VendorFormValues) => void;
+  onSubmit: (data: VendorFormValues) => Promise<{vendor_id: string} | null | void>;
   onCancel?: () => void;
   initialData?: Partial<VendorFormValues> & { id?: string };
   id?: string;
@@ -106,6 +125,9 @@ export function VendorFormNew({
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
+  // State for uploaded documents that need to persist between tab changes
+  const [tempUploadedDocuments, setTempUploadedDocuments] = useState<DocumentWithMeta[]>([]);
+  
   // Determine if form is submitting from either external or internal state
   const isSubmitting = externalIsSubmitting || internalIsSubmitting;
   const isAddPage = !initialData?.id;
@@ -121,7 +143,7 @@ export function VendorFormNew({
     resolver: zodResolver(vendorFormSchema) as any,
     mode: "onSubmit",
     defaultValues: initialData || {
-      tenant_id: tenantId,
+      tenant_id: tenantId || "",
       business_name: "",
       display_name: "",
       contact_email: "",
@@ -135,7 +157,7 @@ export function VendorFormNew({
       country: "Tanzania",
       tax_id: "",
       categories: [],
-      commission_rate: 0,
+      commission_rate: "0",
       bank_account: {
         bank_name: "",
         account_number: "",
@@ -151,6 +173,14 @@ export function VendorFormNew({
         banners: []
       },
       verification_documents: [],
+      user: {
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone_number: "",
+        password: "",
+        access_token: ""
+      }
     }
   });
   
@@ -193,7 +223,7 @@ export function VendorFormNew({
   }, [categories]);
 
   // Get API functions from store
-  const { createVendor, updateVendor } = useVendorStore();
+  const { createVendor, updateVendor, createStore } = useVendorStore();
 
   // Navigation functions
   const nextTab = () => {
@@ -276,6 +306,19 @@ export function VendorFormNew({
 
         // Make a clean copy of form data
         const dataToSubmit = JSON.parse(JSON.stringify(data));
+        
+        // Force commission_rate to be a string - using multiple approaches to ensure it works
+        if (dataToSubmit.commission_rate !== undefined) {
+          // First convert to string
+          dataToSubmit.commission_rate = String(dataToSubmit.commission_rate);
+          
+          // Then override the property descriptor to prevent conversion
+          Object.defineProperty(dataToSubmit, 'commission_rate', {
+            value: dataToSubmit.commission_rate,
+            writable: false,
+            configurable: false
+          });
+        }
 
         // For non-superOwner users, set tenant_id from session
         if (!isSuperOwner && tenantId) {
@@ -365,6 +408,140 @@ export function VendorFormNew({
     }
   };
 
+  // Handle form submission with user data and store creation
+  const handleSubmit = async (data: VendorFormValues) => {
+    try {
+      setInternalIsSubmitting(true);
+      setFormError(null);
+
+      // Generate random password if it's a new vendor
+      if (!initialData || !initialData.id) {
+        data.user = {
+          first_name: data.user?.first_name || "",
+          last_name: data.user?.last_name || "",
+          email: data.contact_email,
+          phone_number: data.contact_phone,
+          password: Array(12).fill(0).map(() => Math.random().toString(36).charAt(2)).join(''), // Generate a random password for the user
+          access_token: "",
+        };
+      }
+
+      // For any documents that don't have verification_status, set to pending
+      if (data.verification_documents) {
+        data.verification_documents = data.verification_documents.map(doc => ({
+          ...doc,
+          file_name: doc.file_name || "",  // Ensure file_name is never undefined
+          verification_status: doc.verification_status || "pending"
+        }));
+      }
+
+      // Call the parent's onSubmit to handle the submission
+      const vendorResponse = await onSubmit(data);
+      
+      // After successful vendor creation, create a store if this is a new vendor
+      if (!initialData?.id && vendorResponse && 'vendor_id' in vendorResponse) {
+        try {
+          // Create store with the vendor_id from the response
+          const storeData = {
+            vendor_id: vendorResponse.vendor_id,
+            store_name: data.store.store_name,
+            store_slug: data.store.store_slug,
+            description: data.store.description,
+            logo_url: data.store.logo_url,
+            banners: data.store.banners,
+          };
+          
+          // Call API to create store using the store function from vendor store
+          const tenantHeaders = { "X-Tenant-ID": tenantId };
+          await createStore(storeData, tenantHeaders);
+          toast.success("Vendor and store created successfully");
+        } catch (error) {
+          console.error("Failed to create store:", error);
+          toast.error("Vendor was created but failed to create store");
+        }
+      }
+
+      return vendorResponse;
+    } catch (error: any) {
+      setFormError(error.message || "Failed to submit the form. Please try again.");
+      console.error("Form submission error:", error);
+      throw error; // Re-throw to allow caller to handle
+    } finally {
+      setInternalIsSubmitting(false);
+    }
+  };
+
+  // Handle document changes - completely rewritten to use parent state
+  const handleDocumentsChange = useCallback((documents: DocumentWithMeta[] & Record<string, any>[]) => {
+    // Skip if no documents or empty array
+    if (!documents || documents.length === 0) return;
+    
+    console.log("Received document changes:", documents);
+    
+    // Update the temp documents state to persist between tab changes
+    setTempUploadedDocuments(documents);
+    
+    // Get the current documents in the form
+    const currentDocs = form.getValues("verification_documents") || [];
+    
+    // Process each document for form submission
+    const newDocs = documents.map(doc => {
+      if (!doc.file_name) return null; // Skip invalid documents
+      
+      // Create a clean document object with only the properties we need
+      return {
+        id: doc.file_id || doc.document_id || doc.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        document_id: doc.document_id || doc.file_id || doc.id || `doc-id-${Date.now()}`,
+        document_type: doc.document_type || "",
+        file_name: doc.file_name,
+        file_url: doc.file_url || "",
+        expiry_date: doc.expiry_date,
+        file_id: doc.file_id || `file-${Date.now()}`,
+        verification_status: "pending" as const
+      };
+    }).filter(Boolean) as VendorVerificationDocument[];
+    
+    // Use Set for comparing document IDs to avoid duplicates
+    const existingIds = new Set(currentDocs.map(doc => 
+      doc.file_id || doc.document_id || doc.id
+    ));
+    
+    // Filter out duplicates by checking all possible ID fields
+    const uniqueNewDocs = newDocs.filter(doc => {
+      const docId = doc.file_id || doc.document_id || doc.id;
+      if (existingIds.has(docId)) return false;
+      existingIds.add(docId); // Add to set so we don't add duplicates
+      return true;
+    });
+    
+    // Create the final list by combining existing and new docs
+    const updatedDocs = [...currentDocs, ...uniqueNewDocs];
+    
+    console.log("Updated docs to set in form:", updatedDocs);
+    
+    // Update the form
+    form.setValue("verification_documents", updatedDocs, {
+      shouldValidate: false,
+      shouldDirty: true
+    });
+  }, [form, setTempUploadedDocuments]);
+
+  // Handle removing existing documents
+  const handleRemoveExistingDocument = useCallback((docId: string) => {
+    const currentDocs = form.getValues("verification_documents") || [];
+    const filteredDocs = currentDocs.filter(doc => 
+      doc.id !== docId && doc.document_id !== docId && doc.file_id !== docId
+    );
+    
+    form.setValue("verification_documents", filteredDocs, {
+      shouldValidate: false,
+      shouldDirty: true
+    });
+    
+    console.log("Removed document:", docId);
+    console.log("Remaining documents:", filteredDocs);
+  }, [form]);
+
   return (
     <div className="space-y-6">
       {formError && (
@@ -377,7 +554,7 @@ export function VendorFormNew({
       <Card className="w-full">
         <CardContent className="p-6">
           <Form {...form}>
-            <form id={id || "marketplace-vendor-form"} onSubmit={form.handleSubmit(handleFormSubmit, handleFormError)}>
+            <form id={id || "marketplace-vendor-form"} onSubmit={form.handleSubmit(handleSubmit, handleFormError)}>
               {/* Save isEditable in a local variable to fix reference issues throughout the form */}
               <fieldset disabled={isSubmitting} className="space-y-6">
                 {/* Tenant selector (superowner only) */}
@@ -506,213 +683,219 @@ export function VendorFormNew({
     </div>
   );
 
-  // Business Tab Component
+  // Business Tab Component with first_name and last_name fields
   function BusinessTab() {
-    const control = formControl;
-    // Access categories from the store
-    const categoryItems = useCategoryStore((state) => state.categories);
     return (
-      <TabsContent value="business" className="space-y-6 pt-4">
+      <TabsContent value="business" className="space-y-6 mt-4">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Business Information</h3>
-          <p className="text-sm text-muted-foreground">
-            Provide your business details to get started.
-          </p>
-        </div>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={control}
-            name="business_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Business Name <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="Your business name"
-                    onChange={(e) => {
-                      field.onChange(e);
-                      // Call the business name change handler
-                      handleBusinessNameChange(e);
-                    }}
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  The official name of your business.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={control}
-            name="display_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Display Name <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="Display name for your business"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  How your business will be displayed to customers.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Business Name Field */}
+            <FormField
+              control={formControl}
+              name="business_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Business Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        handleBusinessNameChange(e);
+                      }}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={control}
-            name="contact_email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Email <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    className="mt-2"
-                    placeholder="contact@yourbusiness.com"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={control}
-            name="contact_phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Phone <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <PhoneInput 
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            {/* Display Name Field */}
+            <FormField
+              control={formControl}
+              name="display_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Display Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={control}
-            name="website"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Website
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="https://yourbusiness.com"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={control}
-            name="tax_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Tax ID <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="TIN or business tax ID"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            {/* First Name Field */}
+            <FormField
+              control={formControl}
+              name="user.first_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Owner First Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Categories field with multi-select */}
-        <div>
-          <FormField
-            control={control}
-            name="categories"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Business Categories <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <MultiSelect
-                    options={categoryItems
-                      .filter(category => (category._id || category.category_id) && category.name)
-                      .map(category => ({
-                        label: category.name,
-                        value: category.category_id || category._id
-                      }))}
-                    selected={field.value || []}
-                    onChange={field.onChange}
-                    placeholder="Select business categories"
-                    className="mt-2"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Select one or more categories that describe your business.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            {/* Last Name Field */}
+            <FormField
+              control={formControl}
+              name="user.last_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Owner Last Name <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Commission Rate field */}
-        <div>
-          <FormField
-            control={control}
-            name="commission_rate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Commission Rate <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="e.g. 10"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  The commission rate for this vendor (e.g. 10%).
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            {/* Contact Email Field */}
+            <FormField
+              control={formControl}
+              name="contact_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Contact Email <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} type="email" value={field.value || ""} />
+                  </FormControl>
+                  <FormDescription>
+                    Used for account login and notifications
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Contact Phone Field */}
+            <FormField
+              control={formControl}
+              name="contact_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Contact Phone <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <PhoneInput {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Website Field */}
+            <FormField
+              control={formControl}
+              name="website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Tax ID Field */}
+            <FormField
+              control={formControl}
+              name="tax_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tax ID</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Business Categories Field */}
+            <div className="md:col-span-2">
+              <FormField
+                control={formControl}
+                name="categories"
+                render={({ field }) => {
+                  // Create safe values for the MultiSelect component
+                  const categoryOptions = categories?.map((category) => ({
+                    value: String(category?.category_id || ""), // Use category_id instead of id
+                    label: String(category?.name || ""),
+                  })) || [];
+                  
+                  // Ensure field.value is an array of strings
+                  const selected: string[] = Array.isArray(field.value) ? 
+                    field.value.map(id => String(id || "")) : 
+                    [];
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Business Categories</FormLabel>
+                      <FormControl>
+                        <MultiSelect
+                          options={categoryOptions}
+                          selected={selected}
+                          onChange={field.onChange}
+                          placeholder="Select categories"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+            </div>
+
+            {/* Commission Rate Field */}
+            <FormField
+              control={formControl}
+              name="commission_rate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Commission Rate (%) <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="text"
+                      pattern="^\d*(\.\d{0,2})?$"
+                      placeholder="Enter commission rate"
+                      value={field.value?.toString() || ""}
+                      onChange={(e) => {
+                        // Only allow numeric input with up to 2 decimal places
+                        const value = e.target.value;
+                        if (value === '' || /^\d*(\.\d{0,2})?$/.test(value)) {
+                          field.onChange(value);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
       </TabsContent>
     );
@@ -765,6 +948,7 @@ export function VendorFormNew({
                     {...field}
                     className="mt-2"
                     placeholder="Your store name"
+                    value={field.value || ""}
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
@@ -788,6 +972,7 @@ export function VendorFormNew({
                     {...field}
                     className="mt-2"
                     placeholder="your-store"
+                    value={field.value || ""}
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
@@ -813,6 +998,7 @@ export function VendorFormNew({
                     {...field}
                     className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-2"
                     placeholder="Describe your store and what you sell..."
+                    value={field.value || ""}
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
@@ -1295,82 +1481,85 @@ export function VendorFormNew({
   
   // Documents Tab Component
   function DocumentsTab() {
-    // Separate state for existing and new documents
-    const [existingDocuments, setExistingDocuments] = useState<any[]>(
-      initialData?.verification_documents || []
-    );
-    const [newDocuments, setNewDocuments] = useState<any[]>([]);
+    // Generate a unique ID for this instance of the document upload
+    const uploadFormId = useMemo(() => `vendor-docs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, []);
     
-    // Update form values whenever documents change
-    useEffect(() => {
-      // Combine both existing and new documents for the form value
-      const allDocuments = [...existingDocuments, ...newDocuments];
-      
-      form.setValue("verification_documents", allDocuments, {
+    // Use both form state and temporary state for documents
+    const watchedDocuments = form.watch("verification_documents") || [];
+    
+    // Handle policy document changes
+    const handlePolicyChange = useCallback((fileUrl: string, file?: File) => {
+      form.setValue("policy", fileUrl, { 
         shouldValidate: false,
-        shouldDirty: true,
-        shouldTouch: false
+        shouldDirty: true
       });
-    }, [existingDocuments, newDocuments]);
+    }, [form]);
     
-    // Handle adding/updating a new document
-    const handleAddNewDocument = (newDoc: DocumentWithMeta) => {
-      setNewDocuments(prev => {
-        // Look for existing document with the same file name
-        const index = prev.findIndex(doc => doc.file_name === newDoc.file_name);
-        
-        if (index >= 0) {
-          // Update existing document
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            ...newDoc
-          };
-          return updated;
-        } else {
-          // Add new document
-          return [...prev, {
-            ...newDoc,
-            verification_status: "pending",
-            document_url: ""
-          }];
-        }
+    // Handle policy document removal
+    const handlePolicyRemove = useCallback(() => {
+      form.setValue("policy", "", { 
+        shouldValidate: false,
+        shouldDirty: true
       });
-    };
-    
-    // Handle removing a new document
-    const handleRemoveNewDocument = (fileName: string) => {
-      setNewDocuments(prev => 
-        prev.filter(doc => doc.file_name !== fileName)
-      );
-    };
-    
-    // Handle removing an existing document
-    const handleRemoveExistingDocument = (documentId: string) => {
-      setExistingDocuments(prev => 
-        prev.filter(doc => (doc.document_id !== documentId) && (doc.id !== documentId))
-      );
-    };
+    }, [form]);
 
     return (
-      <TabsContent value="documents" className="space-y-4 mt-4">
+      <TabsContent value="documents" className="space-y-6 mt-4">
+        {/* Policy Document Upload */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Policy Document</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload your business policy document in PDF format
+          </p>
+          
+          <div className="mt-2">
+            <Label htmlFor="policy-document">Policy Document (PDF only)</Label>
+            <FileUpload
+              label=""
+              description="Upload your business policy document (PDF only, max 10MB)"
+              value={form.getValues("policy") || ""}
+              onChange={handlePolicyChange}
+              onRemove={handlePolicyRemove}
+              accept=".pdf"
+              maxSizeMB={10}
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+        
+        <div className="border-t my-6"></div>
+        
+        {/* Business Verification Documents */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Document Verification</h3>
           <p className="text-sm text-muted-foreground">
             Upload verification documents to prove your identity and business ownership
           </p>
 
-          {/* Improved Document Upload Component */}
-          <DocumentUpload
-            existingDocuments={existingDocuments}
-            newDocuments={newDocuments}
-            documentTypes={DOCUMENT_TYPES}
-            onAddNewDocument={handleAddNewDocument}
-            onRemoveNewDocument={handleRemoveNewDocument}
-            onRemoveExistingDocument={handleRemoveExistingDocument}
-            label="Upload Business Documents"
-            description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
-          />
+          {/* Document count */}
+          {watchedDocuments.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+              <p>You have {watchedDocuments.length} document(s) uploaded</p>
+          </div>
+          )}
+
+          {/* Document Upload Component */}
+          <div className="space-y-4">
+            <Label>Document Type & Files</Label>
+            <DocumentUpload
+              key={`${uploadFormId}-${watchedDocuments.length}`}
+              formId={uploadFormId}
+              existingDocuments={watchedDocuments}
+              onDocumentsChange={handleDocumentsChange}
+              onRemoveExistingDocument={handleRemoveExistingDocument}
+              documentTypes={DOCUMENT_TYPES}
+              description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
+              autoUpload={true}
+            />
+            <div className="text-sm text-muted-foreground mt-2">
+              <p>Note: For documents with expiration dates (like licenses), please select the expiry date.</p>
+            </div>
+          </div>
         </div>
       </TabsContent>
     );

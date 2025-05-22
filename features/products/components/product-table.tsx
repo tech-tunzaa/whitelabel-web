@@ -213,7 +213,7 @@ export function ProductTable({
     if (price === undefined || price === null) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD"
+      currency: "TZS"
     }).format(price);
   };
 
@@ -392,7 +392,7 @@ export function ProductTable({
                         {getStatusDisplayText(product)}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(product.createdAt)}</TableCell>
+                    <TableCell>{product.created_at}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -551,7 +551,7 @@ export function ProductTable({
                     </TableCell>
                     <TableCell>{product.sku || "N/A"}</TableCell>
                     <TableCell>{formatPrice(product.base_price)}</TableCell>
-                    <TableCell>{formatDate(product.createdAt)}</TableCell>
+                    <TableCell>{product.created_at}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -657,7 +657,7 @@ export function ProductTable({
                     </TableCell>
                     <TableCell>{product.sku || "N/A"}</TableCell>
                     <TableCell>{formatPrice(product.base_price)}</TableCell>
-                    <TableCell>{formatDate(product.createdAt)}</TableCell>
+                    <TableCell>{product.created_at}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -763,7 +763,7 @@ export function ProductTable({
                     </TableCell>
                     <TableCell>{product.sku || "N/A"}</TableCell>
                     <TableCell>{formatPrice(product.base_price)}</TableCell>
-                    <TableCell>{formatDate(product.createdAt)}</TableCell>
+                    <TableCell>{product.created_at}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2 justify-end">
                         <Button
@@ -873,7 +873,7 @@ export function ProductTable({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{formatDate(product.rejected_at)}</TableCell>
+                    <TableCell>{product.rejected_at}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

@@ -1046,7 +1046,10 @@ export function ProductForm({
                                     sku: "",
                                     name: "",
                                     price: 0,
-                                    attribute
+                                    attributes: {
+                                      name: "",
+                                      value: ""
+                                    }
                                   }
                                 ]);
                               }}

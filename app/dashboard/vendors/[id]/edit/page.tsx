@@ -68,7 +68,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
   if (loading && !isSubmitting && !vendor) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Spinner size="lg" />
+        <Spinner />
       </div>
     );
   }

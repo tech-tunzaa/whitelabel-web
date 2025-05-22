@@ -11,7 +11,7 @@ import { DocumentType, DocumentWithMeta } from "@/components/ui/document-upload"
 import { Eye, FileSymlink, ImageIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
-import { isImageFile, isPdfFile } from "@/lib/services/document-upload.service"
+import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service"
 
 interface DocumentListProps {
   documents: DocumentWithMeta[]
