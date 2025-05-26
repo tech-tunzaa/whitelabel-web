@@ -46,11 +46,6 @@ export default function VendorsPage() {
 
     // Add filter based on the active tab
     switch (activeTab) {
-      case "all":
-        return {
-          ...baseFilter,
-          verification_status: "approved"
-        }
       case "active":
         return { 
           ...baseFilter, 

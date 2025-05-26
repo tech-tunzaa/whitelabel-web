@@ -8,7 +8,7 @@ import { useVendorStore } from "@/features/vendors/store";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { VendorFormNew } from "@/features/vendors/components/vendor-form";
+import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { Vendor, VendorFormValues } from "@/features/vendors/types";
 
 export default function VendorAddPage() {
@@ -20,12 +20,6 @@ export default function VendorAddPage() {
   const handleSubmit = async (data: VendorFormValues): Promise<Vendor | undefined> => {
     setIsSubmitting(true);
     try {
-      // Ensure we have user_id from session or fallback to default
-      const vendorData = {
-        ...data,
-        user_id: session?.user?.id || "13c94ad0-1071-431a-9d59-93eeee25ca0a",
-      };
-
       // Set up headers with X-Tenant-ID for non-superowners
       const headers: Record<string, string> = {};
       const tenantId = (session?.user as any)?.tenant_id;
@@ -33,19 +27,35 @@ export default function VendorAddPage() {
         headers["X-Tenant-ID"] = tenantId;
       }
 
-      const newVendor = await vendorStore.createVendor(vendorData, headers);
-      toast.success("Vendor created successfully");
-
-      // Navigate to the vendor details page for the newly created vendor
-      if (newVendor && (newVendor.vendor_id)) {
-        setTimeout(() => {
-          router.push(`/dashboard/vendors/$newVendor.vendor_id`);
-        }, 500); // Give a moment for store creation to complete
+      // First create the vendor
+      const newVendor = await vendorStore.createVendor(data, headers);
+      
+      if (newVendor && newVendor.vendor_id) {
+        const vendorId = newVendor.vendor_id;
+        
+        try {
+          // Immediately create the store with the vendor ID
+          await vendorStore.createStore(vendorId, {
+            store_name: data.store.store_name,
+            store_slug: data.store.store_slug,
+            description: data.store.description,
+            logo_url: data.store.logo_url,
+            banners: data.store.banners,
+          }, headers);
+          
+          toast.success("Vendor and store created successfully");
+        } catch (storeError) {
+          console.error("Error creating store:", storeError);
+          toast.error("Vendor created, but failed to create store. Please try again from the vendor details page.");
+        }
+        
+        // Navigate to the vendor details page
+        router.push(`/dashboard/vendors/${vendorId}`);
       } else {
         router.push("/dashboard/vendors");
+        toast.success("Vendor created successfully");
       }
       
-      // Return the new vendor data for subsequent operations (like store creation)
       return newVendor;
     } catch (error) {
       console.error("Error creating vendor:", error);
@@ -95,7 +105,7 @@ export default function VendorAddPage() {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <VendorFormNew
+        <VendorForm
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
         />

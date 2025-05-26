@@ -14,6 +14,7 @@ export type VendorFormValues = {
   state_province: string;
   postal_code: string;
   country: string;
+  coordinates?: [number, number] | null;
   tax_id?: string;
   categories: string[];
   commission_rate: string;
@@ -64,20 +65,20 @@ export type BankAccount = {
 
 // Verification Document Type
 export type VerificationDocument = {
-  id?: string;
-  document_id?: string;
-  document_type: string;
-  file_name: string;
-  file_url?: string;
-  file_size?: number;
-  mime_type?: string;
-  expiry_date?: string;
-  notes?: string;
-  verification_status?: "pending" | "approved" | "rejected";
-  rejection_reason?: string;
-  submitted_at?: string;
-  verified_at?: string;
-  file_id?: string;
+  id?: string;                                      // Internal ID (not sent to API)
+  document_id?: string;                             // For existing documents from API
+  document_type: string;                            // REQUIRED: Type of document
+  document_url: string;                             // REQUIRED: URL to the document
+  file_name?: string;                              // Optional: For display purposes only
+  file_size?: number;                              // Optional: Size in bytes
+  mime_type?: string;                              // Optional: MIME type
+  expires_at?: string;                             // Optional: Expiration date
+  verification_status?: "pending" | "approved" | "rejected"; // Status
+  rejection_reason?: string;                       // Reason if rejected
+  submitted_at?: string;                           // When document was submitted
+  verified_at?: string;                            // When document was verified
+  file?: File;                                     // File object for upload (not sent to API)
+  file_id?: string;                                // Internal file ID
 };
 
 // Store Banner Type
@@ -123,6 +124,7 @@ export type Vendor = {
   state_province: string;
   postal_code: string;
   country: string;
+  coordinates?: [number, number] | null;
   tax_id?: string;
   categories?: string[];
   commission_rate?: number | string;

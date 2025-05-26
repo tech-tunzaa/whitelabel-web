@@ -137,12 +137,7 @@ export function FileUpload({
   };
   
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <div className="flex flex-col gap-1">
-        {label && <Label>{label}</Label>}
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
-      </div>
-      
+    <div className={cn("flex flex-col gap-2", className)}>      
       {/* File display when a file is selected */}
       {fileUrl ? (
         <div className="flex items-center justify-between p-3 border rounded-md bg-background hover:bg-accent/10 transition-colors">
@@ -169,7 +164,7 @@ export function FileUpload({
               size="icon"
               onClick={handlePreview}
               disabled={disabled || !fileUrl}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8"
             >
               <Eye className="h-4 w-4" />
               <span className="sr-only">Preview file</span>
@@ -182,7 +177,7 @@ export function FileUpload({
               size="icon"
               onClick={handleRemoveFile}
               disabled={disabled}
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 hover:bg-destructive/10"
             >
               <Trash className="h-4 w-4" />
               <span className="sr-only">Remove file</span>

@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
 import {
   Popover,
   PopoverContent,
@@ -45,7 +46,8 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  // Use the DateRange type from react-day-picker that the Calendar component expects
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const pageSize = 10;
 
   // Define tenant headers
@@ -56,20 +58,22 @@ export default function OrdersPage() {
   // Define filter based on active tab
   const getFilter = () => {
     if (activeTab === "all") return {};
-    return { status: activeTab };
+    return { status: activeTab as OrderStatus };
   };
 
   // Function to load orders
-  const loadOrders = async () => {
+  const loadOrders = async (showLoadingState = true) => {
     try {
-      setIsTabLoading(true);
+      if (showLoadingState) {
+        setIsTabLoading(true);
+      }
       setStoreError(null);
       const filter = getFilter();
       await fetchOrders({
         ...filter,
         search: searchQuery,
-        start_date: dateRange.from?.toISOString(),
-        end_date: dateRange.to?.toISOString(),
+        dateFrom: dateRange?.from?.toISOString(),
+        dateTo: dateRange?.to?.toISOString(),
       }, tenantHeaders);
     } catch (error) {
       console.error("Error loading orders:", error);
@@ -84,7 +88,9 @@ export default function OrdersPage() {
         setStoreError(error instanceof Error ? error : new Error("Failed to load orders"));
       }
     } finally {
-      setIsTabLoading(false);
+      if (showLoadingState) {
+        setIsTabLoading(false);
+      }
     }
   };
 
@@ -104,12 +110,22 @@ export default function OrdersPage() {
       const result = await updateOrderStatus(orderId, status, tenantHeaders);
       if (result) {
         toast.success(`Order status updated to ${status.replace(/_/g, ' ')}`);
+        
+        // Reload orders to ensure we have the latest data
+        // This will refresh the data while staying on the same tab
+        await loadOrders();
       }
-      
-      // No need to reload orders since updateOrderStatus already updates the state
     } catch (error) {
-      toast.error("Failed to update order status");
-      console.error("Failed to update order status:", error);
+      // Check if it's actually a successful response with parsing error
+      if ((error as any)?.response?.status === 200) {
+        toast.success(`Order status updated to ${status.replace(/_/g, ' ')}`);
+        // Even if there was a parsing error but API returned 200,
+        // reload the orders to get the latest data
+        await loadOrders();
+      } else {
+        toast.error("Failed to update order status");
+        console.error("Failed to update order status:", error);
+      }
     }
   };
   
@@ -119,10 +135,31 @@ export default function OrdersPage() {
     setCurrentPage(1); // Reset to first page when changing tabs
   };
   
-  // Initial load effect
+  // Effect for loading orders on initial page load
   useEffect(() => {
     if (tenantId) {
       loadOrders();
+      
+      // Check if we need to refresh orders after returning from order details page
+      const checkForRefreshFlag = () => {
+        const needsRefresh = localStorage.getItem('ordersNeedRefresh');
+        if (needsRefresh === 'true') {
+          // Clear the flag
+          localStorage.removeItem('ordersNeedRefresh');
+          // Refresh orders without showing loading state
+          loadOrders(false);
+        }
+      };
+      
+      // Check when the component mounts
+      checkForRefreshFlag();
+      
+      // Also check when window gains focus (user comes back to the tab)
+      window.addEventListener('focus', checkForRefreshFlag);
+      
+      return () => {
+        window.removeEventListener('focus', checkForRefreshFlag);
+      };
     }
   }, [tenantId]);
   
@@ -136,7 +173,7 @@ export default function OrdersPage() {
   // Determine which orders to show based on active tab
   const displayOrders = activeTab === "all" ? orders : orders.filter(order => order.status === activeTab);
 
-  if (loading && orders.length === 0) {
+  if (loading && !orders) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -147,14 +184,11 @@ export default function OrdersPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-center h-64">
-          <Spinner />
-        </div>
+        <Spinner />
       </div>
     );
   }
 
-  // Only show error card for real errors, not just empty results
   if (storeError && orders.length === 0 && !isTabLoading) {
     return (
       <div className="flex flex-col h-full">
@@ -198,16 +232,26 @@ export default function OrdersPage() {
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="relative w-full md:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search orders..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1); // Reset to first page when searching
-              }}
-            />
+            <div className="items-center gap-2 flex">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => loadOrders(false)}
+                title="Refresh orders"
+                className="relative"
+              >
+                <RefreshCw  />
+              </Button>
+              <Input
+                placeholder="Search orders..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1); // Reset to first page when searching
+                }}
+                className="w-[250px]"
+              />
+            </div>
           </div>
 
           <div className="flex space-x-2">
@@ -217,12 +261,12 @@ export default function OrdersPage() {
                   variant="outline"
                   className={cn(
                     "justify-start text-left font-normal",
-                    !dateRange.from && !dateRange.to && "text-muted-foreground"
+                    !dateRange?.from && !dateRange?.to && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange.from ? (
-                    dateRange.to ? (
+                  {dateRange?.from ? (
+                    dateRange?.to ? (
                       <>
                         {format(dateRange.from, "LLL dd, y")} -{" "}
                         {format(dateRange.to, "LLL dd, y")}
@@ -245,10 +289,10 @@ export default function OrdersPage() {
                 />
               </PopoverContent>
             </Popover>
-            {(dateRange.from || dateRange.to) && (
+            {(dateRange?.from || dateRange?.to) && (
               <Button
                 variant="ghost"
-                onClick={() => setDateRange({})}
+                onClick={() => setDateRange(undefined)}
               >
                 Reset
               </Button>

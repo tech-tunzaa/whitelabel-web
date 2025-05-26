@@ -22,11 +22,11 @@ interface VendorStore {
   uploadKycDocuments: (id: string, documents: VerificationDocument[], headers?: Record<string, string>) => Promise<void>;
   // Store related actions
   fetchStore: (id: string, headers?: Record<string, string>) => Promise<Store>;
-  createStore: (storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
+  createStore: (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
   updateStoreBranding: (storeId: string, data: Partial<StoreBranding>, headers?: Record<string, string>) => Promise<Store>;
   addStoreBanner: (storeId: string, data: Partial<StoreBanner>, headers?: Record<string, string>) => Promise<void>;
   deleteStoreBanner: (storeId: string, bannerId: string, headers?: Record<string, string>) => Promise<void>;
-  updateStore: (storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
+  updateStore: (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
   fetchStoreByVendor: (vendorId: string, headers?: Record<string, string>) => Promise<Store>;
 }
 
@@ -334,20 +334,25 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    createStore: async (storeData: Partial<Store>, headers?: Record<string, string>) => {
+    createStore: async (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('createStore');
         setLoading(true);
 
-        // Make API request to create a store
-        const response = await apiClient.post<ApiResponse>('/stores', storeData, { headers });
-
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to create store');
+        // Ensure vendor_id is available
+        if (!vendorId) {
+          throw new Error('Vendor ID is required to create a store');
         }
 
-        return response.data.data;
+        // Make API request to create a store with the correct endpoint pattern
+        const response = await apiClient.post<ApiResponse>(`/marketplace/vendors/${vendorId}/stores`, storeData, headers);
+
+        if (response.data && response.data.data) {
+          return response.data.data;
+        }
+
+        throw new Error(response.data?.message || 'Failed to create store');
       } catch (error: any) {
         setStoreError({
           action: 'createStore',
@@ -429,20 +434,25 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    updateStore: async (storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => {
+    updateStore: async (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('updateStore');
         setLoading(true);
 
-        // Make API request to update a store
-        const response = await apiClient.put<ApiResponse>(`/stores/${storeId}`, storeData, { headers });
-
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to update store');
+        // Ensure vendor_id is available for the correct endpoint
+        if (!vendorId) {
+          throw new Error('Vendor ID is required to update a store');
         }
 
-        return response.data.data;
+        // Make API request to update a store using the correct endpoint
+        const response = await apiClient.put<ApiResponse>(`/marketplace/vendors/${vendorId}/stores/${storeId}`, storeData, headers);
+
+        if (response.data && response.data.data) {
+          return response.data.data;
+        }
+
+        throw new Error(response.data?.message || 'Failed to update store');
       } catch (error: any) {
         setStoreError({
           action: 'updateStore',
@@ -459,20 +469,20 @@ export const useVendorStore = create<VendorStore>()(
     fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
-        setActiveAction('fetchStore');
+        setActiveAction('fetchOne'); // Using an existing action type
         setLoading(true);
 
-        // Make API request to get a store by vendor ID
-        const response = await apiClient.get<ApiResponse>(`/stores/vendor/${vendorId}`, { headers });
+        // Make API request to fetch a store by vendor using the correct endpoint
+        const response = await apiClient.get<ApiResponse>(`/marketplace/vendors/${vendorId}/stores`, undefined, headers);
 
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to fetch store');
+        if (response.data && response.data.data) {
+          return response.data.data;
         }
 
-        return response.data.data;
+        throw new Error(response.data?.message || 'Failed to fetch store');
       } catch (error: any) {
         setStoreError({
-          action: 'fetchStore',
+          action: 'fetchStoreByVendor',
           message: error.message || 'Failed to fetch store',
           status: error.response?.status
         });

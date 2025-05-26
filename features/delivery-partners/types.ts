@@ -45,6 +45,8 @@ export interface DeliveryPartnerFilter {
     search?: string
     status?: string
     type?: string
+    verification_status?: string
+    is_active?: boolean
 }
 
 export interface DeliveryPartnerListResponse {

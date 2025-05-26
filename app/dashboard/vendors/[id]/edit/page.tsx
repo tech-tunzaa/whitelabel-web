@@ -8,8 +8,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
-import { VendorFormNew } from "@/features/vendors/components/vendor-form";
+import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { useVendorStore } from "@/features/vendors/store";
+import { Store } from "@/features/vendors/types";
 
 interface VendorEditPageProps {
   params: {
@@ -25,6 +26,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
   const vendorId = params.id;
   const { vendor, loading, storeError } = vendorStore;
   const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [storeData, setStoreData] = useState<Store | null>(null);
   
   // Get tenant ID from session for the API header
   const tenantId = (session?.user as any)?.tenant_id;
@@ -40,9 +42,18 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
         headers['X-Tenant-ID'] = tenantId;
       }
       
-      vendorStore.fetchVendor(vendorId, headers).catch((error) => {
-        console.error("Error fetching vendor:", error);
-      });
+      // Fetch vendor data
+      vendorStore.fetchVendor(vendorId, headers)
+        .then(() => {
+          // Once vendor is fetched, fetch the associated store
+          return vendorStore.fetchStoreByVendor(vendorId, headers);
+        })
+        .then((store) => {
+          setStoreData(store);
+        })
+        .catch((error) => {
+          console.error("Error fetching vendor or store:", error);
+        });
     }
   }, [vendorId, vendorStore, fetchAttempted, tenantId]);
 
@@ -55,9 +66,29 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
         headers['X-Tenant-ID'] = tenantId;
       }
       
+      // First update the vendor
       await vendorStore.updateVendor(vendorId, data, headers);
-      toast.success("Vendor updated successfully");
+      
+      // If we have store data and it was included in the form submission, update the store too
+      if (storeData && data.store) {
+        try {
+          // Attempt to update the store with the vendor ID
+          await vendorStore.updateStore(
+            vendorId,
+            storeData.id || '',
+            data.store,
+            headers
+          );
+          toast.success("Vendor and store updated successfully");
+        } catch (storeError) {
+          console.error("Error updating store:", storeError);
+          toast.error("Vendor updated, but failed to update store.");
+        }
+      } else {
+        toast.success("Vendor updated successfully");
+      }
     } catch (error) {
+      console.error("Error updating vendor:", error);
       toast.error("Failed to update vendor. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -128,7 +159,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <VendorFormNew
+        <VendorForm
           onSubmit={handleSubmit}
           initialData={vendor as any}
           isSubmitting={isSubmitting}

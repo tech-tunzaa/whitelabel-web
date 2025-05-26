@@ -64,6 +64,7 @@ export const vendorFormSchema = z.object({
   state_province: z.string().min(1, "State/Province is required"),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
+  coordinates: z.tuple([z.number(), z.number()]).nullable().optional(),
 
   // Business information
   tax_id: z.string().optional(),

@@ -1,11 +1,11 @@
 export type OrderStatus =
   | "pending"
   | "processing"
-  | "cancelled"
+  | "confirmed"
   | "shipped"
   | "delivered"
-  | "returned"
   | "completed"
+  | "cancelled"
   | "refunded"
   | "partially_refunded";
 
@@ -19,14 +19,12 @@ export type PaymentMethod =
   | "mobile_money";
 
 export type PaymentStatus =
-  | "paid"
   | "pending"
+  | "authorized"
+  | "paid"
   | "failed"
   | "refunded"
-  | "partially_refunded"
-  | "authorized"
-  | "captured"
-  | "cancelled";
+  | "partially_refunded";
 
 export type ShippingMethod = "standard" | "express" | "free";
 
@@ -85,6 +83,16 @@ export interface PaymentDetails {
   notes?: string;
 }
 
+export interface DeliveryDetails {
+  partner_id: string;
+  cost: number;
+  status?: string;
+  tracking_number?: string;
+  estimated_delivery?: string;
+  actual_delivery?: string;
+  notes?: string;
+}
+
 export interface OrderItem {
   item_id: string;
   product_id: string;
@@ -135,10 +143,12 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_details: PaymentDetails;
+  delivery_details?: DeliveryDetails;
   refunds: Refund[];
   created_at: string;
   updated_at: string;
   notes?: string;
+  cancelled_at?: string;
 }
 
 export interface OrderListResponse {

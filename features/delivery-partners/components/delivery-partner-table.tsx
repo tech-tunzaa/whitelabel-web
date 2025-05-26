@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,445 +22,225 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, Filter, MoreHorizontal, Search, X } from "lucide-react";
-import { DeliveryPartner } from "../types/delivery-partner";
-import { useRouter } from "next/navigation";
+import { Check, MoreHorizontal, X } from "lucide-react";
+import { DeliveryPartner } from "../types";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[];
-  onApproveDeliveryPartner: (
-    id: string,
-    commissionPercent: number,
-    kycVerified: boolean
-  ) => void;
-  onRejectDeliveryPartner: (id: string) => void;
+  onPartnerClick: (partner: DeliveryPartner) => void;
+  onStatusChange: (partnerId: string, status: string, rejectionReason?: string) => void;
+  activeTab?: string;
 }
 
 export function DeliveryPartnerTable({
   deliveryPartners,
-  onApproveDeliveryPartner,
-  onRejectDeliveryPartner,
+  onPartnerClick,
+  onStatusChange,
+  activeTab = "all",
 }: DeliveryPartnerTableProps) {
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
   const isMobile = useIsMobile();
-
-  const filteredPartners = deliveryPartners.filter(
-    (partner) =>
-      partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      partner.userId.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const pendingPartners = filteredPartners.filter(
-    (partner) => !partner.kyc.verified
-  );
-  const activePartners = filteredPartners.filter(
-    (partner) => partner.kyc.verified
-  );
-  const rejectedPartners = filteredPartners.filter(
-    (partner) => partner.status === "rejected"
-  );
-
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [partnerToReject, setPartnerToReject] = useState<string | null>(null);
+  
+  // Handle partner rejection with reason
+  const handleRejectWithReason = () => {
+    if (partnerToReject) {
+      onStatusChange(partnerToReject, "rejected", rejectionReason);
+      setIsRejectDialogOpen(false);
+      setRejectionReason("");
+      setPartnerToReject(null);
+    }
+  };
+  
+  // Open rejection dialog
+  const openRejectDialog = (e: React.MouseEvent, partnerId: string) => {
+    e.stopPropagation();
+    setPartnerToReject(partnerId);
+    setIsRejectDialogOpen(true);
+  };
+  
+  // Status badges mapping
+  const getStatusBadge = (partner: DeliveryPartner) => {
+    if (partner.status === "active") {
+      return <Badge variant="success">Active</Badge>;
+    } else if (partner.status === "rejected") {
+      return <Badge variant="destructive">Rejected</Badge>;
+    } else if (partner.status === "suspended") {
+      return <Badge variant="outline">Suspended</Badge>;
+    } else {
+      return <Badge variant="warning">Pending</Badge>;
+    }
+  };
+  
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search delivery partners..."
-            className="pl-8 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <Filter className="h-3.5 w-3.5" />
-                <span>Filter</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <span className="mr-2">Status</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <span className="mr-2">Type</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <span className="mr-2">Registration Date</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="all">
-            All Partners
-            <Badge variant="secondary" className="ml-2">
-              {filteredPartners.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="pending">
-            Pending Applications
-            <Badge variant="secondary" className="ml-2">
-              {pendingPartners.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected
-            <Badge variant="secondary" className="ml-2">
-              {rejectedPartners.length}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="space-y-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Partner</TableHead>
-                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Commission
-                    </TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Registered
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPartners.map((partner) => (
-                    <TableRow
-                      key={partner.id}
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/delivery-partners/${partner.id}`
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={partner.profilePicture || "/placeholder.svg"}
-                              alt={partner.name}
-                            />
-                            <AvatarFallback>
-                              {partner.name.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">
-                              {partner.type}
-                            </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Partner</TableHead>
+                <TableHead className="hidden md:table-cell">Type</TableHead>
+                <TableHead className="hidden md:table-cell">Commission</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden md:table-cell">Registered</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {deliveryPartners && deliveryPartners.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-6">
+                    No delivery partners found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                deliveryPartners.map((partner) => (
+                  <TableRow
+                    key={partner._id}
+                    onClick={() => onPartnerClick(partner)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={partner.profilePicture || "/placeholder.svg"}
+                            alt={partner.name || "Partner"}
+                          />
+                          <AvatarFallback>
+                            {partner.name.substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div>{partner.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {partner.userId}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{partner.type}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {partner.commission_percent}%
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            partner.kyc.verified
-                              ? "success"
-                              : partner.status === "rejected"
-                              ? "destructive"
-                              : "warning"
-                          }
-                        >
-                          {partner.kyc.verified
-                            ? "Active"
-                            : partner.status === "rejected"
-                            ? "Rejected"
-                            : "Pending"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {new Date(partner.created_at).toLocaleDateString(
-                          "en-US",
-                          { year: "numeric", month: "2-digit", day: "2-digit" }
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="outline">{partner.type}</Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {partner.commissionPercent}%
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(partner)}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {new Date(partner.createdAt).toLocaleDateString(
+                        "en-US",
+                        { year: "numeric", month: "2-digit", day: "2-digit" }
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPartnerClick(partner);
+                            }}
+                          >
+                            View Details
+                          </DropdownMenuItem>
+                          
+                          {partner.status === "pending" && (
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(
-                                  `/dashboard/delivery-partners/${partner.id}/edit`
-                                );
+                                onStatusChange(partner._id, "approved");
                               }}
                             >
-                              Edit
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-                            {!partner.kyc.verified &&
-                              partner.status !== "rejected" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onApproveDeliveryPartner(
-                                        partner.id,
-                                        partner.commission_percent,
-                                        true
-                                      );
-                                    }}
-                                  >
-                                    Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onRejectDeliveryPartner(partner.id);
-                                    }}
-                                  >
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            {partner.kyc.verified && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(
-                                    `/dashboard/delivery-partners/${partner.id}/suspend`
-                                  )
-                                }
-                              >
-                                Suspend
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pending" className="space-y-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Partner</TableHead>
-                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Commission
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Registered
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingPartners.map((partner) => (
-                    <TableRow
-                      key={partner.id}
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/delivery-partners/${partner.id}`
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={partner.profilePicture || "/placeholder.svg"}
-                              alt={partner.name}
-                            />
-                            <AvatarFallback>
-                              {partner.name.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">
-                              {partner.type}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{partner.type}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {partner.commission_percent}%
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {new Date(partner.created_at).toLocaleDateString(
-                          "en-US",
-                          { year: "numeric", month: "2-digit", day: "2-digit" }
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onApproveDeliveryPartner(
-                                  partner.id,
-                                  partner.commission_percent,
-                                  true
-                                );
-                              }}
-                            >
+                              <Check className="mr-2 h-4 w-4 text-success" />
                               Approve
                             </DropdownMenuItem>
+                          )}
+                          
+                          {partner.status === "pending" && (
+                            <DropdownMenuItem
+                              onClick={(e) => openRejectDialog(e, partner._id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <X className="mr-2 h-4 w-4" />
+                              Reject
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {partner.status === "active" && (
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onRejectDeliveryPartner(partner.id);
+                                onStatusChange(partner._id, "suspended");
                               }}
                             >
-                              Reject
+                              <X className="mr-2 h-4 w-4" />
+                              Suspend
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rejected" className="space-y-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Partner</TableHead>
-                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Commission
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Registered
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rejectedPartners.map((partner) => (
-                    <TableRow
-                      key={partner.id}
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/delivery-partners/${partner.id}`
-                        )
-                      }
-                      className="cursor-pointer"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={partner.profilePicture || "/placeholder.svg"}
-                              alt={partner.name}
-                            />
-                            <AvatarFallback>
-                              {partner.name.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div>{partner.name}</div>
-                            <div className="text-xs text-muted-foreground md:hidden">
-                              {partner.type}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{partner.type}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {partner.commission_percent}%
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {new Date(partner.created_at).toLocaleDateString(
-                          "en-US",
-                          { year: "numeric", month: "2-digit", day: "2-digit" }
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => e.stopPropagation()}
+                          )}
+                          
+                          {partner.status === "suspended" && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStatusChange(partner._id, "active");
+                              }}
                             >
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                              <Check className="mr-2 h-4 w-4 text-success" />
+                              Activate
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+        
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Delivery Partner</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this delivery partner. This will be visible to the partner.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter rejection reason..."
+            className="min-h-[100px]"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRejectWithReason}
+              disabled={!rejectionReason.trim()}
+            >
+              Reject Partner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

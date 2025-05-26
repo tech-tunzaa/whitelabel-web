@@ -1,583 +1,411 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Button } from "./button"
-import { Label } from "./label"
-import { Input } from "./input"
+import * as React from "react"
+import { useState, useRef, useEffect } from "react"
+import { Upload, Loader, File, Calendar, Plus, Trash, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import {
-  Trash,
-  Eye,
-  Loader,
-  FileUp,
-  FileQuestion,
-  AlertTriangle,
-  Check,
-  Calendar,
-} from "lucide-react"
-import { format } from "date-fns"
-import { DocumentTypeIcon } from "./document-type-icon"
-import { FilePreviewModal } from "./file-preview-modal"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./select"
+import { FilePreviewModal } from "@/components/ui/file-preview-modal"
 
-export interface DocumentType {
+// Type definitions
+export type DocumentType = {
   id: string
-  label: string
-  requiresExpiry?: boolean
+  name: string
+  required?: boolean
+  description?: string
 }
 
 export interface DocumentWithMeta {
-  id?: string
+  id?: string // Used internally, not sent to backend
   document_id?: string
   document_type: string
-  file_name?: string
-  document_number?: string
-  expiry_date?: string
-  file_url?: string
+  file_name?: string // Used internally for display
+  expires_at?: string
   document_url?: string
   verification_status?: string
   submitted_at?: string
   rejection_reason?: string
-  file?: File
+  file?: File // Used internally for upload
   file_id?: string
 }
 
-export interface DocumentUploadProps {
-  formId: string
+export interface DocumentUploadNewProps {
+  id: string
   label?: string
   description?: string
   documentTypes: DocumentType[]
   existingDocuments?: DocumentWithMeta[]
-  onRemoveExistingDocument?: (documentId: string) => void
-  onDocumentsChange?: (files: DocumentWithMeta[]) => void
-  disabled?: boolean
+  onDocumentsChange: (documents: DocumentWithMeta[]) => void
+  onRemoveDocument?: (documentId: string) => void
   className?: string
-  autoUpload?: boolean
+  disabled?: boolean
 }
 
 export function DocumentUpload({
-  formId,
+  id,
   label = "Upload Documents",
   description,
   documentTypes,
   existingDocuments = [],
-  onRemoveExistingDocument,
   onDocumentsChange,
-  disabled = false,
-  className,
-  autoUpload = true,
-}: DocumentUploadProps) {
-  // State for modals
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
+  onRemoveDocument,
+  className = "",
+  disabled = false
+}: DocumentUploadNewProps) {
+  // State management - simplified
+  const [documents, setDocuments] = useState<DocumentWithMeta[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isAddingDocument, setIsAddingDocument] = useState(false)
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>("")
+  const [expires_at, setExpires_at] = useState<string>("") // Use string for date input
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [previewFile, setPreviewFile] = useState<{src: string, alt: string} | null>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   
-  // Internal state for newly uploaded files
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{
-    id: string;
-    name: string;
-    size: number;
-    type?: string;
-    document_type?: string;
-    expiry_date?: string;
-    progress?: number;
-    status: 'uploading' | 'success' | 'error';
-    error?: string;
-    url?: string;
-  }>>([]);
+  // Initialize with existing documents exactly as they are
+  useEffect(() => {
+    // Only update if we get a non-empty array to avoid clearing local state
+    if (existingDocuments && existingDocuments.length > 0) {
+      setDocuments(existingDocuments)
+    }
+  }, [existingDocuments])
 
-  // Reference to track if component is mounted
-  const isMountedRef = useRef(true);
-  
-  // Make sure we clean up URLs on unmount
-  useEffect(() => {
-    return () => {
-      // Mark component as unmounted
-      isMountedRef.current = false;
-      
-      // Clean up any object URLs to prevent memory leaks
-      uploadedFiles.forEach(file => {
-        if (file.url && file.url.startsWith('blob:')) {
-          URL.revokeObjectURL(file.url);
-        }
-      });
-    };
-  }, [uploadedFiles]);
-  
-  // Debug log for component lifecycle
-  useEffect(() => {
-    console.log(`DocumentUpload (${formId}) - Mounted`);
-    console.log("- existingDocuments:", existingDocuments);
-    console.log("- uploadedFiles:", uploadedFiles);
-    
-    // Immediately notify parent when component is mounted
-    if (uploadedFiles.length > 0) {
-      notifyParentOfChanges();
+  const handlePreviewDocument = (url?: string, name?: string) => {
+    if (!url) return
+    // Just set the source and alt text for the FilePreviewModal
+    setPreviewFile({ src: url, alt: name || "Document" })
+    setIsPreviewOpen(true)
+  }
+
+  const closePreview = () => {
+    setIsPreviewOpen(false)
+    setPreviewFile(null)
+  }
+
+  // Handle file selection - now just saves the file reference without uploading
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      setError(null)
+      return
     }
     
-    return () => {
-      console.log(`DocumentUpload (${formId}) - Unmounted`);
-    };
-  }, []);
-
-  // Simple file change handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
-    if (!fileList || fileList.length === 0) return;
+    // Check file size (max 10MB)
+    const maxSizeMB = 10
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      setError(`File is too large. Maximum size is ${maxSizeMB}MB.`)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+      return
+    }
     
-    console.log("Files selected:", fileList);
-    
-    // Process each file
-    Array.from(fileList).forEach(file => {
-      const fileId = `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      
-      // Add to internal state first
-      setUploadedFiles(prev => [
-        ...prev,
-        {
-          id: fileId,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          status: 'uploading',
-          progress: 0
-        }
-      ]);
-      
-      // Simulate file upload completion immediately instead of with timeout
-      // This resolves the issue with files appearing to upload indefinitely
-      setUploadedFiles(prev => 
-        prev.map(f => 
-          f.id === fileId
-            ? { 
-                ...f, 
-                status: 'success',
-                progress: 100,
-                url: URL.createObjectURL(file) // This creates a local URL for preview
-              }
-            : f
-        )
-      );
-      
-      // Notify parent of changes right away
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          notifyParentOfChanges();
-        }
-      }, 100);
-    });
-    
-    // Reset input
-    e.target.value = "";
-  };
+    // Clear any previous errors
+    setError(null)
+  }
   
-  // Utility to notify parent about all documents
-  const notifyParentOfChanges = useCallback(() => {
-    if (!onDocumentsChange) return;
+  // Handle document upload - bare minimum
+  const handleUploadDocument = () => {
+    // Get the file from the input
+    const file = fileInputRef.current?.files?.[0]
     
-    // Convert internal format to expected output format
-    const allDocuments = [
-      // Format uploaded files to match DocumentWithMeta
-      ...uploadedFiles.map(file => ({
-        file_id: file.id,
-        document_id: file.id,
-        document_type: file.document_type || "",
+    // Basic validation
+    if (!file || !selectedDocumentType) {
+      setError(!file ? "Please select a file" : "Please select a document type")
+      return
+    }
+    
+    try {
+      setIsUploading(true)
+      setError(null)
+      
+      // Create a blob URL
+      const localUrl = URL.createObjectURL(file)
+      
+      // Create basic document object
+      const newDoc = {
+        id: `upload-${Date.now()}`,
+        document_type: selectedDocumentType,
+        document_url: localUrl,
         file_name: file.name,
-        file_url: file.url || "",
-        expiry_date: file.expiry_date,
-        verification_status: "pending" as const,
-        submitted_at: new Date().toISOString()
-      }))
-    ];
-    
-    console.log("Notifying parent about documents:", allDocuments);
-    onDocumentsChange(allDocuments);
-  }, [onDocumentsChange, uploadedFiles]);
-  
-  // Handle document updates (document type, expiry date)
-  const handleUpdateDocumentMeta = useCallback((fileId: string, updates: Partial<{
-    document_type: string;
-    expiry_date?: string;
-  }>) => {
-    setUploadedFiles(prev => 
-      prev.map(file => 
-        file.id === fileId
-          ? { ...file, ...updates }
-          : file
-      )
-    );
-    
-    // Notify parent after a short delay to ensure state is updated
-    setTimeout(notifyParentOfChanges, 100);
-  }, [notifyParentOfChanges]);
-  
-  // Remove file handler
-  const handleRemoveFile = useCallback((fileId: string) => {
-    setUploadedFiles(prev => {
-      // Find file before removing to release object URL if needed
-      const fileToRemove = prev.find(f => f.id === fileId);
-      if (fileToRemove?.url && fileToRemove.url.startsWith('blob:')) {
-        URL.revokeObjectURL(fileToRemove.url);
+        verification_status: "pending",
+        file: file
       }
       
-      return prev.filter(file => file.id !== fileId);
-    });
-    
-    // Notify parent after a short delay to ensure state is updated
-    setTimeout(notifyParentOfChanges, 100);
-  }, [notifyParentOfChanges]);
-  
-  // Preview file handlers
-  const handlePreviewFile = (url: string | undefined, name: string | undefined) => {
-    if (!url) return;
-    
-    // For relative URLs, make sure to include the base URL
-    let fullUrl = url;
-    if (url && !url.startsWith('http') && !url.startsWith('blob:') && !url.startsWith('data:')) {
-      // If it's a relative URL, construct the full URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      fullUrl = `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+      // Add expires_at if provided
+      if (expires_at) {
+        newDoc.expires_at = expires_at
+      }
+      
+      // Update state and notify parent
+      const updatedDocs = [...documents, newDoc]
+      setDocuments(updatedDocs)
+      onDocumentsChange(updatedDocs)
+      
+      // Reset form
+      setSelectedDocumentType("")
+      setExpires_at("") // Reset date input
+      setIsAddingDocument(false)
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+      
+      // Integrate with file upload service when ready
+      // For now, we'll keep the local URL
+      
+      /* Uncomment this section to integrate with the upload API
+      const response = await uploadFile(file, true)
+      
+      // Update with server URL
+      const updatedDoc = {
+        ...tempDoc,
+        file_url: response.fileCDNUrl,
+        document_url: response.fileCDNUrl
+      }
+      
+      // Update the document with the server URL
+      const serverUpdatedFiles = uploadedFiles.map((doc: DocumentWithMeta) => 
+        doc.id === uploadId ? updatedDoc : doc
+      )
+      
+      setUploadedFiles(serverUpdatedFiles)
+      onDocumentsChange(serverUpdatedFiles)
+      */
+    } catch (err) {
+      console.error("Document upload error:", err)
+      setError(err instanceof Error ? err.message : "Failed to upload document")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+   
+  // Remove document - bare minimum
+  const handleRemoveDocument = (docToRemove: DocumentWithMeta) => {
+    // Revoke blob URL if needed
+    if (docToRemove.document_url?.startsWith('blob:')) {
+      URL.revokeObjectURL(docToRemove.document_url)
     }
     
-    setPreviewFile({ 
-      url: fullUrl, 
-      name: name || "Document" 
-    });
-    setIsPreviewOpen(true);
-  };
+    // Filter out the document
+    const updatedDocs = documents.filter(doc => doc.id !== docToRemove.id)
+    setDocuments(updatedDocs)
+    onDocumentsChange(updatedDocs)
+    
+    // Call removal callback if needed
+    if (onRemoveDocument && docToRemove.document_id) {
+      onRemoveDocument(docToRemove.document_id)
+    }
+  }
   
-  const handleClosePreview = () => {
-    setIsPreviewOpen(false);
-    setPreviewFile(null);
-  };
-  
-  // Accepted file types
-  const acceptedFileTypes = ".pdf,.jpg,.jpeg,.png,.gif,.webp";
-  
-  // Render the component
+  // Update document - bare minimum
+  const handleUpdateDocument = (docId: string, updates: Partial<DocumentWithMeta>) => {
+    const updatedDocs = documents.map(doc => doc.id === docId ? { ...doc, ...updates } : doc)
+    setDocuments(updatedDocs)
+    onDocumentsChange(updatedDocs)
+  }
+
   return (
-    <div key={existingDocuments.length} className={cn("flex flex-col gap-4", className)}>
-      {/* Debug Info - helpful for troubleshooting */}
-      <div className="text-xs text-muted-foreground mb-2">
-        <p>Existing docs count: {existingDocuments.length}</p>
-        <p>Uploaded files count: {uploadedFiles.length}</p>
+    <div className={cn("space-y-4", className)}>
+      {/* Section header */}
+      <div className="flex justify-end items-center mb-2">        
+        {/* Add document button */}
+        <Dialog open={isAddingDocument} onOpenChange={setIsAddingDocument}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1 hover:bg-primary/10"
+              disabled={disabled}
+            >
+              <Plus className="h-4 w-4" />
+              Add Document
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload New Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* File upload input */}
+              <div className="space-y-2">
+                <Label htmlFor="document-file">Document File</Label>
+                <Input
+                  ref={fileInputRef}
+                  id="document-file"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Accepted formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10MB)
+                </p>
+              </div>
+              
+              {/* Document type selector */}
+              <div className="space-y-2">
+                <Label htmlFor="document-type">Document Type</Label>
+                <Select 
+                  value={selectedDocumentType} 
+                  onValueChange={setSelectedDocumentType}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentTypes.map(type => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Date input for expires at */}
+              <div className="space-y-2">
+                <Label htmlFor="expiry-date">Expires At (if applicable)</Label>
+                <Input
+                  id="expiry-date"
+                  type="date"
+                  value={expires_at}
+                  onChange={(e) => setExpires_at(e.target.value)}
+                  className="w-full"
+                  disabled={!selectedDocumentType || isUploading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional - for documents with an expiration date
+                </p>
+              </div>
+              
+              {/* Error display */}
+              {error && (
+                <div className="text-sm text-destructive">{error}</div>
+              )}
+              
+              {/* Upload status */}
+              {isUploading && (
+                <div className="flex items-center justify-center p-2">
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Uploading document...</span>
+                </div>
+              )}
+              
+              {/* Upload button */}
+              <Button 
+                onClick={handleUploadDocument}
+                disabled={isUploading || !selectedDocumentType}
+                className="w-full mt-2"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Document
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
       
-      {/* Existing Documents Display */}
-      {existingDocuments.length > 0 && (
-        <div className="mb-6">
-          <h4 className="text-md font-medium mb-2">Existing Documents</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {existingDocuments.map((doc, index) => {
-              const docId = doc.document_id || doc.id || `existing-doc-${index}`;
-              const documentUrl = doc.file_url || doc.document_url || "";
-              const documentType = documentTypes.find((t) => t.id === doc.document_type);
-              
-              return (
+      {/* Documents list */}
+      {documents.length > 0 ? (
+        <div className="space-y-2">
+          <ScrollArea className="max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
+              {documents.map((doc) => (
                 <div 
-                  key={docId} 
-                  className="border rounded-md p-3 bg-background hover:bg-accent/5 transition-colors"
+                  key={doc.id || doc.document_url} 
+                  className="flex items-center justify-between p-3 rounded-md border bg-card transition-colors hover:bg-accent/10 group"
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <div className="flex gap-2 items-center">
-                        <div className="bg-primary/10 p-2 rounded-md">
-                          <DocumentTypeIcon 
-                            fileName={doc.file_name || ""} 
-                            mimeType="" 
-                            size={16} 
-                            className="text-primary" 
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">
-                            {documentType?.label || doc.document_type || "Document"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {doc.file_name || "Document"}
-                          </p>
-                          {doc.document_number && (
-                            <p className="text-xs text-muted-foreground">
-                              #{doc.document_number}
-                            </p>
-                          )}
-                          {doc.expiry_date && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                {new Date(doc.expiry_date).toLocaleDateString()}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-primary/10 text-primary">
+                      <File className="h-8 w-8" />
                     </div>
-                    <div className="flex gap-2">
-                      {/* Preview button */}
-                      {documentUrl && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          onClick={() => handlePreviewFile(documentUrl, doc.file_name)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">Preview</span>
-                        </Button>
-                      )}
-                      
-                      {/* Remove button */}
-                      {onRemoveExistingDocument && (
-                        <Button 
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => onRemoveExistingDocument(docId)}
-                          disabled={disabled}
-                        >
-                          <Trash className="h-4 w-4" />
-                          <span className="sr-only">Remove</span>
-                        </Button>
+                    
+                    {/* Document information */}
+                    <div className="flex-1 min-w-0">  {/* Added min-width for proper truncation */}
+                      <div className="font-medium flex items-center gap-1">
+                        {documentTypes.find(t => t.id === doc.document_type)?.name || doc.document_type}
+                        {!doc.document_id ? (
+                          <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">New</span>
+                        ) : null }
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {doc.file_name || ""}
+                      </div>
+                      {doc.expires_at && (
+                        <div className="text-xs flex items-center text-muted-foreground">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Expires: {doc.expires_at}
+                        </div>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Action buttons with improved visual feedback */}
+                  <div className="flex gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                    {/* Preview button - with type="button" to prevent form submission */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent any form submission
+                        handlePreviewDocument(doc.document_url, doc.file_name);
+                      }} 
+                      disabled={disabled || !doc.document_url}
+                      className="h-8 w-8"
+                      title="Preview document"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span className="sr-only">Preview</span>
+                    </Button>
+                    
+                    {/* Delete button - with type="button" to prevent form submission */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent any form submission
+                        e.stopPropagation(); // Stop event bubbling
+                        handleRemoveDocument(doc);
+                      }}
+                      disabled={disabled}
+                      className="h-8 w-8 hover:bg-destructive/10"
+                      title="Delete document"
+                    >
+                      <Trash className="h-4 w-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-6 border border-dashed rounded-md">
+          <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">No documents uploaded</p>
+          <p className="text-xs text-muted-foreground mt-1">Click "Add Document" to upload</p>
         </div>
       )}
       
-      {/* Upload Area */}
-      <div className="space-y-1">
-        <Label className="text-base">{label}</Label>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
-      </div>
-      
-      {/* File Drop Area */}
-      <div className="border rounded-lg p-4 mb-4">
-        <div className="flex items-center justify-center w-full">
-          <label
-            htmlFor="file-upload-main"
-            className={cn(
-              "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-background hover:bg-accent/10 transition-colors",
-              disabled && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-              <FileUp className="w-8 h-8 text-muted-foreground mb-2" />
-              <p className="mb-2 text-sm text-center text-muted-foreground">
-                <span className="font-medium">Click to upload</span> or drag and drop
-              </p>
-              <p className="text-xs text-center text-muted-foreground">
-                PDF, Images (.jpg, .png, .pdf)
-                <span className="ml-1">(Max size: 10MB)</span>
-              </p>
-            </div>
-            <Input
-              id="file-upload-main"
-              type="file"
-              className="hidden"
-              onChange={handleFileChange}
-              accept={acceptedFileTypes}
-              disabled={disabled}
-              multiple
-            />
-          </label>
-        </div>
-      </div>
-      
-      {/* Uploaded Files List */}
-      <div className="space-y-4 pt-2">
-        {uploadedFiles.length > 0 ? (
-          <div className="space-y-4">
-            <h4 className="font-medium">Uploaded Documents</h4>
-            {uploadedFiles.map((file) => {
-              const isUploading = file.status === 'uploading';
-              const isUploaded = file.status === 'success';
-              const hasError = file.status === 'error';
-              
-              return (
-                <div
-                  key={file.id}
-                  className={cn(
-                    "border rounded-lg p-3",
-                    hasError && "border-destructive bg-destructive/5"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={cn(
-                        "rounded-md p-2 flex-shrink-0",
-                        hasError ? "bg-destructive/10" : "bg-primary/10"
-                      )}>
-                        <DocumentTypeIcon 
-                          fileName={file.name} 
-                          mimeType={file.type || ""} 
-                          size={16}
-                          className={hasError ? "text-destructive" : "text-primary"} 
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="font-medium text-sm truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </p>
-
-                        {/* Document Type and Expiry Date sections */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {/* Document Type Selection */}
-                          <div className="pt-2 space-y-1">
-                            <Label
-                              htmlFor={`doc-type-${file.id}`}
-                              className="text-xs font-normal"
-                            >
-                              Document Type
-                            </Label>
-                            <Select
-                              value={file.document_type || ""}
-                              onValueChange={(value) => {
-                                handleUpdateDocumentMeta(file.id, {
-                                  document_type: value,
-                                });
-                              }}
-                              disabled={disabled || isUploading}
-                            >
-                              <SelectTrigger 
-                                id={`doc-type-${file.id}`}
-                                className="h-8 text-sm"
-                              >
-                                <SelectValue placeholder="Select document type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {documentTypes.map((type) => (
-                                  <SelectItem key={type.id} value={type.id}>
-                                    {type.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Expiry Date Field */}
-                          <div className="pt-2 space-y-1">
-                            <Label
-                              htmlFor={`doc-expiry-${file.id}`}
-                              className="text-xs font-normal"
-                            >
-                              Expiry Date
-                            </Label>
-                            <Input
-                              id={`doc-expiry-${file.id}`}
-                              type="date"
-                              value={file.expiry_date ? file.expiry_date.split('T')[0] : ''}
-                              onChange={(e) => {
-                                handleUpdateDocumentMeta(file.id, {
-                                  expiry_date: e.target.value ? new Date(e.target.value).toISOString() : undefined,
-                                });
-                              }}
-                              className="h-8 text-sm"
-                              disabled={disabled || isUploading}
-                            />
-                            {file.expiry_date && (
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(file.expiry_date), "PPP")}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {/* Preview button */}
-                      {isUploaded && file.url && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          onClick={() => handlePreviewFile(file.url, file.name)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">Preview</span>
-                        </Button>
-                      )}
-                      
-                      {/* Remove button */}
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleRemoveFile(file.id)}
-                        disabled={disabled || isUploading}
-                      >
-                        <Trash className="h-4 w-4" />
-                        <span className="sr-only">Remove</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Upload Status Indicator */}
-                  <div className="mt-2">
-                    {isUploading && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader className="h-3 w-3 animate-spin" />
-                        <span>Uploading...</span>
-                        {typeof file.progress === 'number' && (
-                          <span>{Math.round(file.progress)}%</span>
-                        )}
-                      </div>
-                    )}
-
-                    {hasError && (
-                      <div className="flex items-center gap-2 text-xs text-destructive">
-                        <AlertTriangle className="h-3 w-3" />
-                        <span>{file.error || "Upload failed"}</span>
-                      </div>
-                    )}
-
-                    {isUploaded && (
-                      <div className="flex items-center gap-2 text-xs text-emerald-600">
-                        <Check className="h-3 w-3" />
-                        <span>Upload complete</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-6 border border-dashed rounded-md">
-            <FileQuestion className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No documents uploaded yet
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* File Preview Modal */}
-      {previewFile && (
-        <FilePreviewModal 
+      {/* Use FilePreviewModal instead of custom dialog */}
+      {isPreviewOpen && previewFile && (
+        <FilePreviewModal
+          src={previewFile.src}
+          alt={previewFile.alt}
           isOpen={isPreviewOpen}
-          onClose={handleClosePreview}
-          src={previewFile.url}
-          alt={previewFile.name}
+          onClose={closePreview}
         />
       )}
     </div>
-  );
+  )
 }

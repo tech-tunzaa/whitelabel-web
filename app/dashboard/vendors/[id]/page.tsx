@@ -9,7 +9,7 @@ import {
   Check,
   X,
   Edit,
-  Store,
+  Store as StoreIcon,
   Phone,
   Mail,
   Globe,
@@ -54,7 +54,7 @@ import { toast } from "sonner";
 import { ErrorCard } from "@/components/ui/error-card";
 
 import { useVendorStore } from "@/features/vendors/store";
-import { Vendor, VerificationDocument } from "@/features/vendors/types";
+import { Vendor, VerificationDocument, Store as VendorStore } from "@/features/vendors/types";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
@@ -71,9 +71,11 @@ export default function VendorPage({ params }: VendorPageProps) {
   const tenant_id = session?.data?.user?.tenant_id;
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
-  const { vendor, loading, storeError, fetchVendor, updateVendorStatus } =
+  const { vendor, loading, storeError, fetchVendor, updateVendorStatus, fetchStoreByVendor } =
     useVendorStore();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [storeData, setStoreData] = useState<VendorStore | null>(null);
+  const [storeLoading, setStoreLoading] = useState(false);
   
   // UI States
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,9 +105,25 @@ export default function VendorPage({ params }: VendorPageProps) {
     // Only fetch if not already fetched
     if (!fetchRequestRef.current) {
       fetchRequestRef.current = true;
-      fetchVendor(id, tenantHeaders);
+      
+      // First fetch the vendor data
+      fetchVendor(id, tenantHeaders)
+        .then(() => {
+          // Then fetch the store data using the vendor ID
+          setStoreLoading(true);
+          return fetchStoreByVendor(id, tenantHeaders);
+        })
+        .then((store) => {
+          setStoreData(store);
+        })
+        .catch((error) => {
+          console.error('Error fetching vendor or store data:', error);
+        })
+        .finally(() => {
+          setStoreLoading(false);
+        });
     }
-  }, [id, fetchVendor]);
+  }, [id, fetchVendor, fetchStoreByVendor]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {

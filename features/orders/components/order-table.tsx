@@ -115,15 +115,15 @@ export function OrderTable({
   // Get status badge variant
   const getStatusVariant = (status: string) => {
     const variantMap: Record<string, string> = {
-      "pending": "default",
+      "pending": "outline",
       "processing": "secondary",
       "confirmed": "default",
-      "shipped": "secondary",
+      "shipped": "primary",
       "delivered": "secondary",
-      "completed": "default",
+      "completed": "success",
       "cancelled": "destructive",
-      "refunded": "destructive",
-      "partially_refunded": "destructive",
+      "refunded": "warning",
+      "partially_refunded": "warning",
     };
     
     return variantMap[status] || "secondary";

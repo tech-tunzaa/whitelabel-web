@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray, Control } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Control } from "react-hook-form";
 import { Spinner } from "@/components/ui/spinner";
 import { Plus, Trash } from "lucide-react";
 
@@ -37,7 +37,8 @@ import { RequiredField } from "@/components/ui/required-field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { DocumentUpload, DocumentWithMeta } from "@/components/ui/document-upload";
+import { MapPicker } from "@/components/ui/map-picker";
+import { DocumentUpload, DocumentWithMeta, DocumentType } from "@/components/ui/document-upload";
 import { FileUpload } from "@/components/ui/file-upload";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
@@ -53,17 +54,23 @@ import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
 
 // Define the VerificationDocument type to match expected structure
+// Import the proper VerificationDocument type from types.ts
+import { VerificationDocument as VendorVerificationDocument } from "../types";
+
+// Define local type for documents that includes ALL necessary fields
+// This ensures proper TypeScript compatibility throughout the form
 type VerificationDocument = {
   id?: string;
   document_id?: string;
   document_type: string;
+  document_url: string;
   file_name: string;
   file_url?: string;
-  document_url?: string;
-  document_number?: string;
+  expires_at?: string;
   expiry_date?: string;
   verification_status?: "pending" | "approved" | "rejected";
   rejection_reason?: string;
+  file?: File;
   file_id?: string;
 };
 
@@ -75,7 +82,7 @@ interface VendorFormProps {
   isSubmitting?: boolean;
 }
 
-export function VendorFormNew({
+export function VendorForm({
   onSubmit,
   onCancel,
   initialData,
@@ -125,8 +132,8 @@ export function VendorFormNew({
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
-  // State for uploaded documents that need to persist between tab changes
-  const [tempUploadedDocuments, setTempUploadedDocuments] = useState<DocumentWithMeta[]>([]);
+  // We'll use React Hook Form's built-in state management instead of temporary state
+  // This ensures form values are preserved between tab navigations
   
   // Determine if form is submitting from either external or internal state
   const isSubmitting = externalIsSubmitting || internalIsSubmitting;
@@ -225,7 +232,7 @@ export function VendorFormNew({
   // Get API functions from store
   const { createVendor, updateVendor, createStore } = useVendorStore();
 
-  // Navigation functions
+  // Navigation functions - simplified with direct form state usage
   const nextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1) return;
@@ -297,7 +304,7 @@ export function VendorFormNew({
     return activeTab;
   };
 
-  // Handle form submission with error handling and validation navigation - matching tenant form
+  // Handle form submission with minimal data processing
   const handleFormSubmit = useCallback(
     async (data: VendorFormValues, e?: React.BaseSyntheticEvent) => {
       try {
@@ -307,33 +314,16 @@ export function VendorFormNew({
         // Make a clean copy of form data
         const dataToSubmit = JSON.parse(JSON.stringify(data));
         
-        // Force commission_rate to be a string - using multiple approaches to ensure it works
-        if (dataToSubmit.commission_rate !== undefined) {
-          // First convert to string
-          dataToSubmit.commission_rate = String(dataToSubmit.commission_rate);
-          
-          // Then override the property descriptor to prevent conversion
-          Object.defineProperty(dataToSubmit, 'commission_rate', {
-            value: dataToSubmit.commission_rate,
-            writable: false,
-            configurable: false
-          });
-        }
-
         // For non-superOwner users, set tenant_id from session
         if (!isSuperOwner && tenantId) {
           dataToSubmit.tenant_id = tenantId;
         }
         
-        // Process files: Extract actual File objects to handle separately
-        const filesToUpload: File[] = [];
-        
+        // The only processing we do is remove the file object references since they can't be JSON serialized
         if (dataToSubmit.verification_documents) {
           dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
-            // If this document has an actual File object, save it for upload
             if (doc.file) {
-              filesToUpload.push(doc.file);
-              // Clone the document without the file property 
+              // Remove file property but keep everything else unchanged
               const { file, ...docWithoutFile } = doc;
               return docWithoutFile;
             }
@@ -341,8 +331,7 @@ export function VendorFormNew({
           });
         }
 
-        console.log("Submitting vendor data:", dataToSubmit);
-        console.log("Files to upload:", filesToUpload.length);
+        console.log("Submitting vendor data with documents:", dataToSubmit.verification_documents);
         
         await onSubmit(dataToSubmit);
         
@@ -413,6 +402,16 @@ export function VendorFormNew({
     try {
       setInternalIsSubmitting(true);
       setFormError(null);
+      
+      // CRITICAL FIX: Get documents directly from form state before any serialization
+      // This ensures we preserve all fields that might be lost in the form submission process
+      const documentsFromState = form.getValues("verification_documents") || [];
+      console.log("Documents from direct form state:", documentsFromState);
+      
+      // Replace documents in the data with our direct reference
+      if (documentsFromState.length > 0) {
+        data.verification_documents = documentsFromState;
+      }
 
       // Generate random password if it's a new vendor
       if (!initialData || !initialData.id) {
@@ -426,13 +425,24 @@ export function VendorFormNew({
         };
       }
 
-      // For any documents that don't have verification_status, set to pending
-      if (data.verification_documents) {
-        data.verification_documents = data.verification_documents.map(doc => ({
-          ...doc,
-          file_name: doc.file_name || "",  // Ensure file_name is never undefined
-          verification_status: doc.verification_status || "pending"
-        }));
+      // Just remove the file property, nothing else
+      if (data.verification_documents && data.verification_documents.length > 0) {
+        console.log("Documents before final processing:", data.verification_documents);
+        
+        // Simply remove file property which can't be sent to API
+        data.verification_documents = data.verification_documents.map(doc => {
+          // Make a direct copy of the document
+          const docCopy = {...doc};
+          
+          // Only remove the file property, keep everything else
+          if (docCopy.file) {
+            delete docCopy.file;
+          }
+          
+          return docCopy;
+        });
+        
+        console.log("Final documents for submission:", data.verification_documents);
       }
 
       // Call the parent's onSubmit to handle the submission
@@ -442,8 +452,8 @@ export function VendorFormNew({
       if (!initialData?.id && vendorResponse && 'vendor_id' in vendorResponse) {
         try {
           // Create store with the vendor_id from the response
+          const vendorId = vendorResponse.vendor_id;
           const storeData = {
-            vendor_id: vendorResponse.vendor_id,
             store_name: data.store.store_name,
             store_slug: data.store.store_slug,
             description: data.store.description,
@@ -453,7 +463,7 @@ export function VendorFormNew({
           
           // Call API to create store using the store function from vendor store
           const tenantHeaders = { "X-Tenant-ID": tenantId };
-          await createStore(storeData, tenantHeaders);
+          await createStore(vendorId, storeData, tenantHeaders);
           toast.success("Vendor and store created successfully");
         } catch (error) {
           console.error("Failed to create store:", error);
@@ -471,75 +481,120 @@ export function VendorFormNew({
     }
   };
 
-  // Handle document changes - completely rewritten to use parent state
-  const handleDocumentsChange = useCallback((documents: DocumentWithMeta[] & Record<string, any>[]) => {
-    // Skip if no documents or empty array
-    if (!documents || documents.length === 0) return;
+  // Handle document changes - improved to fix document persistence between tabs
+  const handleDocumentsChange = useCallback((newDocuments: DocumentWithMeta[] & Record<string, any>[]) => {
+    // Skip if no documents received
+    if (!newDocuments) {
+      console.log("No documents received, skipping update");
+      return;
+    }
     
-    console.log("Received document changes:", documents);
+    // Get current documents from form
+    const currentFormDocs = form.getValues("verification_documents") || [];
+    console.log("Current form documents:", currentFormDocs);
+    console.log("Received new documents:", newDocuments);
     
-    // Update the temp documents state to persist between tab changes
-    setTempUploadedDocuments(documents);
+    // Create a map of existing documents by ID for quick lookup
+    const existingDocsMap = new Map();
+    currentFormDocs.forEach(doc => {
+      if (doc.document_id) {
+        existingDocsMap.set(doc.document_id, doc);
+      }
+      if (doc.id) {
+        existingDocsMap.set(doc.id, doc);
+      }
+    });
     
-    // Get the current documents in the form
-    const currentDocs = form.getValues("verification_documents") || [];
-    
-    // Process each document for form submission
-    const newDocs = documents.map(doc => {
-      if (!doc.file_name) return null; // Skip invalid documents
+    // Process new documents while preserving existing document properties
+    const processedDocs = newDocuments.map(doc => {
+      // Skip invalid documents
+      if (!doc.file_name) return null;
       
-      // Create a clean document object with only the properties we need
-      return {
-        id: doc.file_id || doc.document_id || doc.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        document_id: doc.document_id || doc.file_id || doc.id || `doc-id-${Date.now()}`,
+      // Check if this is an existing document we already know about
+      const existingDoc = doc.document_id ? existingDocsMap.get(doc.document_id) : null;
+      
+      // For existing documents, preserve critical properties like document_id
+      if (existingDoc && doc.document_id) {
+        console.log("Preserving existing document:", doc.document_id);
+        return {
+          ...doc,
+          // Ensure document_id is preserved for existing documents
+          document_id: doc.document_id
+        };
+      }
+      
+      // For new uploads, ensure they have proper structure
+      const docId = doc.id || doc.file_id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      
+      // Create clean document object with all required fields properly named
+      // CRITICAL: Log the exact document_type and expires_at received
+      console.log(`Processing document with type=${doc.document_type}, expires_at=${doc.expires_at}`);
+      
+      const cleanDoc = {
+        id: docId,
+        // New uploads should NOT have document_id
+        document_id: doc.document_id || undefined,
+        // PRESERVE the exact document_type, don't default unless it's missing
         document_type: doc.document_type || "",
-        file_name: doc.file_name,
-        file_url: doc.file_url || "",
-        expiry_date: doc.expiry_date,
-        file_id: doc.file_id || `file-${Date.now()}`,
-        verification_status: "pending" as const
+        // CRITICAL: Keep file_name for display purposes
+        file_name: doc.file_name || "Unknown Document",
+        document_url: doc.document_url || doc.file_url || "", // Ensure document_url is set
+        // CRITICAL FIX: Handle both field names for expiration date
+        expires_at: doc.expires_at || doc.expiry_date || undefined, // Use expires_at (API name)
+        file_id: doc.file_id || docId,
+        // Keep the actual File object for upload
+        file: doc.file,
+        verification_status: doc.verification_status || "pending" as const
       };
+      
+      console.log("Created document with document_type:", cleanDoc.document_type);
+      console.log("Created document with expires_at:", cleanDoc.expires_at);
+      console.log("Created document with file_name:", cleanDoc.file_name);
+      return cleanDoc;
     }).filter(Boolean) as VendorVerificationDocument[];
     
-    // Use Set for comparing document IDs to avoid duplicates
-    const existingIds = new Set(currentDocs.map(doc => 
-      doc.file_id || doc.document_id || doc.id
-    ));
+    console.log("Setting processed documents in form:", processedDocs);
     
-    // Filter out duplicates by checking all possible ID fields
-    const uniqueNewDocs = newDocs.filter(doc => {
-      const docId = doc.file_id || doc.document_id || doc.id;
-      if (existingIds.has(docId)) return false;
-      existingIds.add(docId); // Add to set so we don't add duplicates
-      return true;
-    });
-    
-    // Create the final list by combining existing and new docs
-    const updatedDocs = [...currentDocs, ...uniqueNewDocs];
-    
-    console.log("Updated docs to set in form:", updatedDocs);
-    
-    // Update the form
-    form.setValue("verification_documents", updatedDocs, {
+    // Update form state with processed documents
+    form.setValue("verification_documents", processedDocs, {
       shouldValidate: false,
       shouldDirty: true
     });
-  }, [form, setTempUploadedDocuments]);
+  }, [form]);
 
-  // Handle removing existing documents
+  // Handle removing documents - improved to ensure proper state updates
   const handleRemoveExistingDocument = useCallback((docId: string) => {
+    console.log(`Removing document with ID: ${docId}`);
+    
+    // Get current documents from form
     const currentDocs = form.getValues("verification_documents") || [];
-    const filteredDocs = currentDocs.filter(doc => 
-      doc.id !== docId && doc.document_id !== docId && doc.file_id !== docId
+    console.log("Current documents before removal:", currentDocs);
+    
+    // Find the document to be removed
+    const docToRemove = currentDocs.find(doc => 
+      doc.id === docId || doc.document_id === docId || doc.file_id === docId
     );
     
-    form.setValue("verification_documents", filteredDocs, {
-      shouldValidate: false,
-      shouldDirty: true
-    });
-    
-    console.log("Removed document:", docId);
-    console.log("Remaining documents:", filteredDocs);
+    if (docToRemove) {
+      console.log("Found document to remove:", docToRemove);
+      
+      // Filter out the document from the current documents
+      const filteredDocs = currentDocs.filter(doc => 
+        doc.id !== docId && 
+        doc.document_id !== docId && 
+        doc.file_id !== docId
+      );
+      
+      console.log(`Documents after removal: ${filteredDocs.length}`, filteredDocs);
+      
+      // Update the form state with the filtered documents
+      form.setValue("verification_documents", filteredDocs, {
+        shouldValidate: false,
+        shouldDirty: true
+      });
+    } else {
+      console.warn(`Document with ID ${docId} not found in current documents`);
+    }
   }, [form]);
 
   return (
@@ -1213,6 +1268,36 @@ export function VendorFormNew({
 
   // Address Tab Component
   function AddressTab() {
+    // Handle address data from map picker
+    const handleAddressFound = (addressData: {
+      address_line1?: string;
+      city?: string;
+      state_province?: string;
+      postal_code?: string;
+      country?: string;
+    }) => {
+      // Update form fields with the geocoded address data
+      if (addressData.address_line1) {
+        form.setValue('address_line1', addressData.address_line1, { shouldValidate: true });
+      }
+      
+      if (addressData.city) {
+        form.setValue('city', addressData.city, { shouldValidate: true });
+      }
+      
+      if (addressData.state_province) {
+        form.setValue('state_province', addressData.state_province, { shouldValidate: true });
+      }
+      
+      if (addressData.postal_code) {
+        form.setValue('postal_code', addressData.postal_code, { shouldValidate: true });
+      }
+      
+      if (addressData.country) {
+        form.setValue('country', addressData.country, { shouldValidate: true });
+      }
+    };
+    
     return (
       <TabsContent value="address" className="space-y-6 pt-4">
         <div className="space-y-4">
@@ -1357,6 +1442,32 @@ export function VendorFormNew({
             )}
           />
         </div>
+
+        {/* Coordinates Map Picker */}
+        <div className="md:col-span-2 mt-4">
+          <FormField
+            control={form.control}
+            name="coordinates"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location Coordinates</FormLabel>
+                <FormControl>
+                  <MapPicker
+                    value={field.value as [number, number] | null}
+                    onChange={field.onChange}
+                    onAddressFound={handleAddressFound}
+                    height="350px"
+                    className="mt-2"
+                  />
+                </FormControl>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  Click on the map to set your business location or use the "Use Current Location" button.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
       </TabsContent>
     )
   }
@@ -1479,13 +1590,53 @@ export function VendorFormNew({
     );
   }
   
-  // Documents Tab Component
+  // Documents Tab Component - Simplified with new DocumentUpload component
   function DocumentsTab() {
-    // Generate a unique ID for this instance of the document upload
-    const uploadFormId = useMemo(() => `vendor-docs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, []);
+    // Generate a unique ID for this instance
+    const uploadId = useMemo(() => `vendor-docs-${Date.now()}`, []);
     
-    // Use both form state and temporary state for documents
-    const watchedDocuments = form.watch("verification_documents") || [];
+    // Get the current documents from form state when tab is active
+    const formDocuments = useWatch({
+      control: form.control,
+      name: "verification_documents",
+      defaultValue: []
+    });
+    
+    // Map DOCUMENT_TYPES to the format expected by DocumentUpload
+    const mappedDocumentTypes = useMemo(() => {
+      return DOCUMENT_TYPES.map(docType => ({
+        id: docType.id,
+        name: docType.label,
+        description: docType.description,
+        required: false
+      }));
+    }, []);
+    
+    // Log when documents change in form state
+    useEffect(() => {
+      if (activeTab === "documents") {
+        console.log("Current documents in form state:", formDocuments);
+      }
+    }, [formDocuments, activeTab]);
+    
+    // Ultra simple document handling - pass through exactly as is
+    const handleDocumentsChange = useCallback((documents: DocumentWithMeta[]) => {
+      console.log("Documents received from upload component:", documents);
+      
+      // Make sure all fields are preserved in the form state
+      console.log("Document fields being set in form:", documents.map(doc => Object.keys(doc)));
+      
+      // IMPORTANT: Log document_type fields to ensure they're present
+      documents.forEach((doc, i) => {
+        console.log(`Document ${i} type=${doc.document_type}, expires_at=${doc.expires_at}`);
+      });
+      
+      // Use documents exactly as provided with zero transformation
+      form.setValue("verification_documents", documents, {
+        shouldValidate: false,
+        shouldDirty: true
+      });
+    }, [form]);
     
     // Handle policy document changes
     const handlePolicyChange = useCallback((fileUrl: string, file?: File) => {
@@ -1502,7 +1653,7 @@ export function VendorFormNew({
         shouldDirty: true
       });
     }, [form]);
-
+    
     return (
       <TabsContent value="documents" className="space-y-6 mt-4">
         {/* Policy Document Upload */}
@@ -1529,37 +1680,21 @@ export function VendorFormNew({
         
         <div className="border-t my-6"></div>
         
-        {/* Business Verification Documents */}
+        {/* Business Verification Documents - Using the new clean component */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Document Verification</h3>
           <p className="text-sm text-muted-foreground">
             Upload verification documents to prove your identity and business ownership
           </p>
-
-          {/* Document count */}
-          {watchedDocuments.length > 0 && (
-          <div className="text-sm text-muted-foreground">
-              <p>You have {watchedDocuments.length} document(s) uploaded</p>
-          </div>
-          )}
-
-          {/* Document Upload Component */}
-          <div className="space-y-4">
-            <Label>Document Type & Files</Label>
-            <DocumentUpload
-              key={`${uploadFormId}-${watchedDocuments.length}`}
-              formId={uploadFormId}
-              existingDocuments={watchedDocuments}
-              onDocumentsChange={handleDocumentsChange}
-              onRemoveExistingDocument={handleRemoveExistingDocument}
-              documentTypes={DOCUMENT_TYPES}
-              description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
-              autoUpload={true}
-            />
-            <div className="text-sm text-muted-foreground mt-2">
-              <p>Note: For documents with expiration dates (like licenses), please select the expiry date.</p>
-            </div>
-          </div>
+          
+          {/* New Document Upload Component */}
+          <DocumentUpload
+            id={uploadId}
+            existingDocuments={formDocuments}
+            onDocumentsChange={handleDocumentsChange}
+            documentTypes={mappedDocumentTypes}
+            description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
+          />
         </div>
       </TabsContent>
     );
