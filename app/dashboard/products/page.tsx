@@ -150,7 +150,7 @@ export default function ProductsPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Products & Services</h1>
           <p className="text-muted-foreground">
             Manage your marketplace products
           </p>

@@ -2,29 +2,8 @@
 
 import * as React from "react";
 import {
-  IconCamera,
-  IconChartBar,
-  IconCreditCard,
   IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
   IconInnerShadowTop,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconTruck,
-  IconUsers,
-  IconCategory,
-  IconPackage,
-  IconMail,
-  IconLock,
-  IconUserShield,
-  IconBusinessplan,
   IconBell,
 } from "@tabler/icons-react";
 
@@ -47,190 +26,24 @@ import {
 import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
+import navigationData from "./sidebar-data";
 import { title } from "process";
 
 type ExtendedUser = {
   role: string;
 };
 
+// Use the imported navigation data instead of redefining it inline
 const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  navMain: [
-    {
-      title: "Tenants",
-      url: "/dashboard/tenants",
-      icon: IconChartBar,
-      roles: ["super_owner"],
-    },
-    {
-      title: "Categories",
-      url: "/dashboard/categories",
-      icon: IconCategory,
-      roles: ["super_owner", "admin", "sub_admin"],
-    },
-    {
-      title: "Vendors",
-      url: "/dashboard/vendors",
-      icon: IconUsers,
-      roles: ["super_owner", "admin", "sub_admin"],
-    },
-    {
-      title: "Delivery Partners",
-      url: "/dashboard/delivery-partners",
-      icon: IconTruck,
-      roles: ["super_owner", "admin", "sub_admin"],
-    },
-    {
-      title: "Products",
-      url: "/dashboard/products",
-      icon: IconPackage,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-    },
-    {
-      title: "Orders",
-      url: "/dashboard/orders",
-      icon: IconListDetails,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-      items: [
-        {
-          title: "Delivery",
-          url: "/dashboard/orders/delivery",
-          icon: IconTruck,
-        },
-        {
-          title: "Refunds",
-          url: "/dashboard/orders/refunds",
-          icon: IconCreditCard,
-        },
-      ],
-    },
-
-    {
-      title: "Support Tickets",
-      url: "/dashboard/support",
-      icon: IconHelp,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Marketplace Settings",
-      url: "/dashboard/tenants/marketplace",
-      icon: IconSettings,
-      roles: ["admin"],
-    },
-    {
-      title: "Settings & Configurations",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-      roles: ["super_owner"],
-    },
-    {
-      title: "Users",
-      url: "/dashboard/auth/users",
-      icon: IconUsers,
-      roles: ["super_owner", "admin", "sub_admin"],
-    },
-    {
-      title: "User Roles",
-      url: "/dashboard/auth/roles",
-      icon: IconUserShield,
-      roles: ["super_owner", "admin", "sub_admin"],
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-      roles: "support",
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-      roles: "admin",
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-      role: "admin",
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-      role: "admin",
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
-      role: "sub_admin",
-    },
-  ],
+  navMain: navigationData.navMain,
+  navSecondary: navigationData.navSecondary,
+  navClouds: navigationData.navClouds,
+  documents: navigationData.documents,
 };
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -253,17 +66,21 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
       };
 
   // Filter navigation items based on user role
-  const filteredNavMain = data.navMain.filter((item) => {
-    const userRole = (session?.user as ExtendedUser)?.role;
+  const userRole = (session?.user as ExtendedUser)?.role;
+  
+  // Consistent filtering logic for both main and secondary navigation
+  const filterByRole = (item: any) => {
     if (!userRole) return false;
-    return item.roles.includes(userRole);
-  });
+    // Check if roles is a string (for single role) or an array
+    if (typeof item.roles === 'string') {
+      return item.roles === userRole;
+    }
+    // Check if the item has a roles array and if it includes the user's role
+    return Array.isArray(item.roles) && item.roles.includes(userRole);
+  };
 
-  const filteredNavSecondary = data.navSecondary.filter((item) => {
-    const userRole = (session?.user as ExtendedUser)?.role;
-    if (!userRole) return false;
-    return item.roles.includes(userRole);
-  });
+  const filteredNavMain = data.navMain.filter(filterByRole);
+  const filteredNavSecondary = data.navSecondary.filter(filterByRole);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
