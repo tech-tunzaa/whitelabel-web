@@ -57,6 +57,7 @@ import { useVendorStore } from "@/features/vendors/store";
 import { Vendor, VerificationDocument, Store as VendorStore } from "@/features/vendors/types";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog";
+import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 
 interface VendorPageProps {
@@ -536,84 +537,32 @@ export default function VendorPage({ params }: VendorPageProps) {
                     <p className="text-sm text-muted-foreground">No documents uploaded</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {vendorDocuments.map((doc, index) => {
-                      const isPdf = isPdfFile(doc.document_url || "");
-                      const isImage = isImageFile(doc.document_url || "");
-                      const docStatus = doc.verification_status || "pending";
-                      
-                      return (
-                        <div key={doc.document_id || index} className="border rounded-md overflow-hidden">
-                          <div className="p-3 border-b bg-muted/50 flex justify-between items-center">
-                            <div className="flex items-center">
-                              {isPdf ? (
-                                <FileSymlink className="h-4 w-4 mr-2 text-red-500" />
-                              ) : isImage ? (
-                                <ImageIcon className="h-4 w-4 mr-2 text-blue-500" />
-                              ) : (
-                                <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                              )}
-                              <span className="text-sm font-medium capitalize">
-                                {doc.document_type?.replace(/_/g, ' ')}
-                              </span>
-                            </div>
-                            <Badge 
-                              variant={getStatusVariant(docStatus)} 
-                              className={getBadgeStyles(docStatus)}
-                            >
-                              {docStatus}
-                            </Badge>
-                          </div>
-                          
-                          <div className="p-3">
-                            <div className="flex justify-between items-center mb-2">
-                              <p className="text-sm truncate max-w-[180px]">
-                                {doc.file_name || "Document"}
-                              </p>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-8 px-2"
-                                onClick={() => handlePreviewDocument(doc.document_url || "")}
-                              >
-                                {isImage ? "View" : "Open"}
-                              </Button>
-                            </div>
-                            
-                            <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
-                              <span>Submitted: {formatDate(doc.submitted_at)}</span>
-                              <span>Expires: {formatDate(doc.expires_at || doc.expiry_date) || "N/A"}</span>
-                            </div>
-                            
-                            {doc.verified_at && (
-                              <div className="flex justify-between items-center mt-1 text-xs text-muted-foreground">
-                                <span>Verified: {formatDate(doc.verified_at)}</span>
-                              </div>
-                            )}
-                            
-                            {doc.rejection_reason && (
-                              <div className="mt-2 p-2 bg-red-50 text-red-800 rounded-sm text-xs">
-                                <span className="font-semibold">Rejected:</span> {doc.rejection_reason}
-                              </div>
-                            )}
-                            
-                            {/* Document Actions */}
-                            {doc.verification_status !== "approved" && (
-                              <div className="mt-3 flex justify-end gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleVerifyDocument(doc)}
-                                  className="h-8"
-                                >
-                                  Verify Document
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="grid grid-cols-1 gap-4">
+                    {vendorDocuments.map((doc, index) => (
+                      <VerificationDocumentCard
+                        key={doc.document_id || index}
+                        document={{
+                          document_id: doc.document_id,
+                          document_type: doc.document_type,
+                          document_url: doc.document_url,
+                          file_name: doc.file_name,
+                          expires_at: doc.expires_at || doc.expiry_date,
+                          verification_status: doc.verification_status as "pending" | "approved" | "rejected",
+                          rejection_reason: doc.rejection_reason,
+                          submitted_at: doc.submitted_at,
+                          verified_at: doc.verified_at
+                        }}
+                        onApprove={async (documentId) => {
+                          await handleDocumentApprove(documentId);
+                          return Promise.resolve();
+                        }}
+                        onReject={async (documentId, reason) => {
+                          await handleDocumentReject(documentId, reason);
+                          return Promise.resolve();
+                        }}
+                        showActions={doc.verification_status !== "approved"}
+                      />
+                    ))}
                   </div>
                 )}
               </CardContent>

@@ -1,20 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, DollarSign, CalendarDays, FileText, Tag, ClipboardCheck } from "lucide-react";
+import { use } from "react";
+import { format } from "date-fns";
+import { 
+  ArrowLeft, DollarSign, CalendarDays, FileText, Tag, ClipboardCheck, 
+  CreditCard, Check, X, Percent, Clock, Calendar, ShoppingBag,
+  User, Building, Phone, Mail, ExternalLink, BarChart, History,
+  CreditCard as CreditCardIcon, CheckCircle, AlertCircle, ChevronRight,
+  Receipt, Calculator, Eye, Wallet, BadgeDollarSign, TrendingUp,
+  CircleDollarSign, Settings, Store, Globe, Info, ListChecks
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
 import { useLoanRequestStore } from "@/features/loans/requests/store";
 import { useLoanProductStore } from "@/features/loans/products/store";
+import { useLoanProviderStore } from "@/features/loans/providers/store";
+import { useVendorStore } from "@/features/vendors/store";
 // Local implementations to avoid import issues
 const formatCurrency = (value: number | string | undefined): string => {
   if (value === undefined) return '$0.00';
@@ -63,7 +78,9 @@ interface LoanRequestDetailPageProps {
 }
 
 export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageProps) {
-  const { id } = params;
+  // Properly unwrap params using React.use()
+  const unwrappedParams = use(params);
+  const id = unwrappedParams.id;
   const router = useRouter();
   const session = useSession();
   const tenantId = session?.data?.user?.tenant_id || '';
@@ -79,46 +96,235 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
   const {
     product,
     loading: productLoading,
-    fetchProductById
+    fetchProduct
   } = useLoanProductStore();
+  
+  const {
+    provider,
+    loading: providerLoading,
+    fetchProvider
+  } = useLoanProviderStore();
+  
+  const {
+    vendor,
+    loading: vendorLoading,
+    fetchVendor
+  } = useVendorStore();
   
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  
+  // Mock payment schedule and transaction data
+  const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [vendorLoans, setVendorLoans] = useState<any[]>([]);
+  const [revenueData, setRevenueData] = useState<any>(null);
 
-  // Define tenant headers
-  const tenantHeaders = {
+  // Memoize tenant headers to prevent recreation on each render
+  const tenantHeaders = useMemo(() => ({
     'X-Tenant-ID': tenantId
-  };
+  }), [tenantId]);
 
+  // Use a stable function reference with useCallback
+  const fetchLoanRequestData = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      await fetchRequest(id, tenantHeaders);
+    } catch (error) {
+      console.error("Failed to fetch request:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchRequest, id, tenantHeaders]);
+
+  // Call the fetch function only once on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        await fetchRequest(id, tenantHeaders);
-      } catch (error) {
-        console.error("Failed to fetch request:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchLoanRequestData();
+  }, [fetchLoanRequestData]);
 
-    fetchData();
-  }, [fetchRequest, id]);
+  // Extract stable references to IDs to use in dependency arrays
+  const requestId = request?.id;
+  const productId = request?.product_id;
+  const vendorId = request?.vendor_id;
 
+  // Separate effect for product fetching with minimal dependencies
   useEffect(() => {
-    const fetchProductData = async () => {
-      if (request && request.product_id) {
+    if (productId) {
+      fetchProduct(productId, tenantHeaders)
+        .catch(error => console.error("Failed to fetch product data:", error));
+    }
+  }, [productId, fetchProduct, tenantHeaders]);
+  
+  // Separate effect for vendor fetching with minimal dependencies
+  useEffect(() => {
+    if (vendorId) {
+      fetchVendor(vendorId, tenantHeaders)
+        .catch(error => console.error("Failed to fetch vendor data:", error));
+    }
+  }, [vendorId, fetchVendor, tenantHeaders]);
+  
+  // Separate effect for mock data generation with minimal dependencies
+  useEffect(() => {
+    if (requestId) {
+      generateMockTransactions();
+      generateMockVendorLoans();
+      generateMockRevenueData();
+    }
+  }, [requestId]);
+
+  // Separate effect for provider fetching
+  useEffect(() => {
+    const fetchProviderData = async () => {
+      if (product?.provider_id) {
         try {
-          await fetchProductById(request.product_id, tenantHeaders);
+          await fetchProvider(product.provider_id, tenantHeaders);
         } catch (error) {
-          console.error("Failed to fetch product:", error);
+          console.error("Failed to fetch provider data:", error);
         }
       }
     };
 
-    fetchProductData();
-  }, [fetchProductById, request]);
+    fetchProviderData();
+  }, [product?.provider_id, fetchProvider, tenantHeaders]);
 
+  // Separate effect for payment schedule generation
+  useEffect(() => {
+    if (request?.loan_amount && request?.term_length && product?.interest_rate) {
+      generateMockPaymentSchedule(request.loan_amount, request.term_length, product.interest_rate);
+    }
+  }, [request?.loan_amount, request?.term_length, product?.interest_rate]);
+
+  // Generate mock payment schedule based on loan details
+  const generateMockPaymentSchedule = (amount: number, termMonths: number, interestRate: number) => {
+    const monthlyInterestRate = interestRate / 100 / 12;
+    const monthlyPayment = calculateMonthlyPayment(amount, interestRate, termMonths);
+    
+    const schedule = [];
+    let remainingBalance = amount;
+    const today = new Date();
+    
+    for (let i = 1; i <= termMonths; i++) {
+      const dueDate = new Date(today);
+      dueDate.setMonth(dueDate.getMonth() + i);
+      
+      const interestPayment = remainingBalance * monthlyInterestRate;
+      const principalPayment = monthlyPayment - interestPayment;
+      remainingBalance -= principalPayment;
+      
+      const paymentStatus = i === 1 ? 'pending' : (i > 1 ? 'upcoming' : 'paid');
+      
+      schedule.push({
+        payment_number: i,
+        due_date: dueDate.toISOString(),
+        payment_amount: monthlyPayment,
+        principal_amount: principalPayment,
+        interest_amount: interestPayment,
+        remaining_balance: Math.max(0, remainingBalance),
+        status: paymentStatus
+      });
+    }
+    
+    setPaymentSchedule(schedule);
+  };
+  
+  // Generate mock transactions for this loan
+  const generateMockTransactions = () => {
+    const mockTransactions = [
+      {
+        id: 'txn1',
+        date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        type: 'disbursement',
+        amount: request?.loan_amount || 0,
+        description: 'Loan disbursement',
+        status: 'completed'
+      },
+      {
+        id: 'txn2',
+        date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+        type: 'payment',
+        amount: (request?.loan_amount || 0) * 0.1,
+        description: 'First payment',
+        status: 'completed'
+      },
+      {
+        id: 'txn3',
+        date: new Date().toISOString(),
+        type: 'payment',
+        amount: (request?.loan_amount || 0) * 0.1,
+        description: 'Monthly payment',
+        status: 'pending'
+      }
+    ];
+    
+    setTransactions(mockTransactions);
+  };
+  
+  // Generate mock vendor loans history
+  const generateMockVendorLoans = () => {
+    const mockLoans = [
+      {
+        id: 'loan1',
+        date: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+        amount: 5000,
+        term: 6,
+        status: 'paid',
+        product_name: 'Business Expansion Loan'
+      },
+      {
+        id: 'loan2',
+        date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+        amount: 8000,
+        term: 12,
+        status: 'active',
+        product_name: 'Inventory Financing'
+      },
+      {
+        id: id, // Current loan
+        date: request?.created_at || new Date().toISOString(),
+        amount: request?.loan_amount || 0,
+        term: request?.term_length || 0,
+        status: request?.status || 'pending',
+        product_name: product?.name || 'Unknown Product'
+      }
+    ];
+    
+    setVendorLoans(mockLoans);
+  };
+  
+  // Generate mock revenue data
+  const generateMockRevenueData = () => {
+    const mockRevenue = {
+      monthly_average: 12500,
+      annual_revenue: 150000,
+      growth_rate: 15,
+      recent_months: [
+        { month: 'Jan', amount: 11000 },
+        { month: 'Feb', amount: 12500 },
+        { month: 'Mar', amount: 13200 },
+        { month: 'Apr', amount: 12800 },
+        { month: 'May', amount: 13500 },
+        { month: 'Jun', amount: 14200 }
+      ]
+    };
+    
+    setRevenueData(mockRevenue);
+  };
+  
+  // Calculate monthly payment for a loan
+  const calculateMonthlyPayment = (principal: string | number, interestRate: string | number, termMonths: number) => {
+    const p = parseFloat(principal.toString());
+    const r = parseFloat(interestRate.toString()) / 100 / 12; // Monthly interest rate
+    const n = termMonths;
+    
+    // Monthly payment formula: P * (r * (1 + r)^n) / ((1 + r)^n - 1)
+    if (r === 0) return p / n; // If interest rate is 0, just divide principal by term
+    
+    const monthlyPayment = p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    return monthlyPayment;
+  };
+  
   const handleStatusChange = async (status: string) => {
     try {
       setUpdating(true);
@@ -207,250 +413,821 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
 
   if (loading || requestLoading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center p-4 border-b">
-          <Button
-            variant="ghost"
-            className="mr-2"
-            onClick={() => router.push("/dashboard/loans/requests")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Loan Request Details</h1>
-            <p className="text-muted-foreground">
-              View loan request information
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center h-64">
-          <Spinner />
-        </div>
-      </div>
+    <Spinner />
     );
   }
 
   if (!request && !requestLoading && requestError) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center p-4 border-b">
-          <Button
-            variant="ghost"
-            className="mr-2"
-            onClick={() => router.push("/dashboard/loans/requests")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Loan Request Details</h1>
-            <p className="text-muted-foreground">
-              View loan request information
-            </p>
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/dashboard/loans/requests")}
+              className="shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Back</span>
+            </Button>
+            
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Loan Request</h1>
+              <p className="text-muted-foreground">
+                Error loading request details
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="p-4">
-          <ErrorCard
-            title="Failed to load request"
-            error={{
-              status: requestError.status?.toString() || "Error",
-              message: requestError.message || "An error occurred"
-            }}
-            buttonText="Go Back"
-            buttonAction={() => router.push("/dashboard/loans/requests")}
-          />
+        <div className="p-8 flex items-center justify-center">
+          <div className="max-w-md w-full">
+            <ErrorCard
+              title="Failed to load loan request"
+              error={{
+                status: requestError.status?.toString() || "Error",
+                message: requestError.message || "An error occurred while loading the loan request details."
+              }}
+              buttonText="Return to Loan Requests"
+              buttonAction={() => router.push("/dashboard/loans/requests")}
+              buttonIcon={ArrowLeft}
+            />
+          </div>
         </div>
       </div>
     );
   }
 
+  // Format date helper for display
+  const formatDateDisplay = (dateString: string | null | undefined) => {
+    if (!dateString) return "Not set";
+    return format(new Date(dateString), "MMMM d, yyyy");
+  };
+  
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            className="mr-2"
+            size="icon"
             onClick={() => router.push("/dashboard/loans/requests")}
+            className="shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Loan Request</h1>
-            <p className="text-muted-foreground">
-              View and manage loan request details
-            </p>
+          
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback style={{ backgroundColor: "#6366f1" }} className="text-white">
+                <DollarSign className="h-6 w-6" />
+              </AvatarFallback>
+            </Avatar>
+            
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {formatCurrency(request?.loan_amount || 0)} Loan Request
+              </h1>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {getStatusBadge(request?.status || 'Unknown')}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Requested: {formatDateDisplay(request?.created_at)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <div>
-          {getStatusBadge(request?.status || 'Unknown')}
+        
+        <div className="flex items-center gap-2">
+          {renderStatusActions()}
         </div>
       </div>
 
-      <div className="p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Request Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-4">
-                      <div className="flex items-start">
-                        <div className="mr-2 mt-1">
-                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+      {/* Main Content */}
+      <div className="p-4 overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
+          {/* Main Content Area - 5 columns */}
+          <div className="md:col-span-5">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="overview" className="flex items-center gap-2">
+                  <Info className="h-4 w-4" /> Overview
+                </TabsTrigger>
+                <TabsTrigger value="payment-plan" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" /> Payment Plan
+                </TabsTrigger>
+                <TabsTrigger value="transactions" className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" /> Transactions
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" /> Loan History
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Documents
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="space-y-6 mt-6">
+                {/* Request Details Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Request Details</CardTitle>
+                        <CardDescription>Basic information about this loan request</CardDescription>
+                      </div>
+                      {getStatusBadge(request?.status || 'Unknown')}
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <DollarSign className="h-4 w-4" /> Loan Amount
+                          </p>
+                          <p className="text-xl font-bold">{formatCurrency(request?.loan_amount || 0)}</p>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground">Loan Amount</div>
-                          <div className="text-lg font-semibold">{formatCurrency(request?.loan_amount || 0)}</div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-4 w-4" /> Term Length
+                          </p>
+                          <p className="text-sm">
+                            {request?.term_length} {request?.term_length === 1 ? 'month' : 'months'}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <Percent className="h-4 w-4" /> Interest Rate
+                          </p>
+                          <p className="text-sm">{product?.interest_rate || 'N/A'}%</p>
                         </div>
                       </div>
                       
-                      <div className="flex items-start">
-                        <div className="mr-2 mt-1">
-                          <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <Calendar className="h-4 w-4" /> Request Date
+                          </p>
+                          <p className="text-sm">{formatDateDisplay(request?.created_at)}</p>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground">Term Length</div>
-                          <div className="text-sm">
-                            {request?.term_length} {request?.term_length === 1 ? 'month' : 'months'}
-                          </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <Calendar className="h-4 w-4" /> Expected Disbursement
+                          </p>
+                          <p className="text-sm">
+                            {request?.status === 'approved' ? formatDateDisplay(new Date().toISOString()) : 'Pending approval'}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <CreditCard className="h-4 w-4" /> Monthly Payment (Est.)
+                          </p>
+                          <p className="text-sm">
+                            {product && request ? 
+                              formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) : 
+                              'N/A'}
+                          </p>
                         </div>
                       </div>
                     </div>
                     
+                    <Separator className="my-6" />
+                    
                     <div className="space-y-4">
-                      <div className="flex items-start">
-                        <div className="mr-2 mt-1">
-                          <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground">Status</div>
-                          <div className="text-sm">{getStatusBadge(request?.status || 'Unknown')}</div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                          <FileText className="h-4 w-4" /> Purpose
+                        </p>
+                        <div className="bg-muted/20 p-3 rounded-md border text-sm">
+                          {request?.purpose || 'No purpose specified'}
                         </div>
                       </div>
                       
-                      <div className="flex items-start">
-                        <div className="mr-2 mt-1">
-                          <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                      {request?.notes && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
+                            <FileText className="h-4 w-4" /> Additional Notes
+                          </p>
+                          <div className="bg-muted/20 p-3 rounded-md border text-sm">
+                            {request.notes}
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground">Request Date</div>
-                          <div className="text-sm">{formatDate(request?.created_at || new Date(), 'long')}</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  
+                  {request?.status === 'pending' && (
+                    <CardFooter className="flex justify-end gap-2 border-t p-4">
+                      <Button 
+                        variant="outline" 
+                        disabled={updating}
+                        onClick={() => handleStatusChange('rejected')}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Reject Request
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        disabled={updating}
+                        onClick={() => handleStatusChange('approved')}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve Request
+                      </Button>
+                    </CardFooter>
+                  )}
+                </Card>
+                
+                {/* Loan Summary Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Loan Summary</CardTitle>
+                    <CardDescription>Overview of loan terms and repayment</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* Loan Summary Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="border-0 shadow-none bg-muted/10">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm text-muted-foreground">Total Loan Amount</p>
+                              <p className="text-2xl font-bold">{formatCurrency(request?.loan_amount || 0)}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card className="border-0 shadow-none bg-muted/10">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm text-muted-foreground">Total Repayment</p>
+                              <p className="text-2xl font-bold">
+                                {product && request ? 
+                                  formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length)) : 
+                                  'N/A'}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card className="border-0 shadow-none bg-muted/10">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm text-muted-foreground">Total Interest</p>
+                              <p className="text-2xl font-bold">
+                                {product && request ? 
+                                  formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length) - request.loan_amount) : 
+                                  'N/A'}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      {request?.status === 'disbursed' || request?.status === 'paid' ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <p className="text-sm font-medium">Loan Progress</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request?.status === 'paid' ? '100%' : '33%'} Complete
+                            </p>
+                          </div>
+                          <Progress value={request?.status === 'paid' ? 100 : 33} className="h-2" />
                         </div>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Payment Plan Tab */}
+              <TabsContent value="payment-plan" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Payment Schedule</CardTitle>
+                    <CardDescription>Detailed payment plan for this loan</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    {paymentSchedule.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Payment #</TableHead>
+                              <TableHead>Due Date</TableHead>
+                              <TableHead>Payment Amount</TableHead>
+                              <TableHead>Principal</TableHead>
+                              <TableHead>Interest</TableHead>
+                              <TableHead>Remaining Balance</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paymentSchedule.map((payment) => (
+                              <TableRow key={payment.payment_number}>
+                                <TableCell>{payment.payment_number}</TableCell>
+                                <TableCell>{formatDate(payment.due_date, 'medium')}</TableCell>
+                                <TableCell>{formatCurrency(payment.payment_amount)}</TableCell>
+                                <TableCell>{formatCurrency(payment.principal_amount)}</TableCell>
+                                <TableCell>{formatCurrency(payment.interest_amount)}</TableCell>
+                                <TableCell>{formatCurrency(payment.remaining_balance)}</TableCell>
+                                <TableCell>
+                                  {payment.status === 'paid' ? (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700">Paid</Badge>
+                                  ) : payment.status === 'pending' ? (
+                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pending</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-blue-50 text-blue-700">Upcoming</Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No payment schedule available</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Transactions Tab */}
+              <TabsContent value="transactions" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transaction History</CardTitle>
+                    <CardDescription>All transactions related to this loan</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    {transactions.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Transaction Type</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {transactions.map((transaction) => (
+                              <TableRow key={transaction.id}>
+                                <TableCell>{formatDate(transaction.date, 'medium')}</TableCell>
+                                <TableCell className="capitalize">{transaction.type}</TableCell>
+                                <TableCell>{formatCurrency(transaction.amount)}</TableCell>
+                                <TableCell>{transaction.description}</TableCell>
+                                <TableCell>
+                                  {transaction.status === 'completed' ? (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>
+                                  ) : transaction.status === 'pending' ? (
+                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Pending</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-red-50 text-red-700">Failed</Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No transactions available</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Loan History Tab */}
+              <TabsContent value="history" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Vendor Loan History</CardTitle>
+                    <CardDescription>Previous and current loans for this vendor</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    {vendorLoans.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Loan Amount</TableHead>
+                              <TableHead>Term</TableHead>
+                              <TableHead>Product</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {vendorLoans.map((loan) => (
+                              <TableRow key={loan.id} className={loan.id === id ? "bg-muted/20" : ""}>
+                                <TableCell>{formatDate(loan.date, 'short')}</TableCell>
+                                <TableCell>{formatCurrency(loan.amount)}</TableCell>
+                                <TableCell>{loan.term} {loan.term === 1 ? 'month' : 'months'}</TableCell>
+                                <TableCell>{loan.product_name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={`capitalize 
+                                    ${loan.status === 'paid' ? 'bg-green-50 text-green-700' : ''}
+                                    ${loan.status === 'active' || loan.status === 'disbursed' ? 'bg-blue-50 text-blue-700' : ''}
+                                    ${loan.status === 'pending' || loan.status === 'approved' ? 'bg-yellow-50 text-yellow-700' : ''}
+                                    ${loan.status === 'rejected' ? 'bg-red-50 text-red-700' : ''}
+                                  `}>
+                                    {loan.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {loan.id !== id && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => router.push(`/dashboard/loans/requests/${loan.id}`)}
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No loan history available</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              {/* Documents Tab */}
+              <TabsContent value="documents" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Loan Documents</CardTitle>
+                    <CardDescription>Important documents related to this loan</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Application Document */}
+                        <div className="border rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-blue-100 p-2 rounded-md">
+                              <FileText className="h-6 w-6 text-blue-700" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Loan Application</p>
+                              <p className="text-sm text-muted-foreground">
+                                Submitted on {formatDateDisplay(request?.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </div>
+                        
+                        {/* Agreement Document */}
+                        {(request?.status === 'approved' || request?.status === 'disbursed' || request?.status === 'paid') && (
+                          <div className="border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-green-100 p-2 rounded-md">
+                                <FileText className="h-6 w-6 text-green-700" />
+                              </div>
+                              <div>
+                                <p className="font-medium">Loan Agreement</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Generated on {formatDateDisplay(new Date().toISOString())}
+                                </p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {/* Payment Schedule Document */}
+                        {(request?.status === 'approved' || request?.status === 'disbursed' || request?.status === 'paid') && (
+                          <div className="border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-purple-100 p-2 rounded-md">
+                                <CalendarDays className="h-6 w-6 text-purple-700" />
+                              </div>
+                              <div>
+                                <p className="font-medium">Payment Schedule</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {request?.term_length} monthly payments
+                                </p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          {/* Sidebar - 2 columns */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Vendor Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Vendor Information</CardTitle>
+                <CardDescription>Borrower details</CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                {vendorLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Spinner />
+                  </div>
+                ) : vendor ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback style={{ backgroundColor: "#10b981" }}>
+                          {vendor.name ? vendor.name.substring(0, 2).toUpperCase() : 'VE'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-medium">{vendor.name || request?.vendor_name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {vendor.is_active ? "Active Vendor" : "Inactive Vendor"}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="space-y-3">
+                      {vendor.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <a href={`mailto:${vendor.email}`} className="text-sm hover:underline">
+                            {vendor.email}
+                          </a>
+                        </div>
+                      )}
+                      
+                      {vendor.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a href={`tel:${vendor.phone}`} className="text-sm hover:underline">
+                            {vendor.phone}
+                          </a>
+                        </div>
+                      )}
+                      
+                      {vendor.website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <a 
+                            href={vendor.website.startsWith('http') ? vendor.website : `https://${vendor.website}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-sm hover:underline flex items-center gap-1"
+                          >
+                            {vendor.website.replace(/^https?:\/\//, '')}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">{request?.vendor_name || 'Unknown Vendor'}</h3>
+                      {request?.vendor_email && (
+                        <p className="text-sm text-muted-foreground">{request.vendor_email}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+              
+              <CardFooter>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/vendors/${request?.vendor_id || vendor?.id}`)}
+                >
+                  <Store className="h-4 w-4 mr-2" />
+                  View Vendor Profile
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            {/* Loan Product */}
+            {product && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Loan Product</CardTitle>
+                  <CardDescription>Product information</CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback style={{ backgroundColor: "#6366f1" }} className="text-white">
+                        <DollarSign className="h-6 w-6" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-medium">{product.name}</h3>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Badge variant={product.is_active ? "default" : "secondary"} className="capitalize">
+                          {product.is_active ? "Active" : "Inactive"}
+                        </Badge>
                       </div>
                     </div>
                   </div>
                   
                   <Separator />
                   
-                  <div>
-                    <div className="flex items-start">
-                      <div className="mr-2 mt-1">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Purpose</div>
-                        <div className="text-sm mt-1">{request?.purpose || 'No purpose specified'}</div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Interest Rate</p>
+                      <p className="text-sm font-medium">{product.interest_rate}%</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Term Options</p>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {product.term_options?.map((term, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {term} {term === 1 ? 'month' : 'months'}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">Amount Range</p>
+                      <p className="text-sm font-medium">
+                        {formatCurrency(product.min_amount)} - {formatCurrency(product.max_amount)}
+                      </p>
+                    </div>
                   </div>
-                  
-                  {request?.notes && (
-                    <>
-                      <Separator />
-                      <div>
-                        <div className="flex items-start">
-                          <div className="mr-2 mt-1">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-muted-foreground">Notes</div>
-                            <div className="text-sm mt-1">{request.notes}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  
-                  {renderStatusActions()}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-medium">{request?.vendor_name || 'Unknown Vendor'}</h3>
-                    {request?.vendor_email && (
-                      <p className="text-sm text-muted-foreground">{request.vendor_email}</p>
-                    )}
-                  </div>
-                  
+                </CardContent>
+                
+                <CardFooter>
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => router.push(`/dashboard/vendors/${request?.vendor_id}`)}
+                    onClick={() => router.push(`/dashboard/loans/products/${product.product_id || product.id}`)}
                   >
-                    View Vendor
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Product Details
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardFooter>
+              </Card>
+            )}
             
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Product Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {productLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Spinner />
+            {/* Revenue Summary */}
+            {revenueData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Financial Summary</CardTitle>
+                  <CardDescription>Vendor's revenue overview</CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Monthly Average</p>
+                      <p className="text-lg font-bold">{formatCurrency(revenueData.monthly_average)}</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                      <p className="text-lg font-bold">{formatCurrency(revenueData.annual_revenue)}</p>
+                    </div>
                   </div>
-                ) : product ? (
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-medium">{product.name}</h3>
-                      <p className="text-sm text-muted-foreground">{product.description}</p>
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm">Growth Rate</p>
+                      <Badge variant="outline" className="bg-green-50 text-green-700">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        {revenueData.growth_rate}%
+                      </Badge>
                     </div>
-                    
-                    <Separator />
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Interest Rate:</span>
-                        <span className="text-sm font-medium">{product.interest_rate}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Payment Frequency:</span>
-                        <span className="text-sm font-medium">{product.payment_frequency}</span>
-                      </div>
-                    </div>
+                    <Progress value={revenueData.growth_rate} className="h-1" />
+                  </div>
+                  
+                  <div className="text-xs text-right text-muted-foreground">
+                    Last 6 months activity
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Approval Actions */}
+            {request?.status === 'pending' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Approval Actions</CardTitle>
+                  <CardDescription>Process this loan request</CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-3">
+                    <Button 
+                      variant="default" 
+                      disabled={updating}
+                      onClick={() => handleStatusChange('approved')}
+                      className="w-full"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Approve Request
+                    </Button>
                     
                     <Button 
                       variant="outline" 
+                      disabled={updating}
+                      onClick={() => handleStatusChange('rejected')}
                       className="w-full"
-                      onClick={() => router.push(`/dashboard/loans/products/${product.product_id}`)}
                     >
-                      View Product
+                      <X className="h-4 w-4 mr-2" />
+                      Reject Request
                     </Button>
                   </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-muted-foreground">Product information not available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Next Steps */}
+            {(request?.status === 'approved' || request?.status === 'disbursed') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Next Steps</CardTitle>
+                  <CardDescription>Loan processing actions</CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {request?.status === 'approved' && (
+                    <Button 
+                      variant="default" 
+                      disabled={updating}
+                      onClick={() => handleStatusChange('disbursed')}
+                      className="w-full"
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Mark as Disbursed
+                    </Button>
+                  )}
+                  
+                  {request?.status === 'disbursed' && (
+                    <Button 
+                      variant="default" 
+                      disabled={updating}
+                      onClick={() => handleStatusChange('paid')}
+                      className="w-full"
+                    >
+                      <BadgeDollarSign className="h-4 w-4 mr-2" />
+                      Mark as Paid
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

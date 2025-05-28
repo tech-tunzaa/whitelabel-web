@@ -68,7 +68,6 @@ export const navigationData = {
       roles: ["super_owner", "admin", "sub_admin"],
       items: [
         {
-          // Affiliate marketor
           title: "Winga",
           url: "/dashboard/vendors/winga",
           icon: IconUserCode,

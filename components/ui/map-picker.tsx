@@ -200,7 +200,25 @@ export function MapPicker({
           }
         },
         (error) => {
-          console.error("Error getting current location:", error);
+          let errorMessage = "Could not access your location";
+          
+          // Provide more specific error messages based on error code
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Location permission denied. Please enable location access in your browser settings.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Location information is unavailable. Please try again.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Location request timed out. Please try again.";
+              break;
+          }
+          
+          console.error("Geolocation error:", errorMessage, error);
+          
+          // You could use a toast notification here instead of alert
+          alert(errorMessage);
         }
       );
     }

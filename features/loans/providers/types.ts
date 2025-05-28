@@ -23,6 +23,24 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+// Verification Document Type
+export type VerificationDocument = {
+  id?: string;                                      // Internal ID (not sent to API)
+  document_id?: string;                             // For existing documents from API
+  document_type: string;                            // REQUIRED: Type of document
+  document_url: string;                             // REQUIRED: URL to the document
+  file_name?: string;                              // Optional: For display purposes only
+  file_size?: number;                              // Optional: Size in bytes
+  mime_type?: string;                              // Optional: MIME type
+  expires_at?: string;                             // Optional: Expiration date
+  verification_status?: "pending" | "approved" | "rejected"; // Status
+  rejection_reason?: string;                       // Reason if rejected
+  submitted_at?: string;                           // When document was submitted
+  verified_at?: string;                            // When document was verified
+  file?: File;                                     // File object for upload (not sent to API)
+  file_id?: string;                                // Internal file ID
+};
+
 // Loan Provider entity type
 export type LoanProvider = {
   _id?: string;
@@ -38,8 +56,17 @@ export type LoanProvider = {
   is_active: boolean;
   integration_key?: string;
   integration_secret?: string;
+  api_endpoint?: string;
+  logo_url?: string;
+  verification_documents?: VerificationDocument[];
   created_at?: string;
   updated_at?: string;
+  statistics?: {
+    total_loans?: number;
+    loan_growth?: number;
+    avg_loan_value?: string;
+    repayment_rate?: number;
+  };
 };
 
 // Error Type
