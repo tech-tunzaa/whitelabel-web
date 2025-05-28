@@ -6,6 +6,7 @@ import transactions from './data/transactions';
 interface TransactionStore {
   transactions: Transaction[];
   transaction: Transaction | null;
+  order: any | null; // Add order to store
   loading: boolean;
   storeError: TransactionError | null;
   activeAction: TransactionAction | null;
@@ -13,8 +14,10 @@ interface TransactionStore {
   setLoading: (loading: boolean) => void;
   setStoreError: (error: TransactionError | null) => void;
   setTransaction: (transaction: Transaction | null) => void;
+  setOrder: (order: any | null) => void; // Add setter for order
   setTransactions: (transactions: Transaction[]) => void;
   fetchTransaction: (id: string, headers?: Record<string, string>) => Promise<Transaction>;
+  fetchTransactionWithOrder: (id: string, headers?: Record<string, string>) => Promise<{transaction: Transaction, order: any}>;
   fetchTransactionsByOrder: (orderId: string, headers?: Record<string, string>) => Promise<Transaction[]>;
   fetchTransactions: (filter?: TransactionFilter, headers?: Record<string, string>) => Promise<TransactionListResponse>;
   refundTransaction: (transactionId: string, amount?: number, reason?: string, headers?: Record<string, string>) => Promise<Transaction>;
@@ -27,6 +30,7 @@ export const useTransactionStore = create<TransactionStore>()(
   (set, get) => ({
     transactions: [],
     transaction: null,
+    order: null,
     loading: true,
     storeError: null,
     activeAction: null,
@@ -35,8 +39,61 @@ export const useTransactionStore = create<TransactionStore>()(
     setLoading: (loading) => set({ loading }),
     setStoreError: (error) => set({ storeError: error }),
     setTransaction: (transaction: Transaction | null) => set({ transaction }),
+    setOrder: (order: any | null) => set({ order }),
     setTransactions: (transactions: Transaction[]) => set({ transactions }),
 
+    fetchTransactionWithOrder: async (id: string, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError, setTransaction, setOrder } = get();
+      try {
+        setActiveAction('fetchOne');
+        setLoading(true);
+        
+        // First, get the transaction data
+        const transactionData = transactions.find(t => t.transaction_id === id);
+        if (!transactionData) {
+          throw new Error('Transaction data not found');
+        }
+        
+        // Set the transaction in the store
+        setTransaction(transactionData);
+        
+        // For mock data, let's create a mock order if there's an order_id
+        if (transactionData.order_id) {
+          // Create a mock order based on the transaction data
+          const mockOrder = {
+            order_id: transactionData.order_id,
+            total_amount: transactionData.amount,
+            status: transactionData.status === 'completed' ? 'completed' : 'pending',
+            created_at: transactionData.created_at,
+            customer_name: 'Customer ' + transactionData.order_id?.substring(0, 5)
+          };
+          
+          // Set the order in the store
+          setOrder(mockOrder);
+          
+          setLoading(false);
+          return { transaction: transactionData, order: mockOrder };
+        }
+        
+        // If there's no order_id, return just the transaction
+        setOrder(null);
+        setLoading(false);
+        return { transaction: transactionData, order: null };
+      } catch (error: unknown) {
+        console.error('Error fetching transaction with order:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch transaction and order data';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        throw error;
+      } finally {
+        setLoading(false);
+        setActiveAction(null);
+      }
+    },
+    
     fetchTransaction: async (id: string, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError, setTransaction } = get();
       try {

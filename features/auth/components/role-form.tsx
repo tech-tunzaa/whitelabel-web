@@ -23,17 +23,25 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { RequiredField } from "@/components/ui/required-field"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Form schema
 const roleFormSchema = z.object({
+  role: z.string().min(2, {
+    message: "Role identifier must be at least 2 characters."
+  }),
   name: z.string().min(2, {
     message: "Name must be at least 2 characters."
+  }),
+  display_name: z.string().min(2, {
+    message: "Display name must be at least 2 characters."
   }),
   description: z.string().min(10, {
     message: "Description must be at least 10 characters."
   }),
-  permissions: z.array(z.string())
+  permissions: z.array(z.string()),
+  is_active: z.boolean().default(true)
 })
 
 type RoleFormValues = z.infer<typeof roleFormSchema>
@@ -63,9 +71,12 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: {
+      role: initialData?.role || "",
       name: initialData?.name || "",
+      display_name: initialData?.display_name || "",
       description: initialData?.description || "",
-      permissions: initialData?.permissions || []
+      permissions: initialData?.permissions || [],
+      is_active: initialData?.is_active !== undefined ? initialData.is_active : true
     }
   })
 
@@ -88,6 +99,22 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
               <div className="grid gap-6">
                 <FormField
                   control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role Identifier <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input placeholder="admin" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        A unique identifier for the role (e.g., admin, manager)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -95,6 +122,22 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
                       <FormControl>
                         <Input placeholder="Admin" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="display_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Display Name <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Administrator" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        How the role name is displayed to users
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -112,6 +155,27 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
                           rows={3}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Active</FormLabel>
+                        <FormDescription>
+                          Whether this role is active and can be assigned to users
+                        </FormDescription>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -151,24 +215,26 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
                             <div className="grid gap-4 md:grid-cols-2">
                               {permissionsByModule[module].map(permission => (
                                 <FormField
-                                  key={permission.id}
+                                  key={permission.id || permission.permission_id}
                                   control={form.control}
                                   name="permissions"
                                   render={({ field }) => {
+                                    // Use either id or permission_id based on API response
+                                    const permId = permission.id || permission.permission_id || '';
                                     return (
                                       <FormItem
-                                        key={permission.id}
+                                        key={permId}
                                         className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
                                       >
                                         <FormControl>
                                           <Checkbox
-                                            checked={field.value?.includes(permission.id)}
+                                            checked={field.value?.includes(permId)}
                                             onCheckedChange={(checked) => {
                                               return checked
-                                                ? field.onChange([...field.value, permission.id])
+                                                ? field.onChange([...field.value, permId])
                                                 : field.onChange(
                                                     field.value?.filter(
-                                                      (value) => value !== permission.id
+                                                      (value) => value !== permId
                                                     )
                                                   )
                                             }}
@@ -176,10 +242,10 @@ export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
                                         </FormControl>
                                         <div className="space-y-1 leading-none">
                                           <FormLabel className="text-sm font-medium">
-                                            {permission.name.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                            {permission.name ? permission.name.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''}
                                           </FormLabel>
                                           <FormDescription className="text-xs">
-                                            {permission.description}
+                                            {permission.description || ''}
                                           </FormDescription>
                                         </div>
                                       </FormItem>

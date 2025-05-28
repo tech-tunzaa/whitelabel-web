@@ -24,6 +24,11 @@ import { toast } from "sonner";
 
 import { useLoanProductStore } from "@/features/loans/products/store";
 import { useLoanProviderStore } from "@/features/loans/providers/store";
+import { generateMockLoanProducts } from "@/features/loans/products/data/mock-data";
+import { generateMockLoanProviders } from "@/features/loans/providers/data/mock-data";
+import { LoanProduct } from "@/features/loans/products/types";
+import { LoanProvider } from "@/features/loans/providers/types";
+
 // Format currency directly to avoid import issues
 const formatCurrency = (value: number | string | undefined): string => {
   if (value === undefined) return '$0.00';
@@ -51,55 +56,92 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
   const { id } = params;
   const router = useRouter();
   const session = useSession();
-  const tenantId = session?.data?.user?.tenant_id;
+  // Get tenant ID safely
+  const tenantId = session?.data?.user ? (session.data.user as any).tenant_id : undefined;
   
-  const { 
-    product, 
-    loading: productLoading, 
-    storeError: productError, 
-    fetchProduct,
-    updateProductStatus 
-  } = useLoanProductStore();
-  
-  const {
-    provider,
-    loading: providerLoading,
-    fetchProvider
-  } = useLoanProviderStore();
-
+  // Skip the store for now and use local state directly
+  const [product, setProduct] = useState<LoanProduct | null>(null);
+  const [provider, setProvider] = useState<LoanProvider | null>(null);
   const [loading, setLoading] = useState(true);
+  const [productError, setProductError] = useState<any>(null);
+  const [providerLoading, setProviderLoading] = useState(false);
+  
+  // Get the store functions we still need
+  const { updateProductStatus } = useLoanProductStore();
+  // Not using store fetchProvider anymore
 
   // Define tenant headers
   const tenantHeaders = {
     'X-Tenant-ID': tenantId || ''
   };
 
+  // Super simple data loading approach
   useEffect(() => {
-    const fetchData = async () => {
+    console.log('[DEBUG] Starting data load process, id:', id);
+    
+    // Immediately set loading to true
+    setLoading(true);
+    
+    // Hardcoded timeout to ensure we can debug the issue
+    setTimeout(() => {
       try {
-        setLoading(true);
-        await fetchProduct(id, tenantHeaders);
+        console.log('[DEBUG] Mock data load timer triggered');
         
-        if (product?.provider_id) {
-          await fetchProvider(product?.provider_id, tenantHeaders);
+        // Use mock data directly
+        const mockProducts = generateMockLoanProducts();
+        console.log('[DEBUG] Mock products:', mockProducts.length);
+        
+        const foundProduct = mockProducts.find(p => p.product_id === id);
+        console.log('[DEBUG] Found product?', !!foundProduct);
+        
+        if (foundProduct) {
+          setProduct(foundProduct);
+          
+          // If product has provider_id, get provider data
+          if (foundProduct.provider_id) {
+            const mockProviders = generateMockLoanProviders();
+            const providerData = mockProviders.find(p => p.provider_id === foundProduct.provider_id);
+            if (providerData) {
+              setProvider(providerData);
+            }
+          }
+        } else {
+          setProductError({
+            message: 'Loan product not found',
+            status: 404
+          });
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error('[DEBUG] Error in timeout handler:', error);
+        setProductError({
+          message: 'Failed to load loan product data',
+          status: 'error'
+        });
       } finally {
+        // ALWAYS set loading to false, no matter what happened
+        console.log('[DEBUG] Setting loading to false');
         setLoading(false);
       }
-    };
+    }, 500); // Small timeout to ensure component is fully mounted
     
-    if (tenantId) {
-      fetchData();
-    }
-  }, [id, tenantId, fetchProduct, fetchProvider, product?.provider_id]);
+    // Cleanup function
+    return () => {
+      console.log('[DEBUG] Component unmounting');
+    };
+  }, [id]); // Only depend on the ID
 
   const handleStatusChange = async (isActive: boolean) => {
     try {
       toast.loading(`${isActive ? 'Activating' : 'Deactivating'} product?...`);
       await updateProductStatus(id, isActive, tenantHeaders);
-      await fetchProduct(id, tenantHeaders);
+      
+      // After updating, reload the data directly
+      const mockProducts = generateMockLoanProducts();
+      const updatedProduct = mockProducts.find(p => p.product_id === id);
+      if (updatedProduct) {
+        setProduct(updatedProduct);
+      }
+      
       toast.success(`Product ${isActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       toast.error(`Failed to ${isActive ? 'activate' : 'deactivate'} product`);
@@ -132,13 +174,13 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
     return totalPayment - p;
   };
 
-  if (productLoading && !product) {
+  if (loading && !product) {
     return (
       <Spinner />
     );
   }
 
-  if (productError && !product && !productLoading) {
+  if (productError && !product && !loading) {
     return (
       <ErrorCard
         title="Error Loading Loan Product"
@@ -216,67 +258,139 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
           {/* Main Content - 5 columns */}
           <div className="md:col-span-5 space-y-6">
             {/* Overview Card */}
-            <Card>
-              <CardHeader className="pb-3">
+            <Card className="overflow-hidden border-2 border-primary/10">
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Overview</CardTitle>
-                  <Badge variant={product?.is_active ? "outline" : "secondary"}>
+                  <div className="flex items-center gap-2">
+                    <BadgeDollarSign className="h-5 w-5 text-primary" />
+                    <CardTitle>Loan Product Overview</CardTitle>
+                  </div>
+                  <Badge 
+                    variant={product?.is_active ? "default" : "secondary"}
+                    className={product?.is_active ? "bg-green-500 hover:bg-green-600" : ""}
+                  >
                     {product?.is_active ? "Active" : "Inactive"}
                   </Badge>
                 </div>
+                <CardDescription>
+                  Key details and metrics for this loan product
+                </CardDescription>
               </CardHeader>
               
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="p-6">
+                <div className="space-y-6">
                   {/* Description */}
-                  <div className="bg-muted/20 p-4 rounded-lg border border-muted">
-                    <p className="text-sm">{product?.description || "No description provided."}</p>
+                  <div className="bg-muted/20 p-4 rounded-lg border border-muted shadow-sm">
+                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      Product Description
+                    </h3>
+                    <p className="text-sm leading-relaxed">{product?.description || "No description provided."}</p>
                   </div>
                   
                   {/* Key Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="border-0 shadow-none bg-muted/10">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <Percent className="h-4 w-4 text-primary" />
-                            <p className="text-sm text-muted-foreground">Interest Rate</p>
+                  <div>
+                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <BarChart4 className="h-4 w-4 text-primary" />
+                      Key Metrics
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Percent className="h-4 w-4 text-primary" />
+                                </div>
+                                <p className="text-sm font-medium">Interest Rate</p>
+                              </div>
+                              <Badge variant="outline" className="bg-primary/5">{product?.interest_rate}%</Badge>
+                            </div>
+                            <p className="text-3xl font-bold text-primary">{product?.interest_rate}%</p>
+                            <p className="text-xs text-muted-foreground">Annual percentage rate (APR)</p>
+                            
+                            {product?.interest_rate && product?.term_options?.[0] && (
+                              <div className="mt-2 pt-2 border-t border-dashed border-muted">
+                                <p className="text-xs text-muted-foreground">
+                                  {calculateTotalInterest(10000, product.interest_rate, product.term_options[0]) > 0 ? 
+                                    `~${formatCurrency(calculateTotalInterest(10000, product.interest_rate, product.term_options[0]))} interest on $10k/${product.term_options[0]}mo` :
+                                    'Interest calculation not available'}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-2xl font-bold">{product?.interest_rate}%</p>
-                          <p className="text-xs text-muted-foreground">Annual percentage rate</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="border-0 shadow-none bg-muted/10">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-primary" />
-                            <p className="text-sm text-muted-foreground">Amount Range</p>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <DollarSign className="h-4 w-4 text-primary" />
+                                </div>
+                                <p className="text-sm font-medium">Amount Range</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Min</p>
+                                <p className="text-lg font-semibold">{formatCurrency(product?.min_amount)}</p>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-muted-foreground">—</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Max</p>
+                                <p className="text-lg font-semibold">{formatCurrency(product?.max_amount)}</p>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">Loan amount boundaries</p>
                           </div>
-                          <p className="text-xl font-bold">
-                            {formatCurrency(product?.min_amount)} - {formatCurrency(product?.max_amount)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Minimum and maximum loan amount</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="border-0 shadow-none bg-muted/10">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-primary" />
-                            <p className="text-sm text-muted-foreground">Payment Schedule</p>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                </div>
+                                <p className="text-sm font-medium">Payment Details</p>
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <p className="text-xs text-muted-foreground">Frequency:</p>
+                                <Badge variant="outline" className="capitalize bg-primary/5">
+                                  {formatFrequency(product?.payment_frequency)}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <p className="text-xs text-muted-foreground">Term Options:</p>
+                                <div className="flex flex-wrap gap-1 justify-end">
+                                  {product?.term_options?.slice(0, 3).map((term, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs px-1 py-0 h-5">
+                                      {term}m
+                                    </Badge>
+                                  ))}
+                                  {product?.term_options && product.term_options.length > 3 && (
+                                    <Badge variant="outline" className="text-xs px-1 py-0 h-5">
+                                      +{product.term_options.length - 3}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">Payment structure details</p>
                           </div>
-                          <p className="text-xl font-bold capitalize">
-                            {formatFrequency(product?.payment_frequency)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Repayment frequency</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -309,14 +423,15 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                       </div>
                     </div>
                     
-                    {product?.late_fee && (
+                    {/* Commented out late_fee since it's not in the LoanProduct type */
+                    /*{product?.late_fee && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                           <DollarSign className="h-4 w-4" /> Late Payment Fee
                         </p>
                         <p className="text-sm">{formatCurrency(product?.late_fee)}</p>
                       </div>
-                    )}
+                    )}*/}
                   </div>
                   
                   <div className="space-y-4">
@@ -329,14 +444,15 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                       </div>
                     )}
                     
-                    {product?.early_repayment_fee && (
+                    {/* Commented out early_repayment_fee since it's not in the LoanProduct type */
+                    /*{product?.early_repayment_fee && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                           <BadgeDollarSign className="h-4 w-4" /> Early Repayment Fee
                         </p>
                         <p className="text-sm">{formatCurrency(product?.early_repayment_fee)}</p>
                       </div>
-                    )}
+                    )}*/}
                   </div>
                 </div>
                 
@@ -373,13 +489,13 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback style={{ backgroundColor: "#4f46e5" }}>
-                          {provider.name.substring(0, 2).toUpperCase()}
+                          {provider?.name ? provider.name.substring(0, 2).toUpperCase() : 'LP'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-medium">{provider.name}</h3>
+                        <h3 className="font-medium">{provider?.name || 'Unknown Provider'}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {provider.is_active ? "Active Provider" : "Inactive Provider"}
+                          {provider?.is_active ? "Active Provider" : "Inactive Provider"}
                         </p>
                       </div>
                     </div>
@@ -387,21 +503,25 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                     <Separator />
                     
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <a href={`mailto:${provider.contact_email}`} className="text-sm hover:underline">
-                          {provider.contact_email}
-                        </a>
-                      </div>
+                      {provider?.contact_email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <a href={`mailto:${provider.contact_email || ''}`} className="text-sm hover:underline">
+                            {provider.contact_email || 'No email provided'}
+                          </a>
+                        </div>
+                      )}
                       
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <a href={`tel:${provider.contact_phone}`} className="text-sm hover:underline">
-                          {provider.contact_phone}
-                        </a>
-                      </div>
+                      {provider?.contact_phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a href={`tel:${provider.contact_phone || ''}`} className="text-sm hover:underline">
+                            {provider.contact_phone || 'No phone provided'}
+                          </a>
+                        </div>
+                      )}
                       
-                      {provider.website && (
+                      {provider?.website && (
                         <div className="flex items-center gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground" />
                           <a 
@@ -424,7 +544,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                 )}
               </CardContent>
               
-              {provider && (
+              {provider?.provider_id && (
                 <CardFooter>
                   <Button 
                     variant="outline" 

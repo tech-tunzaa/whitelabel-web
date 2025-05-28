@@ -18,44 +18,71 @@ interface EditRolePageProps {
 
 export default function EditRolePage({ params }: EditRolePageProps) {
   const router = useRouter()
-  const { getRole, updateRole } = useRoleStore()
+  const { fetchRole, updateRole } = useRoleStore()
   const [role, setRole] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    // Fetch the role data
-    const roleData = getRole(params.id)
-    if (roleData) {
-      setRole(roleData)
-    } else {
-      toast.error("Role not found")
-      router.push("/dashboard/auth/roles")
+    async function loadRole() {
+      setLoading(true)
+      try {
+        // Fetch the role data from API
+        await fetchRole(params.id)
+          .then((roleData) => {
+            if (roleData) {
+              setRole(roleData)
+            } else {
+              setError('Role not found')
+              toast.error("Role not found")
+              router.push("/dashboard/auth/roles")
+            }
+          })
+      } catch (err) {
+        console.error('Error fetching role:', err)
+        setError('Failed to load role data')
+        toast.error("Failed to load role data")
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [params.id, getRole, router])
+    
+    loadRole()
+  }, [params.id, fetchRole, router])
   
-  const handleSubmit = (data: any) => {
-    // Don't allow editing the permissions for the Super Owner role
-    if (params.id === '1' && data.permissions.length < role.permissions.length) {
-      toast.error("Cannot remove permissions from the Super Owner role")
-      return
+  const handleSubmit = async (data: any) => {
+    try {
+      // Don't allow editing the permissions for the Super Owner role
+      if (params.id === '1' && data.permissions.length < role.permissions.length) {
+        toast.error("Cannot remove permissions from the Super Owner role")
+        return
+      }
+      
+      // Format data for API request
+      const updatedRole = {
+        ...data,
+        // API will handle timestamps automatically
+      }
+      
+      await updateRole(params.id, updatedRole)
+      toast.success("Role updated successfully")
+      router.push("/dashboard/auth/roles")
+    } catch (error) {
+      console.error('Error updating role:', error)
+      toast.error("Failed to update role")
     }
-    
-    const updatedRole = {
-      ...role,
-      ...data,
-      updatedAt: new Date().toISOString()
-    }
-    
-    updateRole(updatedRole)
-    toast.success("Role updated successfully")
-    router.push("/dashboard/auth/roles")
   }
   
   const handleCancel = () => {
     router.push("/dashboard/auth/roles")
   }
   
-  if (!role) {
-    return <div className="container py-6">Loading...</div>
+  if (loading) {
+    return <div className="container py-6">Loading role data...</div>
+  }
+  
+  if (error || !role) {
+    return <div className="container py-6">Error: {error || 'Role not found'}</div>
   }
   
   return (

@@ -650,47 +650,121 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                 </Card>
                 
                 {/* Loan Summary Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Loan Summary</CardTitle>
+                <Card className="overflow-hidden border-2 border-primary/10">
+                  <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      <CardTitle>Loan Summary</CardTitle>
+                    </div>
                     <CardDescription>Overview of loan terms and repayment</CardDescription>
                   </CardHeader>
                   
-                  <CardContent>
+                  <CardContent className="p-6">
                     <div className="space-y-6">
                       {/* Loan Summary Stats */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card className="border-0 shadow-none bg-muted/10">
+                      <div>
+                        <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-primary" />
+                          Key Financial Details
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                      <CreditCard className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <p className="text-sm font-medium">Principal</p>
+                                  </div>
+                                  <Badge variant="outline" className="bg-primary/5">Requested</Badge>
+                                </div>
+                                <p className="text-3xl font-bold text-primary">{formatCurrency(request?.loan_amount || 0)}</p>
+                                <p className="text-xs text-muted-foreground">Total loan amount requested</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                      <Wallet className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <p className="text-sm font-medium">Total Repayment</p>
+                                  </div>
+                                </div>
+                                <p className="text-3xl font-bold text-primary">
+                                  {product && request ? 
+                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length)) : 
+                                    'N/A'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Total amount to be repaid</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                      <Percent className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <p className="text-sm font-medium">Interest Amount</p>
+                                  </div>
+                                </div>
+                                <p className="text-3xl font-bold text-primary">
+                                  {product && request ? 
+                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length) - request.loan_amount) : 
+                                    'N/A'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Total interest payable</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                      
+                      {/* Payment Schedule - Simplified */}
+                      <div>
+                        <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
                           <CardContent className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <p className="text-sm text-muted-foreground">Total Loan Amount</p>
-                              <p className="text-2xl font-bold">{formatCurrency(request?.loan_amount || 0)}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        
-                        <Card className="border-0 shadow-none bg-muted/10">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <p className="text-sm text-muted-foreground">Total Repayment</p>
-                              <p className="text-2xl font-bold">
-                                {product && request ? 
-                                  formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length)) : 
-                                  'N/A'}
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        
-                        <Card className="border-0 shadow-none bg-muted/10">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <p className="text-sm text-muted-foreground">Total Interest</p>
-                              <p className="text-2xl font-bold">
-                                {product && request ? 
-                                  formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length) - request.loan_amount) : 
-                                  'N/A'}
-                              </p>
+                            <div className="flex flex-row justify-between items-center">
+                              {/* Left Side - Payment */}
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Monthly Payment</p>
+                                  <p className="text-2xl font-bold text-primary">
+                                    {product && request ? 
+                                      formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) : 
+                                      'N/A'}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Divider */}
+                              <div className="h-12 w-px bg-muted mx-4 hidden md:block"></div>
+                              
+                              {/* Right Side - Term */}
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Term Length</p>
+                                  <p className="text-2xl font-bold text-primary">
+                                    {request?.term_length || 0} <span className="text-lg font-medium text-primary/70">{(request?.term_length || 0) === 1 ? 'month' : 'months'}</span>
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -698,14 +772,21 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       
                       {/* Progress Bar */}
                       {request?.status === 'disbursed' || request?.status === 'paid' ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3 pt-2">
                           <div className="flex justify-between items-center">
-                            <p className="text-sm font-medium">Loan Progress</p>
-                            <p className="text-sm text-muted-foreground">
-                              {request?.status === 'paid' ? '100%' : '33%'} Complete
+                            <p className="text-sm font-medium flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-primary" />
+                              Loan Progress
                             </p>
+                            <Badge variant="outline" className={request?.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}>
+                              {request?.status === 'paid' ? '100%' : '33%'} Complete
+                            </Badge>
                           </div>
-                          <Progress value={request?.status === 'paid' ? 100 : 33} className="h-2" />
+                          <Progress 
+                            value={request?.status === 'paid' ? 100 : 33} 
+                            className="h-2.5 rounded-full" 
+                            indicatorClassName={request?.status === 'paid' ? 'bg-green-500' : 'bg-blue-500'}
+                          />
                         </div>
                       ) : null}
                     </div>
@@ -1085,17 +1166,6 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Interest Rate</p>
                       <p className="text-sm font-medium">{product.interest_rate}%</p>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Term Options</p>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {product.term_options?.map((term, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {term} {term === 1 ? 'month' : 'months'}
-                          </Badge>
-                        ))}
-                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between">

@@ -12,20 +12,22 @@ import { Button } from "@/components/ui/button"
 
 export default function AddRolePage() {
   const router = useRouter()
-  const { addRole } = useRoleStore()
+  const { createRole } = useRoleStore()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
-  const handleSubmit = (data: any) => {
-    // Generate a unique ID for the new role
-    const newRole = {
-      ...data,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  const handleSubmit = async (data: any) => {
+    setIsSubmitting(true)
+    try {
+      // Format data for API request if needed
+      await createRole(data)
+      toast.success("Role created successfully")
+      router.push("/dashboard/auth/roles")
+    } catch (error) {
+      toast.error("Failed to create role")
+      console.error("Error creating role:", error)
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    addRole(newRole)
-    toast.success("Role created successfully")
-    router.push("/dashboard/auth/roles")
   }
   
   const handleCancel = () => {

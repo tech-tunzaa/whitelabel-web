@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Search } from "lucide-react"
 import { useRoleStore } from "@/features/auth/stores/role-store"
@@ -17,14 +17,30 @@ export default function RolesPage() {
   const router = useRouter()
   const {
     roles,
+    loading,
+    storeError,
     selectedRole,
     selectRole,
     deleteRole,
     setSearchQuery,
-    getFilteredRoles
+    getFilteredRoles,
+    fetchRoles
   } = useRoleStore()
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  
+  // Fetch roles on component mount
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        await fetchRoles()
+      } catch (error) {
+        console.error('Failed to load roles:', error)
+      }
+    }
+    
+    loadRoles()
+  }, [fetchRoles])
   
   // Handle search input
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,16 +59,21 @@ export default function RolesPage() {
   }
   
   // Handle role deletion
-  const handleDeleteRole = (id: string) => {
+  const handleDeleteRole = async (id: string) => {
     // Don't allow deletion of the Super Owner role
-    if (id === '1') {
+    if (id === '1' || id === 'super_owner') {
       toast.error("Cannot delete the Super Owner role")
       return
     }
     
-    deleteRole(id)
-    toast.success("Role deleted successfully")
-    setIsDetailsOpen(false)
+    try {
+      await deleteRole(id)
+      toast.success("Role deleted successfully")
+      setIsDetailsOpen(false)
+    } catch (error) {
+      console.error('Failed to delete role:', error)
+      toast.error("Failed to delete role")
+    }
   }
   
   // Navigate to edit role page
@@ -95,12 +116,29 @@ export default function RolesPage() {
         />
       </div>
       
-      <RoleTable
-        roles={filteredRoles}
-        onRoleClick={handleRoleClick}
-        onEditRole={handleEditRole}
-        onDeleteRole={handleDeleteRole}
-      />
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : storeError ? (
+        <div className="text-center py-8 text-destructive">
+          <p>Error loading roles: {storeError.message}</p>
+          <Button 
+            variant="outline" 
+            className="mt-2"
+            onClick={() => fetchRoles()}
+          >
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <RoleTable
+          roles={filteredRoles}
+          onRoleClick={handleRoleClick}
+          onEditRole={handleEditRole}
+          onDeleteRole={handleDeleteRole}
+        />
+      )}
       
       <RoleDetailsDialog
         role={selectedRole}

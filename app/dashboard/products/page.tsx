@@ -114,7 +114,9 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return <Spinner />;
+    return (
+      <Spinner />
+    );
   }
 
   if (error) {

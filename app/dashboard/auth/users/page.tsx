@@ -18,15 +18,31 @@ export default function UsersPage() {
   const router = useRouter()
   const {
     users,
+    loading,
+    storeError,
     selectedUser,
     selectUser,
-    toggleUserStatus,
     setSearchQuery,
     setSelectedStatus,
-    getFilteredUsers
+    getFilteredUsers,
+    fetchUsers,
+    changeUserStatus
   } = useUserStore()
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  
+  // Fetch users on component mount
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        await fetchUsers()
+      } catch (error) {
+        console.error('Failed to load users:', error)
+      }
+    }
+    
+    loadUsers()
+  }, [fetchUsers])
   
   // Handle search input
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,12 +66,20 @@ export default function UsersPage() {
   }
   
   // Handle user activation/deactivation
-  const handleActivateUser = (id: string) => {
-    toggleUserStatus(id)
+  const handleActivateUser = async (id: string) => {
+    try {
+      await changeUserStatus(id, 'active')
+    } catch (error) {
+      console.error('Failed to activate user:', error)
+    }
   }
   
-  const handleDeactivateUser = (id: string) => {
-    toggleUserStatus(id)
+  const handleDeactivateUser = async (id: string) => {
+    try {
+      await changeUserStatus(id, 'inactive')
+    } catch (error) {
+      console.error('Failed to deactivate user:', error)
+    }
   }
   
   // Navigate to edit user page
@@ -108,13 +132,13 @@ export default function UsersPage() {
             <TabsTrigger value="active">
               Active
               <Badge variant="outline" className="ml-2">
-                {users.filter(user => user.status === 'active').length}
+                {users.filter(user => user.is_active).length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="inactive">
               Inactive
               <Badge variant="outline" className="ml-2">
-                {users.filter(user => user.status === 'inactive').length}
+                {users.filter(user => !user.is_active).length}
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -122,13 +146,30 @@ export default function UsersPage() {
         
       </div>
       
-      <UserTable
-        users={filteredUsers}
-        onUserClick={handleUserClick}
-        onActivateUser={handleActivateUser}
-        onDeactivateUser={handleDeactivateUser}
-        onEditUser={handleEditUser}
-      />
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : storeError ? (
+        <div className="text-center py-8 text-destructive">
+          <p>Error loading users: {storeError.message}</p>
+          <Button 
+            variant="outline" 
+            className="mt-2"
+            onClick={() => fetchUsers()}
+          >
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <UserTable
+          users={filteredUsers}
+          onUserClick={handleUserClick}
+          onActivateUser={handleActivateUser}
+          onDeactivateUser={handleDeactivateUser}
+          onEditUser={handleEditUser}
+        />
+      )}
       
       <UserDetailsDialog
         user={selectedUser}

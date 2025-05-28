@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Role } from "../types/role"
 import { Edit, Trash, Shield } from "lucide-react"
 import { useRoleStore } from "../stores/role-store"
@@ -32,22 +32,54 @@ export function RoleDetailsDialog({
   onEdit,
   onDelete,
 }: RoleDetailsDialogProps) {
-  const { permissions } = useRoleStore()
+  const { permissions, fetchAvailablePermissions } = useRoleStore()
+  const [loading, setLoading] = useState(false)
+  
+  // Fetch permissions when dialog opens if not already loaded
+  useEffect(() => {
+    if (isOpen && permissions.length === 0) {
+      setLoading(true);
+      fetchAvailablePermissions()
+        .finally(() => setLoading(false));
+    }
+  }, [isOpen, permissions.length, fetchAvailablePermissions])
   
   if (!role) return null
 
+  // Get role ID and name safely
+  const roleId = role.id || role.role_id || role.role;
+  const roleName = role.name || role.display_name || role.role;
+  const roleDescription = role.description || '';
+  
   // Group permissions by module
   const permissionsByModule: Record<string, typeof permissions> = {}
   
-  role.permissions.forEach(permissionId => {
-    const permission = permissions.find(p => p.id === permissionId)
-    if (permission) {
-      if (!permissionsByModule[permission.module]) {
-        permissionsByModule[permission.module] = []
+  // Handle different permission formats from API
+  const rolePermissions = role.permissions || [];
+  if (Array.isArray(rolePermissions)) {
+    // Handle permissions that could be strings (IDs) or objects
+    rolePermissions.forEach(permissionItem => {
+      if (typeof permissionItem === 'string') {
+        // Permission is just an ID string
+        const permission = permissions.find(p => p.id === permissionItem || p.permission_id === permissionItem)
+        if (permission) {
+          if (!permissionsByModule[permission.module]) {
+            permissionsByModule[permission.module] = []
+          }
+          permissionsByModule[permission.module].push(permission)
+        }
+      } else if (typeof permissionItem === 'object' && permissionItem !== null) {
+        // Permission is an object
+        const permissionObj = permissionItem as any;
+        if (permissionObj.module) {
+          if (!permissionsByModule[permissionObj.module]) {
+            permissionsByModule[permissionObj.module] = []
+          }
+          permissionsByModule[permissionObj.module].push(permissionObj)
+        }
       }
-      permissionsByModule[permission.module].push(permission)
-    }
-  })
+    })
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -59,61 +91,69 @@ export function RoleDetailsDialog({
 
         <div className="flex flex-col gap-4 py-4 h-100 overflow-y-auto">
           <div>
-            <h3 className="text-lg font-semibold">{role.name}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{role.description}</p>
+            <h3 className="text-lg font-semibold">{roleName}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{roleDescription}</p>
           </div>
 
           <Separator />
 
           <div>
-            <h4 className="font-medium mb-2">Permissions ({role.permissions.length})</h4>
+            <h4 className="font-medium mb-2">
+              Permissions ({Array.isArray(role.permissions) ? role.permissions.length : 0})
+            </h4>
             
-            <div className="space-y-4">
-              {Object.entries(permissionsByModule).map(([module, modulePermissions]) => (
-                <div key={module} className="space-y-2">
-                  <h5 className="text-sm font-medium capitalize">{module.replace('_', ' ')}</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {modulePermissions.map(permission => (
-                      <Badge key={permission.id} variant="outline" className="flex items-center gap-1">
-                        <Shield className="h-3 w-3" />
-                        <span>{permission.description}</span>
-                      </Badge>
-                    ))}
+            {loading ? (
+              <div className="flex justify-center items-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              </div>
+            ) : Object.entries(permissionsByModule).length > 0 ? (
+              <div className="space-y-4">
+                {Object.entries(permissionsByModule).map(([module, modulePermissions]) => (
+                  <div key={module} className="space-y-2">
+                    <h5 className="text-sm font-medium capitalize">{module.replace('_', ' ')}</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {modulePermissions.map(permission => (
+                        <Badge 
+                          key={permission.id || permission.permission_id} 
+                          variant="outline" 
+                          className="flex items-center gap-1"
+                        >
+                          <Shield className="h-3 w-3" />
+                          <span>{permission.description || permission.name}</span>
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No permissions found for this role.</p>
+            )}
           </div>
           
-          <div className="text-sm text-muted-foreground mt-2">
-            <p>Created: {new Date(role.createdAt).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            })}</p>
-            <p>Last Updated: {new Date(role.updatedAt).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            })}</p>
+          <div className="text-sm text-muted-foreground">
+            <p><strong>Created:</strong> {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'Unknown'}</p>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <p><strong>Last Updated:</strong> {role.updated_at ? new Date(role.updated_at).toLocaleDateString() : 'Unknown'}</p>
           </div>
         </div>
 
         <DialogFooter className="flex sm:justify-between">
           <div className="flex gap-2">
             {/* Only allow deletion of non-default roles */}
-            {role.id !== '1' && (
+            {roleId !== '1' && role.role !== 'super_owner' && (
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => onDelete(role.id)}
+                onClick={() => onDelete(roleId as string)}
               >
                 <Trash className="mr-2 h-4 w-4" />
                 Delete
               </Button>
             )}
           </div>
-          <Button size="sm" onClick={() => onEdit(role.id)}>
+          <Button size="sm" onClick={() => onEdit(roleId as string)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit Role
           </Button>

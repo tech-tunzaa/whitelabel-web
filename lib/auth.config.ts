@@ -1,19 +1,11 @@
 import { NextAuthConfig } from "next-auth";
 import CredentialProvider from "next-auth/providers/credentials";
-import GithubProvider from "next-auth/providers/github";
-import { use } from "react";
-import { ZodError } from "zod";
 import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
+import { authenticateUser, extractUserRole, mapApiRole } from "./core";
+import type { CustomUser } from "./core";
 
-interface CustomUser {
-  email: string;
-  token: string;
-  name: string;
-  role: "super_owner" | "admin" | "sub_admin" | "support";
-  tenant_id: string;
-  accessToken: string;
-}
+// CustomUser type is imported from the centralized core module
 
 interface CustomSession extends Session {
   user: CustomUser;
@@ -35,74 +27,33 @@ const authConfig = {
           type: "password",
         },
       },
-      async authorize(credentials): Promise<CustomUser | null> {
+      async authorize(credentials: any, req: any): Promise<CustomUser | null> {
         try {
-          //Call the server for login
-          // const response = await fetch(`${process.env.API_URL}/auth/signin`, {
-          //   method: "POST",
-          //   body: JSON.stringify({
-          //     email: credentials.email,
-          //     password: credentials.password,
-          //   }),
-          //   headers: { "Content-Type": "application/json" },
-          // });
-
-          // const data = await response.json();
-
-          let role = "admin";
-          let name = "The Manager";
-
-          if (
-            credentials?.email === "superowner@meneja.inc" &&
-            credentials?.password === "Test@1234"
-          ) {
-            role = "super_owner";
-            name = "Super Owner";
-          } else if (
-            credentials?.email === "admin@afrizon.cheetah.co.tz" &&
-            credentials?.password === "Test@1234"
-          ) {
-            role = "admin";
-            name = "Marketplace Admin";
-          } else if (
-            credentials?.email === "staff@afrizon.cheetah.co.tz" &&
-            credentials?.password === "Test@1234"
-          ) {
-            role = "sub_admin";
-            name = "Sub Admin";
-          } else if (
-            credentials?.email === "support@afrizon.cheetah.co.tz" &&
-            credentials?.password === "Test@1234"
-          ) {
-            role = "support";
-            name = "Afrizon Support";
-          } else {
+          if (!credentials?.email || !credentials?.password) {
+            console.error('No credentials provided');
             return null;
           }
-
-          return {
-            email: credentials?.email || "",
-            token: "abcxyz",
-            name: name,
-            role: role as "super_owner" | "admin" | "sub_admin" | "support",
-            accessToken: "abcxyz",
-            // ...(role !== "super_owner" && { tenant_id: "4c56d0c3-55d9-495b-ae26-0d922d430a42" }),
-            tenant_id: "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+          
+          // Use the centralized auth module to authenticate
+          const userData = await authenticateUser(credentials.email, credentials.password);
+          
+          // Extract and map the user role using our centralized utility functions
+          const apiRole = extractUserRole(userData);
+          const mappedRole = mapApiRole(apiRole);
+          
+          // Create the CustomUser object required by NextAuth
+          const user: CustomUser = {
+            email: userData.email,
+            token: userData.access_token,
+            name: `${userData.first_name} ${userData.last_name}`,
+            role: mappedRole,
+            accessToken: userData.access_token,
+            tenant_id: userData.tenant_id || '',
           };
-
-          // // Check if the response is OK and a user object is returned
-          // if (response.ok && data.user) {
-          //   // Return a user object that includes any extra data (like accessToken)
-          //   return { ...data.user, accessToken: data.token };
-          // }
-
-          // throw new Error("Invalid credentials.");
-          // // If you return null then an error will be displayed advising the user to check their details.
-          // return null;
+          
+          return user;
         } catch (error) {
-          if (error instanceof ZodError) {
-            return null;
-          }
+          console.error('Authentication error:', error);
           return null;
         }
       },
@@ -117,8 +68,6 @@ const authConfig = {
   callbacks: {
     // Persist the user data to the JWT token on initial sign in
     async jwt({ token, user }: { token: JWT; user: CustomUser | null }) {
-      // console.log('In JWT Token :: ', token);
-      // console.log('In JWT User ::', user);
       if (user) {
         token.user = user;
         token.accessToken = user.accessToken;
@@ -133,8 +82,16 @@ const authConfig = {
       session: Session;
       token: JWT & { user: CustomUser; accessToken: string };
     }) {
-      // console.log('In JWT Session :: ', session);
-      // console.log('In JWT Token ::', token);
+      // Synchronize the token with localStorage for our API client
+      if (typeof window !== 'undefined' && token.accessToken) {
+        // Store token in localStorage for our API client to use
+        localStorage.setItem('token', token.accessToken);
+        
+        // If we have a refresh token in the user object, store that too
+        if (token.user?.token) {
+          localStorage.setItem('refresh_token', token.user.token);
+        }
+      }
 
       session.user = token.user;
       (session as CustomSession).accessToken = token.accessToken;

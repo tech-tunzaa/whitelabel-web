@@ -1,93 +1,34 @@
-import axios from 'axios';
-import { toast } from 'sonner';
-import { create } from 'zustand';
+/**
+ * API Client - Re-exports from our centralized core module
+ * 
+ * This file provides backward compatibility for code that imports from
+ * the old structure. It re-exports everything from the new core module.
+ */
 
-interface ApiResponse<T> {
-  data: T;
-  success: boolean;
-  message?: string;
-  errors?: string[];
-}
+// Re-export API client for backward compatibility
+import api from '../core/api';
 
-interface ApiError {
-  message: string;
-  status?: number;
-  code?: string;
-}
+// For backward compatibility with existing code
+export const apiClient = api;
+export default api;
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-});
-
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const { response } = error;
-    
-    if (response?.status === 401) {
-      // Handle unauthorized
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-
-    if (response?.data?.message) {
-      toast.error(response.data.message);
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Retry interceptor
-api.interceptors.response.use(undefined, async (err) => {
-  const { config, response } = err;
-  if (!config || !config.retries) return Promise.reject(err);
-
-  // Only retry on network errors or 5xx errors
-  if (!response && config.retries > 0) {
-    config.retries--;
-    return api(config);
-  }
-
-  return Promise.reject(err);
-});
-
-export const apiClient = {
-  get: <T>(url: string, params?: any, headers?: Record<string, string>) => {
-    return api.get<ApiResponse<T>>(url, { params, headers });
-  },
-  post: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-    return api.post<ApiResponse<T>>(url, data, { headers });
-  },
-  put: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-    return api.put<ApiResponse<T>>(url, data, { headers });
-  },
-  delete: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-    return api.delete<ApiResponse<T>>(url, { data, headers });
-  },
+// Re-export the token management functions
+export const TokenManager = {
+  getAccessToken: api.auth.getToken,
+  getRefreshToken: api.auth.getRefreshToken,
+  setTokens: api.auth.setTokens,
+  clearTokens: api.auth.clearTokens
 };
 
-// API error store for global error handling
-export const useApiErrorStore = create((set) => ({
-  error: null as ApiError | null,
-  setError: (error: ApiError) => set({ error }),
-  clearError: () => set({ error: null }),
-}));
+// Re-export the API error store
+export { useApiErrorStore } from '../core/api';
+
+// Re-export types
+export type { ApiResponse, ApiError } from '../core/api';
+
+// For auth-related imports
+export const authApi = {
+  login: api.auth.login,
+  refreshToken: api.auth.refreshToken,
+  logout: api.auth.logout
+};

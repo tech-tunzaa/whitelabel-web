@@ -275,118 +275,187 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
           {/* Main Content - 5 columns */}
           <div className="md:col-span-5 space-y-6">
             {/* Overview Card */}
-            <Card>
-              <CardHeader className="pb-3">
+            <Card className="overflow-hidden border-2 border-primary/10">
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Overview</CardTitle>
-                  <Badge variant={provider.is_active ? "outline" : "secondary"}>
+                  <div className="flex items-center gap-2">
+                    <Building className="h-5 w-5 text-primary" />
+                    <CardTitle>Loan Provider Overview</CardTitle>
+                  </div>
+                  <Badge 
+                    variant={provider.is_active ? "default" : "secondary"}
+                    className={provider.is_active ? "bg-green-500 hover:bg-green-600" : ""}
+                  >
                     {provider.is_active ? "Active" : "Inactive"}
                   </Badge>
                 </div>
+                <CardDescription>
+                  Key details and information about this loan provider
+                </CardDescription>
               </CardHeader>
               
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                        <Building className="h-4 w-4" /> Company Details
-                      </p>
-                      <p className="text-sm">{provider.description || "No description provided"}</p>
-                    </div>
-                    
-                    {provider.contact_email && (
-                      <DetailItem 
-                        icon={Mail} 
-                        label="Contact Email" 
-                        value={provider.contact_email} 
-                        isLink={true} 
-                        href={`mailto:${provider.contact_email}`}
-                      />
-                    )}
-                    
-                    {provider.contact_phone && (
-                      <DetailItem 
-                        icon={Phone} 
-                        label="Contact Phone" 
-                        value={provider.contact_phone} 
-                        isLink={true} 
-                        href={`tel:${provider.contact_phone}`}
-                      />
-                    )}
-                    
-                    {provider.address && (
-                      <DetailItem 
-                        icon={MapPin} 
-                        label="Address" 
-                        value={provider.address}
-                      />
-                    )}
+              <CardContent className="p-6">
+                <div className="space-y-6">
+                  {/* Company Details Section */}
+                  <div className="bg-muted/20 p-4 rounded-lg border border-muted shadow-sm">
+                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      Company Description
+                    </h3>
+                    <p className="text-sm leading-relaxed">{provider.description || "No description provided"}</p>
                   </div>
                   
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                        <Calendar className="h-4 w-4" /> Created On
-                      </p>
-                      <p className="text-sm">{formatDate(provider.created_at)}</p>
+                  {/* Contact & Details Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Contact Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium flex items-center gap-2 text-primary">
+                        <Phone className="h-4 w-4" />
+                        Contact Information
+                      </h3>
+                      
+                      <div className="bg-gradient-to-br from-white to-primary/5 rounded-lg border border-primary/20 p-4 space-y-3 shadow-sm">
+                        {provider.contact_email && (
+                          <div className="flex items-start gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                              <Mail className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Email</p>
+                              <a 
+                                href={`mailto:${provider.contact_email}`} 
+                                className="text-sm font-medium hover:underline flex items-center gap-1"
+                              >
+                                {provider.contact_email}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {provider.contact_phone && (
+                          <div className="flex items-start gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                              <Phone className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Phone</p>
+                              <a 
+                                href={`tel:${provider.contact_phone}`} 
+                                className="text-sm font-medium hover:underline flex items-center gap-1"
+                              >
+                                {provider.contact_phone}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {provider.website && (
+                          <div className="flex items-start gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                              <Globe className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Website</p>
+                              <a 
+                                href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-sm font-medium hover:underline flex items-center gap-1"
+                              >
+                                {provider.website.replace(/^https?:\/\//, '')}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {provider.address && (
+                          <div className="flex items-start gap-3">
+                            <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                              <MapPin className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Address</p>
+                              <p className="text-sm font-medium">{provider.address}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-4 w-4" /> Last Updated
-                      </p>
-                      <p className="text-sm">{formatDate(provider.updated_at)}</p>
+                    {/* Status Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium flex items-center gap-2 text-primary">
+                        <Clock className="h-4 w-4" />
+                        Status & Timeline
+                      </h3>
+                      
+                      <div className="bg-gradient-to-br from-white to-primary/5 rounded-lg border border-primary/20 p-4 space-y-3 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                            <Calendar className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Created On</p>
+                            <p className="text-sm font-medium">{formatDate(provider.created_at)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-3">
+                          <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                            <Clock className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Last Updated</p>
+                            <p className="text-sm font-medium">{formatDate(provider.updated_at)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-3">
+                          <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                            {provider.is_active ? (
+                              <Check className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <X className="h-4 w-4 text-red-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Current Status</p>
+                            <Badge 
+                              variant="outline" 
+                              className={`px-2 ${provider.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                            >
+                              {provider.is_active ? "Active Provider" : "Inactive Provider"}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-3">
+                          <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
+                            <DollarSign className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Products Offered</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="px-2 py-0 h-5">
+                                {products?.length || 0}
+                              </Badge>
+                              <Button 
+                                variant="link" 
+                                className="p-0 h-auto text-xs text-primary" 
+                                onClick={() => setActiveTab("products")}
+                              >
+                                View products
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Loan Products Card */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle>Loan Products</CardTitle>
-                  <CardDescription>
-                    Products offered by this provider
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
-                >
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Add Product
-                </Button>
-              </CardHeader>
-              
-              <CardContent>
-                {productsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Spinner />
-                  </div>
-                ) : products && products.length > 0 ? (
-                  <ProductTable
-                    products={products}
-                    onView={(product) => router.push(`/dashboard/loans/products/${product.product_id}`)}
-                    onEdit={(product) => router.push(`/dashboard/loans/products/${product.product_id}/edit`)}
-                    onStatusChange={(productId, isActive) => {
-                      // This would be implemented in the product store
-                    }}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <DollarSign className="h-12 w-12 text-muted-foreground mb-2 opacity-20" />
-                    <p className="text-muted-foreground mb-4">No loan products available</p>
-                    <Button 
-                      onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
-                    >
-                      Add First Product
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -440,6 +509,53 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                     </CardContent>
                   </Card>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Loan Products Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Loan Products</CardTitle>
+                  <CardDescription>
+                    Products offered by this provider
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+              </CardHeader>
+              
+              <CardContent>
+                {productsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Spinner />
+                  </div>
+                ) : products && products.length > 0 ? (
+                  <ProductTable
+                    products={products}
+                    onView={(product) => router.push(`/dashboard/loans/products/${product.product_id}`)}
+                    onEdit={(product) => router.push(`/dashboard/loans/products/${product.product_id}/edit`)}
+                    onStatusChange={(productId, isActive) => {
+                      // This would be implemented in the product store
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <DollarSign className="h-12 w-12 text-muted-foreground mb-2 opacity-20" />
+                    <p className="text-muted-foreground mb-4">No loan products available</p>
+                    <Button 
+                      onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
+                    >
+                      Add First Product
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

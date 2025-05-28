@@ -45,19 +45,20 @@ export function UserTable({
   onDeactivateUser,
   onEditUser
 }: UserTableProps) {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge variant="default">Active</Badge>
-      case "inactive":
-        return <Badge variant="destructive">Inactive</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+  const getStatusBadge = (isActive?: boolean) => {
+    if (isActive === true) {
+      return <Badge variant="default">Active</Badge>
+    } else if (isActive === false) {
+      return <Badge variant="destructive">Inactive</Badge>
+    } else {
+      return <Badge variant="outline">Unknown</Badge>
     }
   }
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
+  const getRoleBadge = (role?: string) => {
+    if (!role) return <Badge variant="outline">No Role</Badge>;
+    
+    switch (role.toLowerCase()) {
       case "super_owner":
         return <Badge className="bg-purple-500">Super Owner</Badge>
       case "admin":
@@ -66,6 +67,10 @@ export function UserTable({
         return <Badge className="bg-green-500">Sub Admin</Badge>
       case "support":
         return <Badge className="bg-amber-500">Support</Badge>
+      case "vendor":
+        return <Badge className="bg-orange-500">Vendor</Badge>
+      case "buyer":
+        return <Badge className="bg-teal-500">Buyer</Badge>
       default:
         return <Badge variant="outline">{role}</Badge>
     }
@@ -94,26 +99,20 @@ export function UserTable({
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id || user.user_id}>
                   <TableCell className="font-medium flex items-center gap-2">
-                    {user.avatar && (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.name} 
-                        className="h-6 w-6 rounded-full"
-                      />
-                    )}
-                    {user.name}
+                    {/* No avatar in API user model currently */}
+                    {user.name || `${user.first_name} ${user.last_name}`}
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    {getRoleBadge(user.role)}
+                    {getRoleBadge(user.active_profile_role || user.activeProfileRole)}
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(user.status)}
+                    {getStatusBadge(user.is_active)}
                   </TableCell>
                   <TableCell>
-                    {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('en-US', {
+                    {user.last_login ? new Date(user.last_login).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -134,17 +133,17 @@ export function UserTable({
                           <Eye className="mr-2 h-4 w-4" />
                           View details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEditUser(user.id)}>
+                        <DropdownMenuItem onClick={() => onEditUser(user.id || user.user_id)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        {user.status === "active" ? (
-                          <DropdownMenuItem onClick={() => onDeactivateUser(user.id)}>
+                        {user.is_active ? (
+                          <DropdownMenuItem onClick={() => onDeactivateUser(user.id || user.user_id)}>
                             <ShieldOff className="mr-2 h-4 w-4" />
                             Deactivate
                           </DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onClick={() => onActivateUser(user.id)}>
+                          <DropdownMenuItem onClick={() => onActivateUser(user.id || user.user_id)}>
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             Activate
                           </DropdownMenuItem>

@@ -18,38 +18,67 @@ interface EditUserPageProps {
 
 export default function EditUserPage({ params }: EditUserPageProps) {
   const router = useRouter()
-  const { getUser, updateUser } = useUserStore()
+  const { fetchUser, updateUser } = useUserStore()
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    // Fetch the user data
-    const userData = getUser(params.id)
-    if (userData) {
-      setUser(userData)
-    } else {
-      toast.error("User not found")
-      router.push("/dashboard/auth/users")
-    }
-  }, [params.id, getUser, router])
-  
-  const handleSubmit = (data: any) => {
-    const updatedUser = {
-      ...user,
-      ...data,
-      updatedAt: new Date().toISOString()
+    async function loadUser() {
+      setLoading(true)
+      try {
+        // Fetch the user data from API
+        await fetchUser(params.id)
+          .then((userData) => {
+            if (userData) {
+              setUser(userData)
+            } else {
+              setError('User not found')
+              toast.error("User not found")
+              router.push("/dashboard/auth/users")
+            }
+          })
+      } catch (err) {
+        console.error('Error fetching user:', err)
+        setError('Failed to load user data')
+        toast.error("Failed to load user data")
+      } finally {
+        setLoading(false)
+      }
     }
     
-    updateUser(updatedUser)
-    toast.success("User updated successfully")
-    router.push("/dashboard/auth/users")
+    loadUser()
+  }, [params.id, fetchUser, router])
+  
+  const handleSubmit = async (data: any) => {
+    try {
+      // Format data for API request
+      const updatedUser = {
+        ...data,
+        // Create a combined name field if API requires it
+        name: `${data.first_name} ${data.last_name}`,
+        // Don't manipulate timestamps - API will handle this
+      }
+      
+      await updateUser(params.id, updatedUser)
+      toast.success("User updated successfully")
+      router.push("/dashboard/auth/users")
+    } catch (error) {
+      console.error('Error updating user:', error)
+      toast.error("Failed to update user")
+    }
   }
   
   const handleCancel = () => {
     router.push("/dashboard/auth/users")
   }
   
-  if (!user) {
-    return <div className="container py-6">Loading...</div>
+  if (loading) {
+    return <div className="container py-6">Loading user data...</div>
+  }
+  
+  if (error || !user) {
+    return <div className="container py-6">Error: {error || 'User not found'}</div>
   }
   
   return (

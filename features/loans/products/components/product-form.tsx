@@ -37,7 +37,7 @@ const formSchema = z.object({
     { message: 'Interest rate must be a valid number' }
   ),
   term_options: z.array(z.number()).min(1, 'At least one term option is required'),
-  payment_frequency: z.enum(['weekly', 'bi-weekly', 'monthly']),
+  payment_frequency: z.enum(['weekly', 'semi-monthly', 'monthly', 'quarterly', 'semi-annually', 'annually']),
   min_amount: z.string().refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     { message: 'Minimum amount must be a positive number' }
@@ -46,7 +46,6 @@ const formSchema = z.object({
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     { message: 'Maximum amount must be a positive number' }
   ),
-  processing_fee: z.string().optional(),
   is_active: z.boolean().default(true),
 });
 
@@ -227,8 +226,11 @@ export function ProductForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
+                    <SelectItem value="semi-monthly">Semi-Monthly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="semi-annually">Semi-Annually</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -281,50 +283,79 @@ export function ProductForm({
 
         <FormField
           control={form.control}
-          name="processing_fee"
+          name="term_options"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Processing Fee (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="e.g. 50"
-                  step="0.01"
-                  min="0"
-                  {...field}
-                  value={field.value || ''}
-                />
-              </FormControl>
-              <FormMessage />
+              <FormLabel>Term Options (Months)</FormLabel>
+              <div className="space-y-4">
+                {/* Selected terms display */}
+                <div className="flex flex-wrap gap-2">
+                  {termOptions.length > 0 ? (
+                    termOptions.map((term) => (
+                      <div 
+                        key={term} 
+                        className="flex items-center px-3 py-1.5 bg-primary/10 text-primary rounded-full"
+                      >
+                        <span className="text-sm font-medium">{term} {term === 1 ? 'month' : 'months'}</span>
+                        <button 
+                          type="button"
+                          className="ml-2 text-primary/70 hover:text-primary focus:outline-none"
+                          onClick={() => toggleTermOption(term)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No term options selected</div>
+                  )}
+                </div>
+
+                {/* Custom term option */}
+                <div>
+                  <button
+                    type="button"
+                    className="flex items-center px-3 py-1.5 border border-dashed border-primary/40 text-primary/70 rounded-full hover:bg-primary/5 transition-colors"
+                    onClick={() => {
+                      const newTerm = window.prompt('Enter a term length in months (1-120)');
+                      if (newTerm) {
+                        const termValue = parseInt(newTerm, 10);
+                        if (!isNaN(termValue) && termValue > 0 && termValue <= 120 && !termOptions.includes(termValue)) {
+                          toggleTermOption(termValue);
+                        }
+                      }
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span className="text-sm">Add custom term</span>
+                  </button>
+                </div>
+
+                {/* Suggested term options */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Suggested terms (click to add):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 6, 8, 9, 12, 15, 18, 24, 30, 36, 48, 60].map((term) => (
+                      !termOptions.includes(term) && (
+                        <button
+                          key={term}
+                          type="button"
+                          className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded hover:bg-muted/80 transition-colors"
+                          onClick={() => toggleTermOption(term)}
+                        >
+                          {term} {term === 1 ? 'month' : 'months'}
+                        </button>
+                      )
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {form.formState.errors.term_options && (
+                <FormMessage>{form.formState.errors.term_options.message}</FormMessage>
+              )}
             </FormItem>
           )}
         />
-
-        <div>
-          <label className="text-sm font-medium">Term Options (Months)</label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2">
-            {[1, 2, 3, 6, 9, 12, 18, 24, 36, 48, 60].map((term) => (
-              <div key={term} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`term-${term}`}
-                  checked={isTermSelected(term)}
-                  onCheckedChange={() => toggleTermOption(term)}
-                />
-                <label
-                  htmlFor={`term-${term}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {term} {term === 1 ? 'month' : 'months'}
-                </label>
-              </div>
-            ))}
-          </div>
-          {form.formState.errors.term_options && (
-            <p className="text-sm font-medium text-destructive mt-2">
-              {form.formState.errors.term_options.message}
-            </p>
-          )}
-        </div>
 
         <div className="w-full border rounded-md p-4 mt-4">
           <div className="mb-4">

@@ -57,18 +57,21 @@ export function RoleTable({
             </TableRow>
           ) : (
             roles.map((role) => (
-              <TableRow key={role.id}>
+              <TableRow key={role.id || role.role_id || role.role}>
                 <TableCell className="font-medium">
-                  {role.name}
+                  {role.name || role.display_name || role.role}
                 </TableCell>
-                <TableCell>{role.description}</TableCell>
-                <TableCell>{role.permissions.length} permissions</TableCell>
+                <TableCell>{role.description || '-'}</TableCell>
                 <TableCell>
-                  {new Date(role.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
+                  {Array.isArray(role.permissions) ? role.permissions.length : 0} permissions
+                </TableCell>
+                <TableCell>
+                  {(role.created_at || role.createdAt) ? 
+                    new Date(role.created_at || role.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }) : '-'}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -83,13 +86,13 @@ export function RoleTable({
                         <Eye className="mr-2 h-4 w-4" />
                         View details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEditRole(role.id)}>
+                      <DropdownMenuItem onClick={() => onEditRole(role.id || role.role_id || role.role)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </DropdownMenuItem>
                       {/* Only show delete for non-default roles */}
-                      {role.id !== '1' && (
-                        <DropdownMenuItem onClick={() => onDeleteRole(role.id)}>
+                      {(role.id !== '1' && role.role !== 'super_owner') && (
+                        <DropdownMenuItem onClick={() => onDeleteRole(role.id || role.role_id || role.role)}>
                           <Trash className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>

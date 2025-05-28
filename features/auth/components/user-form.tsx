@@ -34,19 +34,20 @@ import { Switch } from "@/components/ui/switch"
 
 // Form schema
 const userFormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters."
+  first_name: z.string().min(2, {
+    message: "First name must be at least 2 characters."
+  }),
+  last_name: z.string().min(2, {
+    message: "Last name must be at least 2 characters."
   }),
   email: z.string().email({
     message: "Please enter a valid email address."
   }),
-  phone: z.string().optional(),
-  role: z.enum(["super_owner", "admin", "sub_admin", "support"], {
+  phone_number: z.string().optional(),
+  role: z.enum(["super_owner", "admin", "sub_admin", "support", "vendor", "buyer"], {
     required_error: "Please select a role."
   }),
-  status: z.enum(["active", "inactive"], {
-    required_error: "Please select a status."
-  }),
+  is_active: z.boolean().default(true),
   avatar: z.string().optional()
 })
 
@@ -65,11 +66,12 @@ export function UserForm({ onSubmit, onCancel, initialData }: UserFormProps) {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      name: initialData?.name || "",
+      first_name: initialData?.first_name || "",
+      last_name: initialData?.last_name || "",
       email: initialData?.email || "",
-      phone: initialData?.phone || "",
+      phone_number: initialData?.phone_number || "",
       role: initialData?.role || "support",
-      status: initialData?.status || "active",
+      is_active: initialData?.is_active !== undefined ? initialData.is_active : true,
       avatar: initialData?.avatar || "",
     }
   })
@@ -93,12 +95,25 @@ export function UserForm({ onSubmit, onCancel, initialData }: UserFormProps) {
               <div className="grid gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="first_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name <RequiredField /></FormLabel>
+                      <FormLabel>First Name <RequiredField /></FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input placeholder="John" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -146,7 +161,7 @@ export function UserForm({ onSubmit, onCancel, initialData }: UserFormProps) {
                 />
                 <FormField
                   control={form.control}
-                  name="phone"
+                  name="phone_number"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
@@ -191,24 +206,21 @@ export function UserForm({ onSubmit, onCancel, initialData }: UserFormProps) {
                 />
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="is_active"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status <RequiredField /></FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Whether the user can log in and access the system
-                      </FormDescription>
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Active Status</FormLabel>
+                        <FormDescription>
+                          Whether the user can log in and access the system
+                        </FormDescription>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

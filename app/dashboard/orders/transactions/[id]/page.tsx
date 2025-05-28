@@ -66,63 +66,83 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
   // Store hooks
   const { 
     transaction,
+    order,  // Now also including order data
     loading,
     storeError,
-    fetchTransaction,
+    fetchTransactionWithOrder,  // Combined fetch function
     refundTransaction,
     markTransactionAsCompleted,
     markTransactionAsFailed
   } = useTransactionStore();
-  
-  const { fetchOrder } = useOrderStore();
   
   // UI States
   const [activeTab, setActiveTab] = useState("details");
   const [dialogAction, setDialogAction] = useState<'refund' | 'complete' | 'fail' | null>(null);
   const [isDialogOpen, setDialogOpen] = useState(false);
   
-  // Related order state
-  const [relatedOrder, setRelatedOrder] = useState<any>(null);
-  const [relatedOrderFetched, setRelatedOrderFetched] = useState(false);
-  const [orderLoading, setOrderLoading] = useState(false);
-  
   // Request headers
   const tenantHeaders = {
     'X-Tenant-ID': tenant_id || '',
   };
   
-  const loadTransaction = async () => {
+  // Transaction breakdown calculation (fees, taxes, etc.)
+  const [breakdown, setBreakdown] = useState<{
+    subtotal: number;
+    tax: number;
+    taxPercent: number;
+    deliveryFee: number;
+    transactionFee: number;
+    transactionFeePercent: number;
+    total: number;
+  }>({
+    subtotal: 0,
+    tax: 0,
+    taxPercent: 0,
+    deliveryFee: 0,
+    transactionFee: 0,
+    transactionFeePercent: 0,
+    total: 0
+  });
+
+  // Load transaction data with order in a single call
+  const loadTransactionData = async () => {
     try {
-      await fetchTransaction(id, tenantHeaders);
+      await fetchTransactionWithOrder(id, tenantHeaders);
     } catch (error) {
-      console.error('Error loading transaction:', error);
+      console.error('Error loading transaction data:', error);
     }
   };
   
-  // Load transaction data
+  // Calculate transaction breakdown when transaction data is available
   useEffect(() => {
-    loadTransaction();
-  }, [id, fetchTransaction, tenant_id]);
-  // Fetch related order only once when transaction is loaded and order_id is available
+    if (transaction) {
+      // Calculate breakdown based on transaction data
+      // These are mock calculations - adjust based on your actual data structure
+      const amount = parseFloat(transaction.amount?.toString() || '0');
+      const taxRate = 0.08; // 8% tax rate (mock value)
+      const feeRate = 0.025; // 2.5% transaction fee (mock value)
+      const deliveryCharge = 5.99; // Fixed delivery fee (mock value)
+      
+      const tax = amount * taxRate;
+      const fee = amount * feeRate;
+      const subtotal = amount - tax - fee - deliveryCharge;
+      
+      setBreakdown({
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        tax: parseFloat(tax.toFixed(2)),
+        taxPercent: taxRate * 100,
+        deliveryFee: deliveryCharge,
+        transactionFee: parseFloat(fee.toFixed(2)),
+        transactionFeePercent: feeRate * 100,
+        total: amount
+      });
+    }
+  }, [transaction]);
+  
+  // Load transaction and order data on mount
   useEffect(() => {
-    const fetchRelatedOrder = async () => {
-      // Only fetch if we have an order_id, haven't fetched yet, and don't already have the order
-      if (transaction?.order_id && !relatedOrderFetched && !relatedOrder) {
-        try {
-          setOrderLoading(true);
-          const order = await fetchOrder(transaction.order_id, tenantHeaders);
-          setRelatedOrder(order);
-          setRelatedOrderFetched(true); // Mark as fetched to prevent refetching
-        } catch (error) {
-          console.error('Error loading related order:', error);
-        } finally {
-          setOrderLoading(false);
-        }
-      }
-    };
-    
-    fetchRelatedOrder();
-  }, [transaction?.order_id, fetchOrder, tenantHeaders, relatedOrderFetched, relatedOrder]);
+    loadTransactionData();
+  }, [id, tenant_id]);
   
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not set";
@@ -143,7 +163,7 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
   };
   
   const handleRefresh = () => {
-    loadTransaction();
+    loadTransactionData();
   };
   
   const handleRefund = (transaction: Transaction) => {
@@ -181,7 +201,7 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
       }
       
       // Reload transaction data
-      await loadTransaction();
+      await loadTransactionData();
     } catch (error) {
       console.error('Error performing action:', error);
       toast.error('Failed to perform the requested action. Please try again.');
@@ -333,7 +353,7 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                   <CreditCard className="h-4 w-4" /> Transaction Details
                 </TabsTrigger>
                 <TabsTrigger value="related" className="gap-1">
-                  <ShoppingCart className="h-4 w-4" /> Related Order
+                  <ShoppingCart className="h-4 w-4" /> Order
                 </TabsTrigger>
               </TabsList>
           
@@ -421,6 +441,64 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                   </CardContent>
                 </Card>
                 
+                {/* Transaction Breakdown Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Settings2 className="h-5 w-5 text-primary" />
+                      Transaction Breakdown
+                    </CardTitle>
+                    <CardDescription>Detailed breakdown of transaction amount</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      {/* Main breakdown items */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Subtotal</span>
+                          </div>
+                          <span className="text-sm font-medium">{formatCurrency(breakdown.subtotal)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Tax ({breakdown.taxPercent}%)</span>
+                          </div>
+                          <span className="text-sm font-medium">{formatCurrency(breakdown.tax)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Delivery Fee</span>
+                          </div>
+                          <span className="text-sm font-medium">{formatCurrency(breakdown.deliveryFee)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Transaction Fee ({breakdown.transactionFeePercent}%)</span>
+                          </div>
+                          <span className="text-sm font-medium">{formatCurrency(breakdown.transactionFee)}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Total */}
+                      <div className="pt-3 border-t">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Total</span>
+                          <span className="font-bold text-lg">{formatCurrency(breakdown.total)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
                 {/* Payment method card */}
                 <Card>
                   <CardHeader>
@@ -500,11 +578,11 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                     </CardHeader>
                     
                     <CardContent>
-                      {orderLoading ? (
+                      {loading ? (
                         <div className="flex justify-center py-6">
                           <Spinner className="h-8 w-8" />
                         </div>
-                      ) : relatedOrder ? (
+                      ) : order ? (
                         <div className="space-y-6">
                           <div className="bg-muted/30 p-4 rounded-lg flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -512,14 +590,14 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                                 <ShoppingCart className="h-6 w-6 text-blue-600" />
                               </div>
                               <div>
-                                <h3 className="font-medium">{formatCurrency(relatedOrder.total_amount)}</h3>
-                                <p className="text-sm text-muted-foreground">Order {relatedOrder.status}</p>
+                                <h3 className="font-medium">{formatCurrency(order.total_amount)}</h3>
+                                <p className="text-sm text-muted-foreground">Order {order.status}</p>
                               </div>
                             </div>
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => router.push(`/dashboard/orders/${relatedOrder.order_id}`)}
+                              onClick={() => router.push(`/dashboard/orders/${order.order_id}`)}
                             >
                               <ExternalLink className="h-4 w-4 mr-2" />
                               View Order
@@ -532,9 +610,9 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                                 <Package className="h-4 w-4" /> Order ID
                               </p>
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{relatedOrder.order_id}</p>
+                                <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{order.order_id}</p>
                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                  navigator.clipboard.writeText(relatedOrder.order_id);
+                                  navigator.clipboard.writeText(order.order_id);
                                   toast.success("Order ID copied to clipboard");
                                 }}>
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
@@ -546,21 +624,21 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                               <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                                 <Calendar className="h-4 w-4" /> Date
                               </p>
-                              <p className="text-sm bg-muted px-2 py-1 rounded">{formatDate(relatedOrder.created_at)}</p>
+                              <p className="text-sm bg-muted px-2 py-1 rounded">{formatDate(order.created_at)}</p>
                             </div>
                             
                             <div className="space-y-1">
                               <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                                 <User className="h-4 w-4" /> Customer
                               </p>
-                              <p className="text-sm bg-muted px-2 py-1 rounded">{relatedOrder.customer_name || 'N/A'}</p>
+                              <p className="text-sm bg-muted px-2 py-1 rounded">{order.customer_name || 'N/A'}</p>
                             </div>
                             
                             <div className="space-y-1">
                               <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                                 <DollarSign className="h-4 w-4" /> Amount
                               </p>
-                              <p className="text-sm font-semibold bg-muted px-2 py-1 rounded">{formatCurrency(relatedOrder.total_amount)}</p>
+                              <p className="text-sm font-semibold bg-muted px-2 py-1 rounded">{formatCurrency(order.total_amount)}</p>
                             </div>
                           </div>
                           
@@ -707,19 +785,19 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                 </CardHeader>
                 
                 <CardContent className="pt-4">
-                  {orderLoading ? (
+                  {loading ? (
                     <div className="flex justify-center py-4">
                       <Spinner className="h-6 w-6" />
                     </div>
-                  ) : relatedOrder ? (
+                  ) : order ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Order ID</p>
                           <div className="flex items-center gap-1">
-                            <p className="text-sm font-mono bg-muted px-1.5 py-0.5 rounded">{relatedOrder.order_id?.substring(0, 12)}...</p>
+                            <p className="text-sm font-mono bg-muted px-1.5 py-0.5 rounded">{order.order_id?.substring(0, 12)}...</p>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                              navigator.clipboard.writeText(relatedOrder.order_id);
+                              navigator.clipboard.writeText(order.order_id);
                               toast.success("Order ID copied to clipboard");
                             }}>
                               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
@@ -729,23 +807,23 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                         
                         <div className="space-y-1 text-right">
                           <p className="text-xs text-muted-foreground">Amount</p>
-                          <p className="text-sm font-medium">{formatCurrency(relatedOrder.total_amount)}</p>
+                          <p className="text-sm font-medium">{formatCurrency(order.total_amount)}</p>
                         </div>
                       </div>
                       
-                      {relatedOrder.status && (
+                      {order.status && (
                         <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
                           <p className="text-xs text-muted-foreground">Status</p>
-                          <Badge variant={relatedOrder.status === 'completed' ? 'default' : 'outline'} className="capitalize">
-                            {relatedOrder.status}
+                          <Badge variant={order.status === 'completed' ? 'default' : 'outline'} className="capitalize">
+                            {order.status}
                           </Badge>
                         </div>
                       )}
                       
-                      {relatedOrder.created_at && (
+                      {order.created_at && (
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-muted-foreground">Created</span>
-                          <span>{formatDate(relatedOrder.created_at)}</span>
+                          <span>{formatDate(order.created_at)}</span>
                         </div>
                       )}
                     </div>
@@ -761,7 +839,7 @@ export default function TransactionDetailPage({ params }: TransactionPageProps) 
                     variant="outline" 
                     className="w-full" 
                     onClick={() => router.push(`/dashboard/orders/${transaction.order_id}`)}
-                    disabled={!relatedOrder}
+                    disabled={!order}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     View Order Details

@@ -26,7 +26,14 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RequiredField } from "@/components/ui/required-field";
-import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+// Direct implementation instead of PhoneInput to avoid infinite loops
 
 import { LoanProviderFormValues } from "../types";
 import { useLoanProviderStore } from "../store";
@@ -117,7 +124,7 @@ export function ProviderForm({
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 w-full">
             <TabsTrigger value="basic">Basic Information</TabsTrigger>
             <TabsTrigger value="integration">Integration Settings</TabsTrigger>
           </TabsList>
@@ -174,7 +181,39 @@ export function ProviderForm({
                           Contact Phone <RequiredField />
                         </FormLabel>
                         <FormControl>
-                          <PhoneInput placeholder="Enter contact phone" {...field} />
+                          <div className="flex">
+                            <Select
+                              value="+255"
+                              onValueChange={(code: string) => {
+                                // Safely handle null or undefined values
+                                const phoneValue = field.value || "";
+                                const phoneNumber = phoneValue.replace(/^\+\d+/, "");
+                                field.onChange(code + phoneNumber);
+                              }}
+                            >
+                              <SelectTrigger className="w-[100px] rounded-r-none border-r-0">
+                                <SelectValue placeholder="Code" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="+255">🇹🇿 +255</SelectItem>
+                                <SelectItem value="+254">🇰🇪 +254</SelectItem>
+                                <SelectItem value="+256">🇺🇬 +256</SelectItem>
+                                <SelectItem value="+250">🇷🇼 +250</SelectItem>
+                                <SelectItem value="+257">🇧🇮 +257</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              className="rounded-l-none flex-1"
+                              placeholder="712XXXXXX"
+                              value={(field.value || "").replace(/^\+\d+/, "")}
+                              onChange={(e) => {
+                                const phoneValue = field.value || "";
+                                const countryCodeMatch = phoneValue.match(/^\+\d+/);
+                                const countryCode = countryCodeMatch && countryCodeMatch[0] ? countryCodeMatch[0] : "+255";
+                                field.onChange(countryCode + e.target.value);
+                              }}
+                            />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

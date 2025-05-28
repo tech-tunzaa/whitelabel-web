@@ -48,28 +48,36 @@ export const useProductStore = create<ProductStore>()(
       try {
         setActiveAction('fetchOne');
         setLoading(true);
+        console.log('Fetching product with ID:', id);
+        console.log('Using headers:', headers);
+        
         const response = await apiClient.get<any>(`/products/${id}`, undefined, headers);
+        console.log('API Response:', response);
         
         // Try multiple possible response structures
         let productData = null;
         
         // Option 1: response.data.data structure
         if (response.data && response.data.data) {
+          console.log('Found product data in response.data.data', response.data.data);
           productData = response.data.data;
         } 
         // Option 2: response.data structure (direct)
         else if (response.data) {
+          console.log('Found product data directly in response.data', response.data);
           productData = response.data;
         }
         
         // Check if we found product data
         if (productData) {
+          console.log('Setting product data:', productData);
           // Use data as-is
           setProduct(productData);
           setLoading(false);
           return productData;
         }
         
+        console.log('No product data found in response');
         setLoading(false);
         throw new Error('Product data not found or in unexpected format');
       } catch (error: unknown) {
