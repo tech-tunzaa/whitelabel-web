@@ -21,6 +21,7 @@ import {
   IconPackages,
   IconCoins,
   IconUserCode,
+  IconGift,
 } from "@tabler/icons-react";
 
 // Create a separate file for navigation data to ensure consistency
@@ -108,6 +109,12 @@ export const navigationData = {
           icon: IconCoins,
         }
       ],
+    },
+    {
+      title: "Rewards & Referrals",
+      url: "/dashboard/rewards",
+      icon: IconGift,
+      roles: ["super_owner", "admin", "sub_admin"],
     },
     {
       title: "Support Tickets",
