@@ -48,7 +48,7 @@ const authConfig = {
             name: `${userData.first_name} ${userData.last_name}`,
             role: mappedRole,
             accessToken: userData.access_token,
-            tenant_id: userData.tenant_id || '',
+            tenant_id: userData.tenant_id || '4c56d0c3-55d9-495b-ae26-0d922d430a42',
           };
           
           return user;
