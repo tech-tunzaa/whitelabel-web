@@ -44,6 +44,10 @@ export const storeSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters").optional(),
   branding: brandingSchema.optional(),
   banners: z.array(bannerSchema).optional().default([]),
+  categories: z.array(z.string()).min(0).default([]),
+  return_policy: z.string().url("Return policy document must be a valid URL").or(z.literal("")).optional(),
+  shipping_policy: z.string().url("Shipping policy document must be a valid URL").or(z.literal("")).optional(),
+  general_policy: z.string().url("General policy document must be a valid URL").or(z.literal("")).optional(),
 });
 
 // Main vendor form schema
@@ -68,7 +72,6 @@ export const vendorFormSchema = z.object({
 
   // Business information
   tax_id: z.string().optional(),
-  categories: z.array(z.string()).min(0),
   commission_rate: z.string().min(1, "Commission rate is required"),
 
   // Bank account information
@@ -85,7 +88,7 @@ export const vendorFormSchema = z.object({
     store_name: z.string().min(2, "Store name must be at least 2 characters"),
     store_slug: z.string().min(2, "Store slug must be at least 2 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
-    logo_url: z.string().url("Logo must be a valid URL").or(z.literal("")).optional(),
+    logo_url: z.string().url("Logo must be a valid URL").or(z.literal("")).optional().nullable(),
     banners: z.array(
       z.object({
         title: z.string().optional(),
@@ -97,6 +100,10 @@ export const vendorFormSchema = z.object({
         end_date: z.string().optional(),
       })
     ).optional().default([]),
+    categories: z.array(z.string()).min(0).default([]),
+    return_policy: z.string().url("Return policy document must be a valid URL").or(z.literal("")).optional().nullable(),
+    shipping_policy: z.string().url("Shipping policy document must be a valid URL").or(z.literal("")).optional().nullable(),
+    general_policy: z.string().url("General policy document must be a valid URL").or(z.literal("")).optional().nullable(),
   }),
 
   // Verification documents

@@ -66,23 +66,56 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
         headers['X-Tenant-ID'] = tenantId;
       }
       
+      // Log the data being sent to API for vendor update
+      console.log("Updating vendor with data:", {
+        ...data,
+        verification_documents: data.verification_documents?.map(doc => ({
+          document_type: doc.document_type,
+          document_url: doc.document_url,
+          document_id: doc.document_id || doc.id,
+          file_name: doc.file_name,
+          expires_at: doc.expires_at || doc.expiry_date
+        }))
+      });
+      
       // First update the vendor
       await vendorStore.updateVendor(vendorId, data, headers);
       
       // If we have store data and it was included in the form submission, update the store too
-      if (storeData && data.store) {
+      if (data.store) {
         try {
-          // Attempt to update the store with the vendor ID
-          await vendorStore.updateStore(
-            vendorId,
-            storeData.id || '',
-            data.store,
-            headers
-          );
-          toast.success("Vendor and store updated successfully");
+          // Prepare store data ensuring all required fields are included
+          const storeUpdateData = {
+            store_name: data.store.store_name,
+            store_slug: data.store.store_slug,
+            description: data.store.description,
+            logo_url: data.store.logo_url || "",
+            banners: Array.isArray(data.store.banners) ? data.store.banners : []
+          };
+          
+          console.log(`Updating store for vendor ID: ${vendorId}, store ID: ${storeData?.id || 'new'} with data:`, storeUpdateData);
+          
+          if (storeData && storeData.id) {
+            // Update existing store
+            await vendorStore.updateStore(
+              vendorId,
+              storeData.id,
+              storeUpdateData,
+              headers
+            );
+            toast.success("Vendor and store updated successfully");
+          } else {
+            // Create new store if it doesn't exist
+            await vendorStore.createStore(vendorId, storeUpdateData, headers);
+            toast.success("Vendor updated and new store created successfully");
+            
+            // Refresh store data
+            const updatedStore = await vendorStore.fetchStoreByVendor(vendorId, headers);
+            setStoreData(updatedStore);
+          }
         } catch (storeError) {
-          console.error("Error updating store:", storeError);
-          toast.error("Vendor updated, but failed to update store.");
+          console.error("Error updating/creating store:", storeError);
+          toast.error("Vendor updated, but failed to update/create store.");
         }
       } else {
         toast.success("Vendor updated successfully");

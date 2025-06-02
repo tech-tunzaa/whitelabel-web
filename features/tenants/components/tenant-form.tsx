@@ -566,9 +566,7 @@ export function TenantForm({
                   name="fee"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        Subscription Fee
-                      </FormLabel>
+                      <FormLabel>Subscription Fee</FormLabel>
                       <FormControl>
                         <Input {...field} readOnly={!isEditable} />
                       </FormControl>
@@ -651,9 +649,7 @@ export function TenantForm({
               name="branding.logoUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    Logo URL
-                  </FormLabel>
+                  <FormLabel>Logo URL</FormLabel>
                   <FormControl>
                     <ImageUpload
                       id="logo-upload"

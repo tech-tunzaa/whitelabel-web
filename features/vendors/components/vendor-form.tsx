@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import cloneDeep from "lodash/cloneDeep";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -37,11 +38,14 @@ import { RequiredField } from "@/components/ui/required-field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { MapPicker } from "@/components/ui/map-picker";
+import dynamic from "next/dynamic";
 import { DocumentUpload, DocumentWithMeta, DocumentType } from "@/components/ui/document-upload";
 import { FileUpload } from "@/components/ui/file-upload";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
+
+// Dynamically import MapPicker with SSR disabled to prevent window not defined errors
+const MapPicker = dynamic(() => import("@/components/ui/map-picker").then(mod => mod.MapPicker), { ssr: false });
 
 import { DOCUMENT_TYPES, DocumentTypeOption } from "@/features/settings/data/document-types";
 import { VendorFormValues, VerificationDocument as VendorVerificationDocument, StoreBanner } from "../types";
@@ -52,10 +56,6 @@ import { useTenantStore } from "@/features/tenants/store";
 import { useVendorStore } from "../store";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
-
-// Define the VerificationDocument type to match expected structure
-// Import the proper VerificationDocument type from types.ts
-import { VerificationDocument as VendorVerificationDocument } from "../types";
 
 // Define local type for documents that includes ALL necessary fields
 // This ensures proper TypeScript compatibility throughout the form
@@ -102,13 +102,13 @@ export function VendorForm({
       "display_name", 
       "contact_email", 
       "contact_phone",
-      "categories",
       "commission_rate"
     ],
     store: [
       "store.store_name", 
       "store.store_slug", 
-      "store.description"
+      "store.description",
+      "store.categories"
     ],
     address: [
       "address_line1", 
@@ -177,7 +177,11 @@ export function VendorForm({
         store_slug: "",
         description: "",
         logo_url: "",
-        banners: []
+        banners: [],
+        categories: [],
+        return_policy: "",
+        shipping_policy: "",
+        general_policy: ""
       },
       verification_documents: [],
       user: {
@@ -230,7 +234,7 @@ export function VendorForm({
   }, [categories]);
 
   // Get API functions from store
-  const { createVendor, updateVendor, createStore } = useVendorStore();
+  const { createVendor, updateVendor, createStore, fetchStoreByVendor, updateStore } = useVendorStore();
 
   // Navigation functions - simplified with direct form state usage
   const nextTab = () => {
@@ -413,6 +417,9 @@ export function VendorForm({
         data.verification_documents = documentsFromState;
       }
 
+      // For brand new vendors, we need to create the vendor first, then create store
+      const isCreation = !initialData?.id && !initialData?.vendor_id;
+      
       // Generate random password if it's a new vendor
       if (!initialData || !initialData.id) {
         data.user = {
@@ -425,40 +432,139 @@ export function VendorForm({
         };
       }
 
-      // Just remove the file property, nothing else
-      if (data.verification_documents && data.verification_documents.length > 0) {
-        console.log("Documents before final processing:", data.verification_documents);
-        
-        // Simply remove file property which can't be sent to API
-        data.verification_documents = data.verification_documents.map(doc => {
-          // Make a direct copy of the document
-          const docCopy = {...doc};
-          
-          // Only remove the file property, keep everything else
-          if (docCopy.file) {
-            delete docCopy.file;
-          }
-          
-          return docCopy;
-        });
-        
-        console.log("Final documents for submission:", data.verification_documents);
+      // For non-superOwner users, set tenant_id from session
+      if (!isSuperOwner && tenantId) {
+        data.tenant_id = tenantId;
       }
 
+      // Process documents to remove file objects that can't be serialized
+      if (data.verification_documents) {
+        data.verification_documents = data.verification_documents.map((doc: any) => {
+          if (doc.file) {
+            // Remove file property but keep everything else unchanged
+            const { file, ...docWithoutFile } = doc;
+            return docWithoutFile;
+          }
+          return doc;
+        });
+      }
+
+      console.log("Submitting vendor data with documents:", data.verification_documents);
       // Call the parent's onSubmit to handle the submission
       const vendorResponse = await onSubmit(data);
+
+      // For existing vendors, update the store if the vendor update was successful
+      if (initialData?.id || initialData?.vendor_id) {
+        const vendorId = initialData?.vendor_id || initialData?.id || "";
+        
+        try {
+          // Get tenantId for headers
+          const tenantHeaders: Record<string, string> = {};
+          if (tenantId) {
+            tenantHeaders["X-Tenant-ID"] = tenantId;
+          }
+          
+          // First fetch the existing store by vendor ID
+          try {
+            const storeResponse = await fetchStoreByVendor(vendorId, tenantHeaders);
+            
+            // According to the API structure, use the first store from the items array
+            if (storeResponse && storeResponse._id) {
+              // We found a store to update - use the direct store update endpoint
+              const storeUpdateData = {
+                store_name: data.store.store_name,
+                store_slug: data.store.store_slug,
+                description: data.store.description,
+                banners: data.store.banners || [],
+                categories: data.store.categories || [],
+                return_policy: data.store.return_policy || "",
+                shipping_policy: data.store.shipping_policy || "",
+                general_policy: data.store.general_policy || "",
+                branding: {
+                  logo_url: data.store.logo_url || "",
+                  colors: {
+                    primary: "#4285F4",
+                    secondary: "#34A853",
+                    accent: "#FBBC05",
+                    text: "#333333",
+                    background: "#FFFFFF"
+                  }
+                }
+              };
+              
+              // Use direct store update endpoint: /marketplace/stores/[_id]
+              await updateStore(vendorId, storeResponse._id, storeUpdateData, tenantHeaders);
+              console.log("Store updated successfully with ID:", storeResponse._id);
+              toast.success("Store updated successfully");
+            }
+          } catch (storeError) {
+            // No store found, create a new one
+            console.log("No existing store found, creating a new one for vendor ID:", vendorId);
+            
+            const storeData = {
+              store_name: data.store.store_name,
+              store_slug: data.store.store_slug,
+              description: data.store.description,
+              banners: data.store.banners || [],
+              categories: data.store.categories || [],
+              return_policy: data.store.return_policy || "",
+              shipping_policy: data.store.shipping_policy || "",
+              general_policy: data.store.general_policy || "",
+              vendor_id: vendorId,  // Important: include the vendor_id
+              branding: {
+                logo_url: data.store.logo_url || "",
+                colors: {
+                  primary: "#4285F4",
+                  secondary: "#34A853",
+                  accent: "#FBBC05",
+                  text: "#333333",
+                  background: "#FFFFFF"
+                }
+              }
+            };
+            
+            // Use create store endpoint: /marketplace/vendors/[vendor_id]/stores
+            try {
+              await createStore(vendorId, storeData, tenantHeaders);
+              console.log("Created new store for existing vendor");
+              toast.success("New store created successfully");
+            } catch (createError) {
+              console.error("Error creating new store:", createError);
+              toast.error("Failed to create store. Please try again.");
+            }
+          }
+        } catch (error) {
+          console.error("Error handling store operations:", error);
+          toast.error("Vendor was updated but failed to update store data");
+        }
+      }
       
       // After successful vendor creation, create a store if this is a new vendor
       if (!initialData?.id && vendorResponse && 'vendor_id' in vendorResponse) {
         try {
           // Create store with the vendor_id from the response
           const vendorId = vendorResponse.vendor_id;
+          // Categories are already moved to store by this point
+
           const storeData = {
             store_name: data.store.store_name,
             store_slug: data.store.store_slug,
             description: data.store.description,
-            logo_url: data.store.logo_url,
             banners: data.store.banners,
+            categories: data.store.categories || [],
+            return_policy: data.store.return_policy || "",
+            shipping_policy: data.store.shipping_policy || "",
+            general_policy: data.store.general_policy || "",
+            branding: {
+              logo_url: data.store.logo_url || "",
+              colors: {
+                primary: "#4285F4",
+                secondary: "#34A853",
+                accent: "#FBBC05",
+                text: "#333333",
+                background: "#FFFFFF"
+              }
+            }
           };
           
           // Call API to create store using the store function from vendor store
@@ -515,7 +621,7 @@ export function VendorForm({
       
       // For existing documents, preserve critical properties like document_id
       if (existingDoc && doc.document_id) {
-        console.log("Preserving existing document:", doc.document_id);
+        // console.log("Preserving existing document:", doc.document_id);
         return {
           ...doc,
           // Ensure document_id is preserved for existing documents
@@ -886,40 +992,7 @@ export function VendorForm({
               )}
             />
 
-            {/* Business Categories Field */}
-            <div className="md:col-span-2">
-              <FormField
-                control={formControl}
-                name="categories"
-                render={({ field }) => {
-                  // Create safe values for the MultiSelect component
-                  const categoryOptions = categories?.map((category) => ({
-                    value: String(category?.category_id || ""), // Use category_id instead of id
-                    label: String(category?.name || ""),
-                  })) || [];
-                  
-                  // Ensure field.value is an array of strings
-                  const selected: string[] = Array.isArray(field.value) ? 
-                    field.value.map(id => String(id || "")) : 
-                    [];
-                  
-                  return (
-                    <FormItem>
-                      <FormLabel>Business Categories</FormLabel>
-                      <FormControl>
-                        <MultiSelect
-                          options={categoryOptions}
-                          selected={selected}
-                          onChange={field.onChange}
-                          placeholder="Select categories"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
-            </div>
+            {/* Categories moved to store tab */}
 
             {/* Commission Rate Field */}
             <FormField
@@ -1092,9 +1165,130 @@ export function VendorForm({
             )}
           />
         </div>
-
-        {/* Store Banners Repeater Field */}
+        
+        {/* Store Categories Field - Moved from business tab */}
         <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="store.categories"
+            render={({ field }) => {
+              // Create safe values for the MultiSelect component
+              const categoryOptions = categories?.map((category) => ({
+                value: String(category?.category_id || ""), // Use category_id instead of id
+                label: String(category?.name || ""),
+              })) || [];
+              
+              // Ensure field.value is an array of strings
+              const selected: string[] = Array.isArray(field.value) ? 
+                field.value.map(id => String(id || "")) : 
+                [];
+              
+              return (
+                <FormItem>
+                  <FormLabel>
+                    Store Categories <RequiredField />
+                  </FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      options={categoryOptions}
+                      selected={selected}
+                      onChange={field.onChange}
+                      placeholder="Select categories"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+        </div>
+
+        {/* Policy Documents Section */}
+        <div className="space-y-5 border-t pt-5 mt-5">
+          <h4 className="text-md font-medium">Store Policies</h4>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Return Policy */}
+            <FormField
+              control={form.control}
+              name="store.return_policy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Return Policy</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      id="return-policy-upload"
+                      value={field.value as string}
+                      onChange={field.onChange}
+                      onRemove={() => field.onChange("")}
+                      acceptedTypes={[".pdf"]}
+                      disabled={isSubmitting}
+                      buttonText="Upload Return Policy"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground mt-2">
+                    PDF document explaining your return policy
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Shipping Policy */}
+            <FormField
+              control={form.control}
+              name="store.shipping_policy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Shipping Policy</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      id="shipping-policy-upload"
+                      value={field.value as string}
+                      onChange={field.onChange}
+                      onRemove={() => field.onChange("")}
+                      acceptedTypes={[".pdf"]}
+                      disabled={isSubmitting}
+                      buttonText="Upload Shipping Policy"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground mt-2">
+                    PDF document explaining your shipping policy
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* General Policy */}
+          <FormField
+            control={form.control}
+            name="store.general_policy"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>General Terms & Conditions</FormLabel>
+                <FormControl>
+                  <FileUpload
+                    id="general-policy-upload"
+                    value={field.value as string}
+                    onChange={field.onChange}
+                    onRemove={() => field.onChange("")}
+                    acceptedTypes={[".pdf"]}
+                    disabled={isSubmitting}
+                    buttonText="Upload Terms & Conditions"
+                  />
+                </FormControl>
+                <FormDescription className="text-sm text-muted-foreground mt-2">
+                  PDF document with general terms and conditions
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        {/* Store Banners Repeater Field */}
+        <div className="space-y-4 border-t pt-5 mt-5">
           <div className="flex items-center justify-between">
             <h4 className="text-md font-medium">Store Banners</h4>
             <Button
@@ -1797,6 +1991,56 @@ export function VendorForm({
                   </div>
                 </dl>
               </div>
+              
+              {/* Store Info Review */}
+              <div>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Store Information</h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Store Name</dt>
+                    <dd>{reviewValues.store?.store_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Store URL</dt>
+                    <dd>{reviewValues.store?.store_slug || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Description</dt>
+                    <dd>{reviewValues.store?.description || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Logo</dt>
+                    <dd>{reviewValues.store?.logo_url ? "Uploaded" : "Not uploaded"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Categories</dt>
+                    <dd>
+                      {reviewValues.store?.categories && reviewValues.store.categories.length > 0
+                        ? reviewValues.store.categories.map((cat: any) => cat.label || cat.name).join(", ")
+                        : "None selected"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Store Policies Review */}
+              <div>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">Store Policies</h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Return Policy</dt>
+                    <dd>{reviewValues.store?.return_policy ? "Uploaded" : "Not uploaded"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Shipping Policy</dt>
+                    <dd>{reviewValues.store?.shipping_policy ? "Uploaded" : "Not uploaded"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">Terms & Conditions</dt>
+                    <dd>{reviewValues.store?.general_policy ? "Uploaded" : "Not uploaded"}</dd>
+                  </div>
+                </dl>
+              </div>
 
               {/* Documents Review */}
               <div>
@@ -1804,7 +2048,7 @@ export function VendorForm({
                 <div className="text-sm">
                   {reviewValues.verification_documents && reviewValues.verification_documents.length > 0 ? (
                     <ul className="list-disc pl-5">
-                      {reviewValues.verification_documents.map((doc, index) => (
+                      {reviewValues.verification_documents.map((doc: any, index: number) => (
                         <li key={index}>
                           {doc.document_type}: {doc.file_name}
                           {doc.expiry_date && <span className="ml-2 text-muted-foreground">Expires: {doc.expiry_date}</span>}

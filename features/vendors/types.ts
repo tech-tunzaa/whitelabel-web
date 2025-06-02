@@ -16,7 +16,6 @@ export type VendorFormValues = {
   country: string;
   coordinates?: [number, number] | null;
   tax_id?: string;
-  categories: string[];
   commission_rate: string;
   bank_account: {
     bank_name: string;
@@ -31,6 +30,10 @@ export type VendorFormValues = {
     description: string;
     logo_url?: string;
     banners: StoreBanner[];
+    categories: string[];
+    return_policy?: string;
+    shipping_policy?: string;
+    general_policy?: string;
   };
   verification_documents: VerificationDocument[];
   user?: {
@@ -52,6 +55,10 @@ export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data: T;
+  items?: T[];
+  total?: number;
+  skip?: number;
+  limit?: number;
 }
 
 // Bank Account Type
@@ -73,12 +80,13 @@ export type VerificationDocument = {
   file_size?: number;                              // Optional: Size in bytes
   mime_type?: string;                              // Optional: MIME type
   expires_at?: string;                             // Optional: Expiration date
-  verification_status?: "pending" | "approved" | "rejected"; // Status
+  verification_status?: "pending" | "approved" | "rejected" | string; // Status - accept string for API responses
   rejection_reason?: string;                       // Reason if rejected
   submitted_at?: string;                           // When document was submitted
   verified_at?: string;                            // When document was verified
   file?: File;                                     // File object for upload (not sent to API)
   file_id?: string;                                // Internal file ID
+  expiry_date?: string;                            // Alternative field name for expires_at
 };
 
 // Store Banner Type
@@ -92,14 +100,30 @@ export type StoreBanner = {
   end_date?: string;
 };
 
+// Store Branding Type
+export type StoreBranding = {
+  store_name: string;
+  store_slug: string;
+  description: string;
+  logo_url?: string;
+};
+
 // Store Type
 export type Store = {
   id?: string;
+  _id?: string;
   vendor_id?: string;
   store_name: string;
   store_slug: string;
   description: string;
+  logo_url?: string;
   banners?: StoreBanner[];
+  categories?: string[];
+  featured_categories?: string[];
+  seo_keywords?: string[];
+  return_policy?: string;
+  shipping_policy?: string;
+  general_policy?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -136,19 +160,22 @@ export type Vendor = {
     branch_code?: string;
   };
   verification_documents?: VerificationDocument[];
-  verification_status: "pending" | "approved" | "rejected";
+  verification_status: "pending" | "approved" | "rejected" | string;
   rejection_reason?: string;
   is_active: boolean;
   is_deleted?: boolean;
   created_at?: string;
   updated_at?: string;
   approved_at?: string;
+  // Support store property for form handling
+  store?: Store;
 };
 
 // Error Type
 export type VendorError = {
   status?: number;
   message: string;
+  action?: string;
 };
 
 // List Response Types
@@ -271,9 +298,10 @@ export type VendorAction =
   | 'uploadDocuments'
   | 'fetchStore'
   | 'createStore'
-  | 'updateBranding'
-  | 'addBanner'
-  | 'deleteBanner'
+  | 'updateStore'
+  | 'updateStoreBranding'
+  | 'addStoreBanner'
+  | 'deleteStoreBanner'
   | 'uploadKyc'
   | 'activate'
   | 'deactivate';

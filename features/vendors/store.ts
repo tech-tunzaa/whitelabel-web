@@ -156,9 +156,9 @@ export const useVendorStore = create<VendorStore>()(
             setVendors(vendorData.items || []);
             setLoading(false);
             return vendorData;
-          } else {
-            // API might be returning data directly without nesting
-            console.log('Treating response.data directly as VendorListResponse');
+          } else if (response.data.items) {
+            // The items might be directly in response.data (matching our enhanced ApiResponse type)
+            console.log('Using response.data.items directly as items array');
             const vendorData = response.data as unknown as VendorListResponse;
             console.log('Vendor data from direct approach:', vendorData);
             setVendors(vendorData.items || []);
@@ -311,15 +311,24 @@ export const useVendorStore = create<VendorStore>()(
     fetchStore: async (id: string, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
-        setActiveAction('fetchStore');
+        setActiveAction('fetchOne');
         setLoading(true);
+
         const response = await apiClient.get<ApiResponse<Store>>(`/marketplace/stores/${id}`, undefined, headers);
+
+        let storeData: Store;
+        
         if (response.data && response.data.data) {
-          const store = response.data.data as Store;
-          setLoading(false);
-          return store;
+          storeData = response.data.data as Store;
+        } else if (response.data) {
+          // Handle case where API returns data directly without nesting
+          storeData = response.data as unknown as Store;
+        } else {
+          throw new Error('No store data found in response');
         }
-        throw new Error('Store not found');
+
+        setLoading(false);
+        return storeData;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch store';
         const errorStatus = (error as any)?.response?.status;
@@ -334,50 +343,22 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    createStore: async (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('createStore');
-        setLoading(true);
-
-        // Ensure vendor_id is available
-        if (!vendorId) {
-          throw new Error('Vendor ID is required to create a store');
-        }
-
-        // Make API request to create a store with the correct endpoint pattern
-        const response = await apiClient.post<ApiResponse>(`/marketplace/vendors/${vendorId}/stores`, storeData, headers);
-
-        if (response.data && response.data.data) {
-          return response.data.data;
-        }
-
-        throw new Error(response.data?.message || 'Failed to create store');
-      } catch (error: any) {
-        setStoreError({
-          action: 'createStore',
-          message: error.message || 'Failed to create store',
-          status: error.response?.status
-        });
-        throw error;
-      } finally {
-        setLoading(false);
-        setActiveAction(null);
-      }
-    },
-
     updateStoreBranding: async (storeId: string, data: Partial<StoreBranding>, headers?: Record<string, string>) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('updateStoreBranding');
         setLoading(true);
         const response = await apiClient.put<ApiResponse<Store>>(`/marketplace/stores/${storeId}/branding`, data, headers);
+        setLoading(false);
+        let storeData: Store;
+        
         if (response.data && response.data.data) {
-          const store = response.data.data as Store;
-          setLoading(false);
-          return store;
+          storeData = response.data.data as Store;
+        } else {
+          storeData = response.data as unknown as Store;
         }
-        throw new Error('Failed to update store branding');
+        
+        return storeData;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to update store branding';
         const errorStatus = (error as any)?.response?.status;
@@ -434,28 +415,51 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    updateStore: async (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => {
+    updateStore: async (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>): Promise<Store> => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('updateStore');
         setLoading(true);
-
-        // Ensure vendor_id is available for the correct endpoint
-        if (!vendorId) {
-          throw new Error('Vendor ID is required to update a store');
-        }
-
-        // Make API request to update a store using the correct endpoint
-        const response = await apiClient.put<ApiResponse>(`/marketplace/vendors/${vendorId}/stores/${storeId}`, storeData, headers);
-
+        
+        console.log('Updating store with ID:', storeId, 'for vendor:', vendorId);
+        console.log('Store update payload:', storeData);
+        
+        // Use direct store update endpoint
+        const response = await apiClient.put<ApiResponse<Store>>(`/marketplace/stores/${storeId}`, storeData, headers);
+        
+        console.log('Store update response:', response);
+        
+        // Try to extract updated store data
+        let updatedStore: Store | null = null;
+        
         if (response.data && response.data.data) {
-          return response.data.data;
+          updatedStore = response.data.data as Store;
+        } else if (response.data) {
+          updatedStore = response.data as unknown as Store;
         }
-
-        throw new Error(response.data?.message || 'Failed to update store');
+        
+        if (updatedStore && typeof updatedStore === 'object') {
+          // Ensure we have an id property for consistency
+          if (!updatedStore.id && updatedStore._id) {
+            updatedStore.id = updatedStore._id;
+          }
+          
+          // Ensure arrays exist to prevent errors
+          if (!Array.isArray(updatedStore.banners)) {
+            updatedStore.banners = [];
+          }
+          
+          if (!Array.isArray(updatedStore.categories)) {
+            updatedStore.categories = [];
+          }
+          
+          return updatedStore;
+        }
+        
+        throw new Error('Could not extract valid store data from update response');
       } catch (error: any) {
+        console.error('Error updating store:', error);
         setStoreError({
-          action: 'updateStore',
           message: error.message || 'Failed to update store',
           status: error.response?.status
         });
@@ -465,25 +469,120 @@ export const useVendorStore = create<VendorStore>()(
         setActiveAction(null);
       }
     },
-
-    fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>) => {
+    
+    fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>): Promise<Store> => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
-        setActiveAction('fetchOne'); // Using an existing action type
+        setActiveAction('fetchStore');
         setLoading(true);
 
-        // Make API request to fetch a store by vendor using the correct endpoint
-        const response = await apiClient.get<ApiResponse>(`/marketplace/vendors/${vendorId}/stores`, undefined, headers);
+        // Make API request to fetch stores
+        console.log('Fetching store for vendor ID:', vendorId);
+        const response = await apiClient.get<ApiResponse<Store[]>>(
+          `/marketplace/stores`, 
+          { vendor_id: vendorId },
+          headers
+        );
 
-        if (response.data && response.data.data) {
-          return response.data.data;
+        console.log('Store API Response:', response);
+        
+        // The response format is an array of stores in items property
+        if (response.data && response.data.items && Array.isArray(response.data.items) && response.data.items.length > 0) {
+          // Always use the first store in the array (index 0) as mentioned in the requirements
+          const storeData = response.data.items[0];
+          console.log('Using first store from items array:', storeData);
+          
+          // Ensure we have an id property for compatibility
+          if (!storeData.id && storeData._id) {
+            storeData.id = storeData._id;
+          }
+          
+          // Ensure arrays exist to prevent errors
+          if (!Array.isArray(storeData.banners)) {
+            storeData.banners = [];
+          }
+          
+          if (!Array.isArray(storeData.categories)) {
+            storeData.categories = [];
+          }
+          
+          if (!Array.isArray(storeData.featured_categories)) {
+            storeData.featured_categories = [];
+          }
+          
+          if (!Array.isArray(storeData.seo_keywords)) {
+            storeData.seo_keywords = [];
+          }
+          
+          return storeData as Store;
         }
-
-        throw new Error(response.data?.message || 'Failed to fetch store');
+        
+        // If no stores found or empty array
+        throw new Error('No store found for this vendor');
       } catch (error: any) {
+        console.error('Error fetching store by vendor:', error);
         setStoreError({
-          action: 'fetchStoreByVendor',
-          message: error.message || 'Failed to fetch store',
+          message: error.message || 'Failed to fetch store by vendor ID',
+          status: error.response?.status
+        });
+        throw error;
+      } finally {
+        setLoading(false);
+        setActiveAction(null);
+      }
+    },
+    
+    // Create a new store for a vendor
+    createStore: async (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>): Promise<Store> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('createStore');
+        setLoading(true);
+        
+        console.log('Creating new store for vendor ID:', vendorId);
+        console.log('Store creation payload:', storeData);
+        
+        // Use vendor-scoped store creation endpoint
+        const response = await apiClient.post<ApiResponse<Store>>(
+          `/marketplace/vendors/${vendorId}/stores`, 
+          storeData, 
+          headers
+        );
+        
+        console.log('Store creation response:', response);
+        
+        // Extract created store data
+        let createdStore: Store | null = null;
+        
+        if (response.data && response.data.data) {
+          createdStore = response.data.data as Store;
+        } else if (response.data) {
+          createdStore = response.data as unknown as Store;
+        }
+        
+        if (createdStore && typeof createdStore === 'object') {
+          // Ensure we have an id property for consistency
+          if (!createdStore.id && createdStore._id) {
+            createdStore.id = createdStore._id;
+          }
+          
+          // Ensure arrays exist to prevent errors
+          if (!Array.isArray(createdStore.banners)) {
+            createdStore.banners = [];
+          }
+          
+          if (!Array.isArray(createdStore.categories)) {
+            createdStore.categories = [];
+          }
+          
+          return createdStore;
+        }
+        
+        throw new Error('Could not extract valid store data from creation response');
+      } catch (error: any) {
+        console.error('Error creating store:', error);
+        setStoreError({
+          message: error.message || 'Failed to create store',
           status: error.response?.status
         });
         throw error;

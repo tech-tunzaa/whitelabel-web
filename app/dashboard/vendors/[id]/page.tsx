@@ -195,12 +195,24 @@ export default function VendorPage({ params }: VendorPageProps) {
   
   // Handle document verification
   const handleVerifyDocument = (doc: VerificationDocument) => {
+    // Log the document to help with debugging
+    console.log('Document to verify:', doc);
+    
     setVerificationDoc({
+      // Support both ID field names
       id: doc.document_id || doc.id || "",
+      
+      // Important: Don't default document_type to prevent overriding actual selection
       type: doc.document_type || "",
-      name: doc.file_name || "Document",
-      url: doc.file_url || doc.document_url,
-      expiryDate: doc.expires_at || doc.expiry_date
+      
+      // Support both naming conventions for the file name
+      name: doc.file_name || doc.document_name || "",
+      
+      // Support both URL field names
+      url: doc.file_url || doc.document_url || "",
+      
+      // Support both expiry date field names
+      expiryDate: doc.expires_at || doc.expiry_date || undefined
     });
   };
   
@@ -208,17 +220,24 @@ export default function VendorPage({ params }: VendorPageProps) {
   const handleDocumentApprove = async (documentId: string, expiryDate?: string) => {
     // This would connect to your API
     try {
+      console.log('Approving document:', { documentId, expiryDate });
+      
+      // Ensure we're passing the expiry date in the right format
+      // This handles both field naming conventions (expires_at and expiry_date)
+      const formattedExpiryDate = expiryDate ? new Date(expiryDate).toISOString() : undefined;
+      
       toast.success("Document approved successfully");
       // Simulate an API call for demo purposes
       await new Promise(resolve => setTimeout(resolve, 500));
       // In a real app, you would make an API call here
-      // await approveDocument(documentId, expiryDate);
+      // await approveDocument(documentId, formattedExpiryDate);
       
-      // Refresh vendor data
+      // Refresh vendor data to get updated document statuses
       fetchVendor(id, tenantHeaders);
       return Promise.resolve();
     } catch (error) {
-      console.error(error);
+      console.error('Error approving document:', error);
+      toast.error("Failed to approve document");
       return Promise.reject(error);
     }
   };
@@ -227,17 +246,29 @@ export default function VendorPage({ params }: VendorPageProps) {
   const handleDocumentReject = async (documentId: string, reason: string) => {
     // This would connect to your API
     try {
+      console.log('Rejecting document:', { documentId, reason });
+      
+      // Validate rejection reason is provided
+      if (!reason) {
+        toast.error("Rejection reason is required");
+        return Promise.reject(new Error("Rejection reason is required"));
+      }
+      
       toast.success("Document rejected");
       // Simulate an API call for demo purposes
       await new Promise(resolve => setTimeout(resolve, 500));
       // In a real app, you would make an API call here
       // await rejectDocument(documentId, reason);
       
-      // Refresh vendor data
+      // Reset verification doc
+      setVerificationDoc(null);
+      
+      // Refresh vendor data to get updated document statuses
       fetchVendor(id, tenantHeaders);
       return Promise.resolve();
     } catch (error) {
-      console.error(error);
+      console.error('Error rejecting document:', error);
+      toast.error("Failed to reject document");
       return Promise.reject(error);
     }
   };
@@ -540,13 +571,23 @@ export default function VendorPage({ params }: VendorPageProps) {
                   <div className="grid grid-cols-1 gap-4">
                     {vendorDocuments.map((doc, index) => (
                       <VerificationDocumentCard
-                        key={doc.document_id || index}
+                        key={doc.document_id || doc.id || index}
                         document={{
-                          document_id: doc.document_id,
+                          // Support both ID field naming conventions
+                          document_id: doc.document_id || doc.id,
+                          
+                          // Important: preserve original document_type without defaulting
                           document_type: doc.document_type,
-                          document_url: doc.document_url,
-                          file_name: doc.file_name,
+                          
+                          // Support both URL field naming conventions
+                          document_url: doc.document_url || doc.file_url,
+                          
+                          // Support both file name field naming conventions
+                          file_name: doc.file_name || doc.document_name,
+                          
+                          // Support both expiry date field naming conventions
                           expires_at: doc.expires_at || doc.expiry_date,
+                          
                           verification_status: doc.verification_status as "pending" | "approved" | "rejected",
                           rejection_reason: doc.rejection_reason,
                           submitted_at: doc.submitted_at,

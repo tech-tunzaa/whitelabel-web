@@ -30,7 +30,7 @@ export default function MarketplacePage() {
     // Only fetch once when the component mounts
     if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      
+
       tenantStore.fetchTenant(tenantId).catch((error) => {
         console.error("Error fetching marketplace tenant:", error);
       });

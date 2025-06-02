@@ -59,23 +59,36 @@ export const isPdfFile = (fileName: string): boolean => {
 /**
  * Get file type from MIME type or file extension
  */
-export const getDocumentType = (file: File | string): string => {
+export const getDocumentType = (file: File | string | undefined | null): string => {
+    // Handle undefined or null values
+    if (!file) {
+        return 'unknown';
+    }
+    
     // If a File object is provided
-    if (typeof file !== 'string') {
+    if (typeof file !== 'string' && 'type' in file) {
         const mimeType = file.type;
 
         // Check MIME type first
-        if (mimeType.startsWith('image/')) return 'image';
+        if (mimeType?.startsWith('image/')) return 'image';
         if (mimeType === 'application/pdf') return 'pdf';
         if (mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'doc';
         if (mimeType === 'application/vnd.ms-excel' || mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'spreadsheet';
 
-        // Fall back to extension check
-        return getFileTypeFromName(file.name);
+        // Fall back to extension check if name is available
+        if ('name' in file && file.name) {
+            return getFileTypeFromName(file.name);
+        }
+        
+        return 'unknown';
     }
 
     // If a filename/URL string is provided
-    return getFileTypeFromName(file);
+    if (typeof file === 'string') {
+        return getFileTypeFromName(file);
+    }
+    
+    return 'unknown';
 };
 
 /**

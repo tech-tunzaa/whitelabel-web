@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Upload, Loader, File, Calendar, Plus, Trash, Eye } from "lucide-react"
+import { Upload, Loader, File, Calendar, Plus, Trash, Eye, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { FilePreviewModal } from "@/components/ui/file-preview-modal"
+import { uploadFile } from "@/lib/services/file-upload.service"
 
 // Type definitions
 export type DocumentType = {
@@ -88,7 +89,7 @@ export function DocumentUpload({
     setPreviewFile(null)
   }
 
-  // Handle file selection - now just saves the file reference without uploading
+  // Handle file selection and validate the file before proceeding
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) {
@@ -110,8 +111,8 @@ export function DocumentUpload({
     setError(null)
   }
   
-  // Handle document upload - bare minimum
-  const handleUploadDocument = () => {
+  // Handle document upload using the file storage API
+  const handleUploadDocument = async () => {
     // Get the file from the input
     const file = fileInputRef.current?.files?.[0]
     
@@ -125,32 +126,32 @@ export function DocumentUpload({
       setIsUploading(true)
       setError(null)
       
-      // Create a blob URL
-      const localUrl = URL.createObjectURL(file)
+      // Upload the file to the storage API
+      const uploadResponse = await uploadFile(file, true);
       
-      // Create basic document object
-      const newDoc = {
-        id: `upload-${Date.now()}`,
+      // console.log('Document upload response:', uploadResponse);
+      
+      // Create a new document object with data from the upload response
+      const newDocument: DocumentWithMeta = {
+        id: `temp-${Date.now()}`, // Temporary ID for tracking
         document_type: selectedDocumentType,
-        document_url: localUrl,
         file_name: file.name,
-        verification_status: "pending",
-        file: file
+        document_url: uploadResponse.fileCDNUrl, // Use the CDN URL from the upload response
+        expires_at: expires_at || undefined,
+        // Store the file reference and additional metadata from the API
+        file_id: uploadResponse.filePath
       }
       
-      // Add expires_at if provided
-      if (expires_at) {
-        newDoc.expires_at = expires_at
-      }
+      // Add to existing documents list
+      const updatedDocuments = [...documents, newDocument]
+      setDocuments(updatedDocuments)
       
-      // Update state and notify parent
-      const updatedDocs = [...documents, newDoc]
-      setDocuments(updatedDocs)
-      onDocumentsChange(updatedDocs)
+      // Notify parent component
+      onDocumentsChange(updatedDocuments)
       
-      // Reset form
+      // Reset the form
       setSelectedDocumentType("")
-      setExpires_at("") // Reset date input
+      setExpires_at("")
       setIsAddingDocument(false)
       
       // Reset file input
@@ -158,58 +159,77 @@ export function DocumentUpload({
         fileInputRef.current.value = ""
       }
       
-      // Integrate with file upload service when ready
-      // For now, we'll keep the local URL
-      
-      /* Uncomment this section to integrate with the upload API
-      const response = await uploadFile(file, true)
-      
-      // Update with server URL
-      const updatedDoc = {
-        ...tempDoc,
-        file_url: response.fileCDNUrl,
-        document_url: response.fileCDNUrl
+      // Close the dialog
+      setError(null)
+    } catch (error) {
+      console.error("Error uploading document:", error)
+      setError("Failed to upload document. Please try again.")
+      // Show error message to the user
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
       }
-      
-      // Update the document with the server URL
-      const serverUpdatedFiles = uploadedFiles.map((doc: DocumentWithMeta) => 
-        doc.id === uploadId ? updatedDoc : doc
-      )
-      
-      setUploadedFiles(serverUpdatedFiles)
-      onDocumentsChange(serverUpdatedFiles)
-      */
-    } catch (err) {
-      console.error("Document upload error:", err)
-      setError(err instanceof Error ? err.message : "Failed to upload document")
     } finally {
       setIsUploading(false)
     }
   }
    
-  // Remove document - bare minimum
+  // Remove document from both UI and notify parent
   const handleRemoveDocument = (docToRemove: DocumentWithMeta) => {
-    // Revoke blob URL if needed
-    if (docToRemove.document_url?.startsWith('blob:')) {
-      URL.revokeObjectURL(docToRemove.document_url)
-    }
+    // Log document being removed for debugging
+    console.log('Removing document:', docToRemove);
     
-    // Filter out the document
-    const updatedDocs = documents.filter(doc => doc.id !== docToRemove.id)
-    setDocuments(updatedDocs)
-    onDocumentsChange(updatedDocs)
-    
-    // Call removal callback if needed
-    if (onRemoveDocument && docToRemove.document_id) {
-      onRemoveDocument(docToRemove.document_id)
+    try {
+      // If the document has a document_id and onRemoveDocument callback is provided,
+      // call it to handle server-side deletion
+      if (docToRemove.document_id && onRemoveDocument) {
+        onRemoveDocument(docToRemove.document_id);
+      }
+      
+      // Filter out the document from the local state
+      const updatedDocs = documents.filter(doc => 
+        // Compare by multiple ID fields to ensure proper removal
+        doc.id !== docToRemove.id && 
+        doc.document_id !== docToRemove.document_id
+      );
+      
+      // Update local state
+      setDocuments(updatedDocs);
+      
+      // Notify parent component of the updated documents list
+      onDocumentsChange(updatedDocs);
+    } catch (error) {
+      console.error('Error removing document:', error);
+      // Don't modify the UI if removal failed
     }
   }
-  
-  // Update document - bare minimum
+
+  // Update document with comprehensive field support
   const handleUpdateDocument = (docId: string, updates: Partial<DocumentWithMeta>) => {
-    const updatedDocs = documents.map(doc => doc.id === docId ? { ...doc, ...updates } : doc)
-    setDocuments(updatedDocs)
-    onDocumentsChange(updatedDocs)
+    console.log('Updating document:', { docId, updates });
+    
+    // Map through documents and update the matching one
+    const updatedDocs = documents.map(doc => {
+      // Match by any ID field (id or document_id)
+      if (doc.id === docId || doc.document_id === docId) {
+        // Create updated document with proper field name handling
+        const updatedDoc = { 
+          ...doc, 
+          ...updates,
+          // Ensure document_url and file_url are properly synced
+          document_url: updates.document_url || doc.document_url,
+          // Preserve expires_at or expiry_date
+          expires_at: updates.expires_at || doc.expires_at
+        };
+        return updatedDoc;
+      }
+      return doc;
+    });
+    
+    // Update local state
+    setDocuments(updatedDocs);
+    
+    // Notify parent component
+    onDocumentsChange(updatedDocs);
   }
 
   return (
