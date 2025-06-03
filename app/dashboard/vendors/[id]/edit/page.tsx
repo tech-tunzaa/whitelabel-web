@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, SaveAllIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { useVendorStore } from "@/features/vendors/store";
-import { Store } from "@/features/vendors/types";
+import { Store, VerificationDocument } from "@/features/vendors/types";
 
 interface VendorEditPageProps {
   params: {
@@ -26,10 +26,19 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
   const vendorId = params.id;
   const { vendor, loading, storeError } = vendorStore;
   const [fetchAttempted, setFetchAttempted] = useState(false);
-  const [storeData, setStoreData] = useState<Store | null>(null);
+  const [storeData, setStoreData] = useState<Store[] | null>(null);
   
   // Get tenant ID from session for the API header
   const tenantId = (session?.user as any)?.tenant_id;
+
+  // Debug effect to log vendor and store data
+  useEffect(() => {
+    if (vendor && storeData) {
+      console.log('Vendor data:', vendor);
+      console.log('Store data array:', storeData);
+      console.log('Store being passed to VendorForm:', storeData && storeData.length > 0 ? storeData[0] : vendor?.store);
+    }
+  }, [vendor, storeData]);
 
   useEffect(() => {
     // Fetch vendor data if not already loaded
@@ -39,23 +48,38 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
       // Set up headers with tenant ID
       const headers: Record<string, string> = {};
       if (tenantId) {
-        headers['X-Tenant-ID'] = tenantId;
+        headers['x-tenant-id'] = tenantId;
       }
-      
-      // Fetch vendor data
+
+      // First fetch the vendor data
       vendorStore.fetchVendor(vendorId, headers)
-        .then(() => {
-          // Once vendor is fetched, fetch the associated store
-          return vendorStore.fetchStoreByVendor(vendorId, headers);
-        })
-        .then((store) => {
-          setStoreData(store);
+        .then(vendorData => {
+          console.log('Vendor data loaded:', vendorData);
+          
+          // After vendor is fetched, also fetch the associated store data
+          // Always include limit parameter to prevent issues with the API
+          vendorStore.fetchStoreByVendor(vendorId, headers, 1)
+            .then(storeData => {
+              console.log('Store data loaded (raw):', storeData);
+              if (Array.isArray(storeData) && storeData.length > 0) {
+                console.log('Setting store data to:', storeData);
+                setStoreData(storeData);
+              } else {
+                console.log('No store data found or empty array returned');
+                setStoreData([]);
+              }
+            })
+            .catch(error => {
+              console.error('Error fetching store data:', error);
+              toast.error('Failed to load store data');
+            });
         })
         .catch((error) => {
-          console.error("Error fetching vendor or store:", error);
+          console.error("Error fetching vendor:", error);
+          toast.error("Failed to load vendor data");
         });
     }
-  }, [vendorId, vendorStore, fetchAttempted, tenantId]);
+  }, [fetchAttempted, vendorId, tenantId, vendorStore]);
 
   const handleSubmit = async (data: Record<string, any>) => {
     setIsSubmitting(true);
@@ -69,7 +93,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
       // Log the data being sent to API for vendor update
       console.log("Updating vendor with data:", {
         ...data,
-        verification_documents: data.verification_documents?.map(doc => ({
+        verification_documents: data.verification_documents?.map((doc: VerificationDocument) => ({
           document_type: doc.document_type,
           document_url: doc.document_url,
           document_id: doc.document_id || doc.id,
@@ -93,13 +117,15 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
             banners: Array.isArray(data.store.banners) ? data.store.banners : []
           };
           
-          console.log(`Updating store for vendor ID: ${vendorId}, store ID: ${storeData?.id || 'new'} with data:`, storeUpdateData);
+          // Get the first store from the array if it exists
+          const firstStore = storeData && storeData.length > 0 ? storeData[0] : null;
+          console.log(`Updating store for vendor ID: ${vendorId}, store ID: ${firstStore?.id || 'new'} with data:`, storeUpdateData);
           
-          if (storeData && storeData.id) {
+          if (firstStore && firstStore.id) {
             // Update existing store
             await vendorStore.updateStore(
               vendorId,
-              storeData.id,
+              firstStore.id,
               storeUpdateData,
               headers
             );
@@ -109,9 +135,14 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
             await vendorStore.createStore(vendorId, storeUpdateData, headers);
             toast.success("Vendor updated and new store created successfully");
             
-            // Refresh store data
-            const updatedStore = await vendorStore.fetchStoreByVendor(vendorId, headers);
-            setStoreData(updatedStore);
+            // Refresh store data with limit parameter
+            const updatedStore = await vendorStore.fetchStoreByVendor(vendorId, headers, 1);
+            // Handle the response as an array
+            if (Array.isArray(updatedStore)) {
+              setStoreData(updatedStore);
+            } else {
+              setStoreData([updatedStore]);
+            }
           }
         } catch (storeError) {
           console.error("Error updating/creating store:", storeError);
@@ -192,9 +223,14 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
+        {/* Debug store data outside JSX to avoid TypeScript errors */}
         <VendorForm
           onSubmit={handleSubmit}
-          initialData={vendor as any}
+          initialData={{
+            ...vendor as any,
+            // Merge the first store from the array into the initialData if available
+            store: storeData && storeData.length > 0 ? storeData[0] : vendor?.store
+          }}
           isSubmitting={isSubmitting}
         />
       </div>

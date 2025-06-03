@@ -54,6 +54,7 @@ import { Tenant } from "@/features/tenants/types";
 import { useCategoryStore } from "@/features/categories/store";
 import { useTenantStore } from "@/features/tenants/store";
 import { useVendorStore } from "../store";
+import { StoreBannerEditor } from "./store-banner-editor";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +90,10 @@ export function VendorForm({
   id,
   isSubmitting: externalIsSubmitting,
 }: VendorFormProps) {
+  // Debug initialData and store data
+  console.log('VendorForm initialData:', initialData);
+  console.log('VendorForm store data:', initialData?.store);
+  
   const { data: session } = useSession();
   const tenantId = (session?.user as any)?.tenant_id || "";
   const userRole = session?.user?.role || "";
@@ -1287,175 +1292,42 @@ export function VendorForm({
           />
         </div>
         
-        {/* Store Banners Repeater Field */}
+        {/* Store Banners using StoreBannerEditor Component */}
         <div className="space-y-4 border-t pt-5 mt-5">
           <div className="flex items-center justify-between">
             <h4 className="text-md font-medium">Store Banners</h4>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => appendBanner(defaultBanner)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Banner
-            </Button>
           </div>
           
-          {bannerFields.map((bannerField, index) => (
-            <div key={bannerField.id} className="border rounded-md p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h5 className="text-sm font-medium">Banner {index + 1}</h5>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => removeBanner(index)}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </div>
+          <FormField
+            control={form.control}
+            name="store.banners"
+            render={({ field }) => {
+              // Make sure we have proper banner data type for the StoreBannerEditor
+              const banners = field.value || [];
+              const vendorId = initialData?.id || '';
+              const storeId = initialData?.store?.id || '';
               
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name={`store.banners.${index}.title`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Banner Title <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          className="mt-2"
-                          placeholder="banner title"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={formControl}
-                  name={`store.banners.${index}.alt_text`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Alt Text <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          className="mt-2"
-                          placeholder="Alternative text for accessibility"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={formControl}
-                  name={`store.banners.${index}.image_url`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Banner Image <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <ImageUpload
-                          id={`banner-image-${index}`}
-                          value={field.value}
-                          onChange={field.onChange}
-                          className="w-60 object-fit"
-                          previewAlt={`Banner ${index + 1}`}
-                          buttonText="Upload Banner"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name={`store.banners.${index}.is_active`}
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col justify-content-center">
-                      <FormLabel>
-                        Active Status
-                      </FormLabel>
-                      <FormControl>
-                        <Select
-                          onValueChange={(value) => field.onChange(value === "true")}
-                          defaultValue={String(field.value)}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="true">Active</SelectItem>
-                            <SelectItem value="false">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name={`store.banners.${index}.start_date`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Start Date
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          className="mt-2"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name={`store.banners.${index}.end_date`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        End Date
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          className="mt-2"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          ))}
+              return (
+                <FormItem>
+                  <FormControl>
+                    <StoreBannerEditor
+                      banners={banners}
+                      onChange={(updatedBanners) => field.onChange(updatedBanners)}
+                      storeId={storeId}
+                      vendorId={vendorId}
+                      readOnly={false}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground mt-2">
+                    Add promotional banners for your store. These will appear on your store page.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
         </div>
+
       </TabsContent>
     )
   }

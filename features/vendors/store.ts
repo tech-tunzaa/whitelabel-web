@@ -27,7 +27,7 @@ interface VendorStore {
   addStoreBanner: (storeId: string, data: Partial<StoreBanner>, headers?: Record<string, string>) => Promise<void>;
   deleteStoreBanner: (storeId: string, bannerId: string, headers?: Record<string, string>) => Promise<void>;
   updateStore: (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
-  fetchStoreByVendor: (vendorId: string, headers?: Record<string, string>) => Promise<Store>;
+  fetchStoreByVendor: (vendorId: string, headers?: Record<string, string>, limit?: number) => Promise<Store[]>;
 }
 
 export const useVendorStore = create<VendorStore>()(
@@ -261,15 +261,35 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    updateVendorStatus: async (id: string, status: string, headers?: Record<string, string>, rejection_reason?: string) => {
+    updateVendorStatus: async (id: string, status: string, headers?: Record<string, string>, rejection_reason?: string, is_active?: boolean) => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('updateStatus');
         setLoading(true);
-        // Include rejection_reason in the payload when status is 'rejected'
-        const payload = status === 'rejected' && rejection_reason
-          ? { status, rejection_reason }
-          : { status };
+        
+        let payload: Record<string, any> = {};
+        
+        // Handle different cases based on status and is_active
+        if (status === 'active' || status === 'inactive') {
+          // For activate/deactivate actions, set is_active and maintain approved status
+          payload = { is_active: status === 'active', status: 'approved' };
+        } else if (status === 'approved') {
+          // For approval, set status to approved and is_active to false
+          payload = { status: 'approved', is_active: false };
+        } else if (status === 'rejected' && rejection_reason) {
+          // For rejection, include rejection_reason and set is_active to false
+          payload = { status: 'rejected', rejection_reason, is_active: false };
+        } else {
+          // For any other status updates, use as provided
+          payload = { status };
+          
+          // Include is_active if explicitly provided
+          if (typeof is_active === 'boolean') {
+            payload.is_active = is_active;
+          }
+        }
+        
+        console.log(`Updating vendor ${id} status with payload:`, payload);
         await apiClient.put(`/marketplace/vendors/${id}/status`, payload, headers);
         setLoading(false);
       } catch (error: unknown) {
@@ -470,55 +490,71 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
     
-    fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>): Promise<Store> => {
+    fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>, limit?: number): Promise<Store[]> => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
         setActiveAction('fetchStore');
         setLoading(true);
 
         // Make API request to fetch stores
-        console.log('Fetching store for vendor ID:', vendorId);
-        const response = await apiClient.get<ApiResponse<Store[]>>(
-          `/marketplace/stores`, 
-          { vendor_id: vendorId },
-          headers
-        );
-
-        console.log('Store API Response:', response);
+        console.log('Fetching store for vendor ID:', vendorId, 'with limit:', limit);
         
-        // The response format is an array of stores in items property
-        if (response.data && response.data.items && Array.isArray(response.data.items) && response.data.items.length > 0) {
-          // Always use the first store in the array (index 0) as mentioned in the requirements
-          const storeData = response.data.items[0];
-          console.log('Using first store from items array:', storeData);
+        // Looking at the api client implementation, we need to pass params as the second parameter and headers as the third
+        // The client method signature is: get<T>(url: string, params?: any, headers?: Record<string, string>)
+        
+        // Create params object with vendor_id and limit
+        const params = { 
+          vendor_id: vendorId, // Include vendor_id in the request body
+          ...(limit ? { limit } : {})
+        };
+        
+        // Make the API call with the correct endpoint and parameter order
+        // 1. URL endpoint for stores
+        // 2. Query params with vendor_id and limit
+        // 3. Headers as the third parameter
+        const response = await apiClient.get('/marketplace/stores', params, headers);
+
+        console.log('Raw Store API response:', response.data);
+        
+        if (response.status === 200) {
+          const responseData = response.data as any; // Cast to any to handle various response structures
           
-          // Ensure we have an id property for compatibility
-          if (!storeData.id && storeData._id) {
-            storeData.id = storeData._id;
+          // Case 1: Response has items array (pagination structure)
+          if (responseData && responseData.items && Array.isArray(responseData.items)) {
+            const storesData = responseData.items as Store[];
+            console.log('Extracted stores from items array:', storesData);
+            return storesData;
           }
           
-          // Ensure arrays exist to prevent errors
-          if (!Array.isArray(storeData.banners)) {
-            storeData.banners = [];
+          // Case 2: Response is already an array of stores
+          if (responseData && Array.isArray(responseData)) {
+            console.log('Response is already an array of stores:', responseData);
+            return responseData as Store[];
           }
           
-          if (!Array.isArray(storeData.categories)) {
-            storeData.categories = [];
+          // Case 3: Response is a single store object (not in an array)
+          if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
+            // Check if it has store-like properties
+            if ('_id' in responseData || 'store_name' in responseData) {
+              console.log('Response is a single store object, converting to array:', responseData);
+              return [responseData as Store];
+            }
           }
           
-          if (!Array.isArray(storeData.featured_categories)) {
-            storeData.featured_categories = [];
+          // Case 4: Unknown structure but has some data - try to use it
+          if (responseData) {
+            console.log('Unknown response structure, attempting to use as is:', responseData);
+            return Array.isArray(responseData) ? responseData as Store[] : [responseData as Store];
           }
           
-          if (!Array.isArray(storeData.seo_keywords)) {
-            storeData.seo_keywords = [];
-          }
-          
-          return storeData as Store;
+          // Default: No valid data found
+          console.log('No stores found for this vendor, returning empty array');
+          return [];
         }
         
-        // If no stores found or empty array
-        throw new Error('No store found for this vendor');
+        // If API call was not successful
+        console.log('API call failed, returning empty array');
+        return [];
       } catch (error: any) {
         console.error('Error fetching store by vendor:', error);
         setStoreError({

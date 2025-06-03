@@ -104,17 +104,22 @@ export function VendorTable({
     try {
       setProcessingId(vendorId);
       
-      // Map action to the right status change
+      // Map action to the right status change according to API expectations
       let status;
+      let isActive;
+      
       switch(action) {
         case 'approve':
+          // API expects: status: "approved", is_active: false
           status = 'approved';
           break;
         case 'activate':
-          status = 'active';
+          // API expects: is_active: true
+          status = 'active'; // This will be mapped to is_active: true in the store
           break;
         case 'deactivate':
-          status = 'inactive';
+          // API expects: is_active: false
+          status = 'inactive'; // This will be mapped to is_active: false in the store
           break;
         default:
           return;
@@ -143,6 +148,7 @@ export function VendorTable({
       setRejectionReason(finalReason);
       
       // Pass the rejection reason to the onStatusChange function
+      // API expects: status: "rejected", rejection_reason: "....", is_active: false
       await onStatusChange(rejectVendorId, "rejected", finalReason);
       setShowRejectDialog(false);
     } catch (error) {
@@ -476,38 +482,38 @@ export function VendorTable({
           </AlertDialogHeader>
           <div className="py-4">
             <RadioGroup value={rejectionType} onValueChange={setRejectionType} className="space-y-3">
-              <div className="flex items-start space-x-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="incomplete_documents" id="incomplete_documents" />
-                <Label htmlFor="incomplete_documents" className="font-normal leading-tight">
-                  <div className="font-medium">Incomplete Documents</div>
+                <Label htmlFor="incomplete_documents" className="flex flex-col font-normal">
+                  <div className="font-medium me-auto">Incomplete Documents</div>
                   <div className="text-sm text-muted-foreground">Required verification documents are missing</div>
                 </Label>
               </div>
-              <div className="flex items-start space-x-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="invalid_documents" id="invalid_documents" />
-                <Label htmlFor="invalid_documents" className="font-normal leading-tight">
-                  <div className="font-medium">Invalid Documents</div>
+                <Label htmlFor="invalid_documents" className="flex flex-col font-normal">
+                  <div className="font-medium me-auto">Invalid Documents</div>
                   <div className="text-sm text-muted-foreground">Provided documents are invalid or expired</div>
                 </Label>
               </div>
-              <div className="flex items-start space-x-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="business_information" id="business_information" />
-                <Label htmlFor="business_information" className="font-normal leading-tight">
-                  <div className="font-medium">Business Information Issues</div>
+                <Label htmlFor="business_information" className="flex flex-col font-normal">
+                  <div className="font-medium me-auto">Business Information Issues</div>
                   <div className="text-sm text-muted-foreground">Inconsistent or incomplete business information</div>
                 </Label>
               </div>
-              <div className="flex items-start space-x-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="policy_violation" id="policy_violation" />
-                <Label htmlFor="policy_violation" className="font-normal leading-tight">
-                  <div className="font-medium">Policy Violation</div>
+                <Label htmlFor="policy_violation" className="flex flex-col font-normal">
+                  <div className="font-medium me-auto">Policy Violation</div>
                   <div className="text-sm text-muted-foreground">Vendor does not comply with platform policies</div>
                 </Label>
               </div>
-              <div className="flex items-start space-x-2">
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="other" />
-                <Label htmlFor="other" className="font-normal leading-tight">
-                  <div className="font-medium">Other Reason</div>
+                <Label htmlFor="other" className="flex flex-col font-normal">
+                  <div className="font-medium me-auto">Other Reason</div>
                   <div className="text-sm text-muted-foreground">Provide a custom reason for rejection</div>
                 </Label>
               </div>
