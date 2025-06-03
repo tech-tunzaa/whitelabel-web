@@ -36,7 +36,8 @@ import {
   ShoppingCart,
   RefreshCw,
   Info,
-  Link
+  Link,
+  UserCog
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -458,12 +459,15 @@ export default function VendorPage({ params }: VendorPageProps) {
             {/* Main Content Area */}
             <div className="md:col-span-5">
               <Tabs defaultValue="vendor" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="w-full">
                   <TabsTrigger value="vendor" className="flex items-center gap-2">
                     <Building className="h-4 w-4" /> Vendor Information
                   </TabsTrigger>
                   <TabsTrigger value="store" className="flex items-center gap-2">
                     <StoreIcon className="h-4 w-4" /> Store Information
+                  </TabsTrigger>
+                  <TabsTrigger value="affiliate" className="flex items-center gap-2">
+                    <UserCog className="h-4 w-4" /> Affiliate information
                   </TabsTrigger>
                 </TabsList>
                 
@@ -808,6 +812,11 @@ export default function VendorPage({ params }: VendorPageProps) {
                       </Button>
                     </div>
                   )}
+                </TabsContent>
+
+                {/* Affiliates Information Tab */}
+                <TabsContent value="affiliate">
+                  
                 </TabsContent>
               </Tabs>
             </div>
