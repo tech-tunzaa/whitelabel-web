@@ -12,17 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Check, X, FileText, Building, CreditCard, MapPin, Phone, Mail, Globe, User } from "lucide-react";
-import { Winga } from "../types";
+import { Affiliate } from "../types";
 import { formatDate } from "@/lib/utils";
 
-interface WingaDetailsProps {
-  winga: Winga;
+interface AffiliateDetailsProps {
+  affiliate: Affiliate;
   onApprove?: () => void;
   onReject?: () => void;
   onEdit?: () => void;
 }
 
-export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetailsProps) {
+export function AffiliateDetails({ affiliate, onApprove, onReject, onEdit }: AffiliateDetailsProps) {
   const router = useRouter();
 
   const getStatusBadge = (status: string) => {
@@ -42,13 +42,13 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
     <div className="space-y-8">
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{winga.affiliate_name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{affiliate.affiliate_name}</h1>
           <p className="text-muted-foreground">
-            Winga ID: {winga.winga_id} • Status: {getStatusBadge(winga.verification_status)}
+            Affiliate ID: {affiliate.affiliate_id} • Status: {getStatusBadge(affiliate.verification_status)}
           </p>
         </div>
         <div className="flex space-x-2">
-          {winga.verification_status === "pending" && (
+          {affiliate.verification_status === "pending" && (
             <>
               {onApprove && (
                 <Button onClick={onApprove} variant="outline" className="gap-1">
@@ -82,7 +82,7 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1">
                 <div className="text-sm font-medium text-muted-foreground">Contact Person</div>
-                <div>{winga.contact_person}</div>
+                <div>{affiliate.contact_person}</div>
               </div>
               
               <div className="space-y-1">
@@ -91,7 +91,7 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
                     <Mail className="h-4 w-4" /> Email
                   </div>
                 </div>
-                <div>{winga.contact_email}</div>
+                <div>{affiliate.contact_email}</div>
               </div>
 
               <div className="space-y-1">
@@ -100,10 +100,10 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
                     <Phone className="h-4 w-4" /> Phone
                   </div>
                 </div>
-                <div>{winga.contact_phone}</div>
+                <div>{affiliate.contact_phone}</div>
               </div>
 
-              {winga.website && (
+              {affiliate.website && (
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-1">
@@ -112,12 +112,12 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
                   </div>
                   <div>
                     <a 
-                      href={winga.website} 
+                      href={affiliate.website} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"
                     >
-                      {winga.website}
+                      {affiliate.website}
                     </a>
                   </div>
                 </div>
@@ -137,10 +137,10 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1">
                 <div className="text-sm font-medium text-muted-foreground">Address</div>
-                <div>{winga.address_line1}</div>
-                {winga.address_line2 && <div>{winga.address_line2}</div>}
-                <div>{winga.city}, {winga.state_province} {winga.postal_code}</div>
-                <div>{winga.country}</div>
+                <div>{affiliate.address_line1}</div>
+                {affiliate.address_line2 && <div>{affiliate.address_line2}</div>}
+                <div>{affiliate.city}, {affiliate.state_province} {affiliate.postal_code}</div>
+                <div>{affiliate.country}</div>
               </div>
             </div>
           </CardContent>
@@ -157,26 +157,26 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1">
                 <div className="text-sm font-medium text-muted-foreground">Vendor ID</div>
-                <div>{winga.vendor_id}</div>
+                <div>{affiliate.vendor_id}</div>
               </div>
 
               <div className="space-y-1">
                 <div className="text-sm font-medium text-muted-foreground">Commission Rate</div>
-                <div>{winga.commission_rate}%</div>
+                <div>{affiliate.commission_rate}%</div>
               </div>
 
-              {winga.tax_id && (
+              {affiliate.tax_id && (
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-muted-foreground">Tax ID</div>
-                  <div>{winga.tax_id}</div>
+                  <div>{affiliate.tax_id}</div>
                 </div>
               )}
 
               <div className="space-y-1">
                 <div className="text-sm font-medium text-muted-foreground">Status</div>
                 <div className="flex items-center gap-2">
-                  {getStatusBadge(winga.verification_status)}
-                  {winga.is_active ? (
+                  {getStatusBadge(affiliate.verification_status)}
+                  {affiliate.is_active ? (
                     <Badge variant="outline" className="bg-green-50">Active</Badge>
                   ) : (
                     <Badge variant="outline" className="bg-red-50">Inactive</Badge>
@@ -184,10 +184,17 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
                 </div>
               </div>
 
-              {winga.rejection_reason && winga.verification_status === "rejected" && (
+              {affiliate.approved_at && affiliate.verification_status === "approved" && (
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-muted-foreground">Approved At</div>
+                  <div>{affiliate.approved_at}</div>
+                </div>
+              )}
+
+              {affiliate.rejection_reason && affiliate.verification_status === "rejected" && (
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-muted-foreground">Rejection Reason</div>
-                  <div className="text-red-600">{winga.rejection_reason}</div>
+                  <div className="text-red-600">{affiliate.rejection_reason}</div>
                 </div>
               )}
             </div>
@@ -203,34 +210,34 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
-              {winga.bank_account && (
+              {affiliate.bank_account && (
                 <>
                   <div className="space-y-1">
                     <div className="text-sm font-medium text-muted-foreground">Bank Name</div>
-                    <div>{winga.bank_account.bank_name}</div>
+                    <div>{affiliate.bank_account.bank_name}</div>
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-sm font-medium text-muted-foreground">Account Name</div>
-                    <div>{winga.bank_account.account_name}</div>
+                    <div>{affiliate.bank_account.account_name}</div>
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-sm font-medium text-muted-foreground">Account Number</div>
-                    <div>{winga.bank_account.account_number}</div>
+                    <div>{affiliate.bank_account.account_number}</div>
                   </div>
 
-                  {winga.bank_account.branch_code && (
+                  {affiliate.bank_account.branch_code && (
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-muted-foreground">Branch Code</div>
-                      <div>{winga.bank_account.branch_code}</div>
+                      <div>{affiliate.bank_account.branch_code}</div>
                     </div>
                   )}
 
-                  {winga.bank_account.swift_bic && (
+                  {affiliate.bank_account.swift_bic && (
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-muted-foreground">SWIFT/BIC</div>
-                      <div>{winga.bank_account.swift_bic}</div>
+                      <div>{affiliate.bank_account.swift_bic}</div>
                     </div>
                   )}
                 </>
@@ -241,7 +248,7 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
       </div>
 
       {/* Verification Documents */}
-      {winga.verification_documents && winga.verification_documents.length > 0 && (
+      {affiliate.verification_documents && affiliate.verification_documents.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -251,7 +258,7 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {winga.verification_documents.map((document, index) => (
+              {affiliate.verification_documents.map((document, index) => (
                 <div key={document.document_id || index} className="space-y-2">
                   <div className="rounded-md border p-2">
                     <img 
@@ -290,27 +297,27 @@ export function WingaDetails({ winga, onApprove, onReject, onEdit }: WingaDetail
             <div className="flex items-center gap-4">
               <div className="h-2 w-2 rounded-full bg-green-500"></div>
               <div className="flex-1">
-                <div className="font-medium">Winga Affiliate Created</div>
-                <div className="text-sm text-muted-foreground">{formatDate(winga.created_at)}</div>
+                <div className="font-medium">Affiliate Created</div>
+                <div className="text-sm text-muted-foreground">{formatDate(affiliate.created_at)}</div>
               </div>
             </div>
 
-            {winga.updated_at && winga.updated_at !== winga.created_at && (
+            {affiliate.updated_at && affiliate.updated_at !== affiliate.created_at && (
               <div className="flex items-center gap-4">
                 <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                 <div className="flex-1">
                   <div className="font-medium">Last Updated</div>
-                  <div className="text-sm text-muted-foreground">{formatDate(winga.updated_at)}</div>
+                  <div className="text-sm text-muted-foreground">{formatDate(affiliate.updated_at)}</div>
                 </div>
               </div>
             )}
 
-            {winga.approved_at && (
+            {affiliate.approved_at && (
               <div className="flex items-center gap-4">
                 <div className="h-2 w-2 rounded-full bg-green-500"></div>
                 <div className="flex-1">
                   <div className="font-medium">Approved</div>
-                  <div className="text-sm text-muted-foreground">{formatDate(winga.approved_at)}</div>
+                  <div className="text-sm text-muted-foreground">{formatDate(affiliate.approved_at)}</div>
                 </div>
               </div>
             )}

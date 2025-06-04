@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search } from "lucide-react";
-import { WingaTable } from "@/features/vendors/winga/components";
+import { AffiliateTable } from "@/features/vendors/affiliates/components";
 
-export default function WingasPage() {
+export default function AffiliatesPage() {
   const router = useRouter();
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,12 +17,14 @@ export default function WingasPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vendor Affiliates (Winga)</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Affiliates (Mawinga)
+          </h1>
           <p className="text-muted-foreground">
-            Manage affiliates associated with vendors
+            Manage marketplace affiliates
           </p>
         </div>
-        <Button onClick={() => router.push("/dashboard/vendors/winga/add")}>
+        <Button onClick={() => router.push("/dashboard/vendors/affiliates/add")}>
           <Plus className="mr-2 h-4 w-4" />
           Add Affiliate
         </Button>
@@ -54,7 +56,7 @@ export default function WingasPage() {
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
           <TabsContent value={filterStatus}>
-            <WingaTable
+            <AffiliateTable
               filterStatus={filterStatus === "all" ? undefined : filterStatus}
               search={searchQuery}
             />

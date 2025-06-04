@@ -69,8 +69,8 @@ export const navigationData = {
       roles: ["super_owner", "admin", "sub_admin"],
       items: [
         {
-          title: "Winga",
-          url: "/dashboard/vendors/winga",
+          title: "Affiliates (Mawinga)",
+          url: "/dashboard/vendors/affiliates",
           icon: IconUserCode,
         }
       ]

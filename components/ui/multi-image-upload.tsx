@@ -22,6 +22,7 @@ interface MultiImageUploadProps {
   maxImages?: number
   className?: string
   readOnly?: boolean
+  onUploadingChange?: (isUploading: boolean) => void;
 }
 
 export function MultiImageUpload({
@@ -32,8 +33,15 @@ export function MultiImageUpload({
   maxImages = 10,
   className = "",
   readOnly = false,
+  onUploadingChange,
 }: MultiImageUploadProps) {
   const [isUploading, setIsUploading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (onUploadingChange) {
+      onUploadingChange(isUploading);
+    }
+  }, [isUploading, onUploadingChange]);
   const [currentUploadIndex, setCurrentUploadIndex] = React.useState<number | null>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

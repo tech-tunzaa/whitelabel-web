@@ -11,12 +11,13 @@ import {
   Calendar, 
   Clock, 
   CheckCircle2, 
-  XCircle
+  XCircle,
+  ShieldCheck
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { 
   Dialog, 
   DialogContent, 
@@ -28,6 +29,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export interface VerificationDocumentType {
@@ -44,6 +48,20 @@ export interface VerificationDocumentType {
   submitted_at?: string;
   verified_at?: string;
 }
+
+type RejectionReason = {
+  id: string;
+  label: string;
+};
+
+const REJECTION_REASONS: RejectionReason[] = [
+  { id: 'expired', label: 'Document has expired' },
+  { id: 'unclear', label: 'Document is unclear or illegible' },
+  { id: 'incomplete', label: 'Document is incomplete' },
+  { id: 'invalid', label: 'Document appears to be invalid' },
+  { id: 'wrong_type', label: 'Wrong document type submitted' },
+  { id: 'other', label: 'Other reason' }
+];
 
 interface VerificationDocumentCardProps {
   document: VerificationDocumentType;
@@ -62,8 +80,9 @@ export function VerificationDocumentCard({
 }: VerificationDocumentCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedTab, setSelectedTab] = useState("approve");
+  const [selectedReason, setSelectedReason] = useState<string>("");
+  const [customReason, setCustomReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatDate = (dateString?: string) => {
@@ -112,11 +131,17 @@ export function VerificationDocumentCard({
   const handleReject = async () => {
     if (!onReject || !document.document_id) return;
     
+    const finalReason = selectedReason === 'other' ? customReason : 
+      REJECTION_REASONS.find(r => r.id === selectedReason)?.label || '';
+    
+    if (!finalReason.trim()) return;
+    
     try {
       setIsSubmitting(true);
-      await onReject(document.document_id, rejectionReason);
-      setRejectDialogOpen(false);
-      setRejectionReason("");
+      await onReject(document.document_id, finalReason);
+      setVerifyDialogOpen(false);
+      setSelectedReason("");
+      setCustomReason("");
     } catch (error) {
       console.error("Failed to reject document:", error);
     } finally {
@@ -131,120 +156,78 @@ export function VerificationDocumentCard({
 
   return (
     <>
-      <Card className={cn("overflow-hidden", className)}>
-        <div className="relative h-40 bg-muted">
-          <div 
-            className="absolute inset-0 bg-center bg-cover" 
-            style={{ 
-              backgroundImage: `url(${document.document_url})`,
-              backgroundSize: 'cover',
-              filter: 'blur(1px)',
-              opacity: 0.3
-            }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <FileText className="h-16 w-16 text-primary/30" />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              className="shadow-md"
-              onClick={() => setPreviewOpen(true)}
-            >
-              <Eye className="h-4 w-4 mr-1" /> View Document
-            </Button>
-          </div>
-          <div className="absolute top-2 right-2">
-            {getStatusBadge(document.verification_status || 'pending')}
-          </div>
-        </div>
+      <Card className={cn("w-full mb-4", className)}>
         <CardContent className="p-4">
-          <div className="space-y-3">
-            <div>
-              <h3 className="font-medium line-clamp-1" title={documentName}>
-                {documentName}
-              </h3>
-              <p className="text-sm text-muted-foreground capitalize">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+              <FileText className="h-8 w-8 text-muted-foreground" />
+            </div>
+            
+            <div className="flex-grow min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold truncate">{documentName}</h3>
+                {getStatusBadge(document.verification_status || "pending")}
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-2">
                 {document.document_type.replace(/_/g, ' ')}
               </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 text-xs">
-              {document.submitted_at && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>Submitted: {formatDate(document.submitted_at)}</span>
-                </div>
-              )}
-
-              {document.expires_at && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>Expires: {formatDate(document.expires_at)}</span>
-                </div>
-              )}
-
-              {isRejected && document.rejection_reason && (
-                <div className="flex items-start gap-1 mt-1 text-red-500">
-                  <AlertCircle className="h-3 w-3 mt-0.5" />
-                  <span className="flex-1">
-                    Reason: {document.rejection_reason}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {showActions && isPending && (
-              <div className="flex gap-2 mt-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full border-green-200 hover:border-green-300 hover:bg-green-50"
-                        onClick={() => setVerifyDialogOpen(true)}
-                      >
-                        <Check className="h-4 w-4 mr-1 text-green-600" />
-                        Approve
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Approve this document</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                {document.expires_at && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <Calendar className="h-3 w-3" />
+                    <span>Expires: {formatDate(document.expires_at)}</span>
+                  </div>
+                )}
+                {document.submitted_at && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <Clock className="h-3 w-3" />
+                    <span>Submitted: {formatDate(document.submitted_at)}</span>
+                  </div>
+                )}
                 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full border-red-200 hover:border-red-300 hover:bg-red-50"
-                        onClick={() => setRejectDialogOpen(true)}
-                      >
-                        <X className="h-4 w-4 mr-1 text-red-600" />
-                        Reject
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Reject this document</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                {isApproved && document.verified_at && (
+                  <div className="flex items-center gap-1 text-green-600 text-xs col-span-2 mt-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span>Verified on {formatDate(document.verified_at)}</span>
+                  </div>
+                )}
+                
+                {isRejected && document.rejection_reason && (
+                  <div className="flex items-center gap-1 text-red-600 text-xs col-span-2 mt-1">
+                    <XCircle className="h-3 w-3" />
+                    <span>Rejected: {document.rejection_reason}</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            {isApproved && (
-              <div className="flex items-center gap-1 text-green-600 text-xs mt-2">
-                <CheckCircle2 className="h-3 w-3" />
-                <span>Verified on {formatDate(document.verified_at)}</span>
-              </div>
-            )}
+            </div>
           </div>
         </CardContent>
+        
+        <CardFooter className="px-4 py-3 bg-muted/30 flex justify-between">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-blue-600"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Preview
+          </Button>
+
+          {showActions && isPending && (
+            <Button 
+              variant="default" 
+              size="sm"
+              className="bg-primary/90 hover:bg-primary"
+              onClick={() => setVerifyDialogOpen(true)}
+            >
+              <ShieldCheck className="h-4 w-4 mr-2" />
+              Verify
+            </Button>
+          )}
+        </CardFooter>
       </Card>
 
       {/* File Preview Modal */}
@@ -257,85 +240,121 @@ export function VerificationDocumentCard({
         />
       )}
 
-      {/* Approve Confirmation Dialog */}
+      {/* Verification Dialog with Tabs */}
       <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Approve Document</DialogTitle>
+            <DialogTitle className="text-xl">Verify Document</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this document? This action cannot be undone.
+              Review and make a decision on this document verification request.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <div className="col-span-4">
+          <div className="mt-2 mb-4">
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
+              <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                <FileText className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
                 <h3 className="font-medium">{documentName}</h3>
                 <p className="text-sm text-muted-foreground">
                   Type: {document.document_type.replace(/_/g, ' ')}
                 </p>
               </div>
             </div>
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="mt-2 text-blue-600"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview Document
+            </Button>
           </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setVerifyDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="default" 
-              className="bg-green-600 hover:bg-green-700"
-              onClick={handleApprove}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Processing..." : "Approve Document"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Confirmation Dialog */}
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Document</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this document.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <div className="col-span-4">
-                <h3 className="font-medium">{documentName}</h3>
-                <p className="text-sm text-muted-foreground">
-                  Type: {document.document_type.replace(/_/g, ' ')}
-                </p>
+          <Tabs defaultValue="approve" value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="approve" className="data-[state=active]:bg-green-50 data-[state=active]:text-green-700">
+                <Check className="h-4 w-4 mr-2" />
+                Approve
+              </TabsTrigger>
+              <TabsTrigger value="reject" className="data-[state=active]:bg-red-50 data-[state=active]:text-red-700">
+                <X className="h-4 w-4 mr-2" />
+                Reject
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="approve" className="mt-4 pt-2">
+              <div className="text-center space-y-4">
+                <div className="bg-green-50 text-green-700 rounded-md p-4 flex flex-col items-center">
+                  <CheckCircle2 className="h-12 w-12 mb-2 text-green-600" />
+                  <p className="font-medium">Document will be marked as approved</p>
+                  <p className="text-sm text-green-600/80 mt-1">This action cannot be undone</p>
+                </div>
+                
+                <Button 
+                  variant="default" 
+                  className="w-full bg-green-600 hover:bg-green-700 mt-2"
+                  onClick={handleApprove}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Processing..." : "Approve Document"}
+                </Button>
               </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <div className="col-span-4">
-                <Textarea
-                  id="rejection-reason"
-                  placeholder="Enter reason for rejection"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                />
+            </TabsContent>
+            
+            <TabsContent value="reject" className="mt-4">
+              <div className="space-y-4">
+                <div className="bg-red-50 text-red-700 rounded-md p-3 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm">Please select a reason for rejection. This information may be shared with the user.</p>
+                </div>
+                
+                <div className="space-y-3">
+                  <RadioGroup value={selectedReason} onValueChange={setSelectedReason} className="gap-2">
+                    {REJECTION_REASONS.map((reason) => (
+                      <div key={reason.id} className="flex items-center space-x-2">
+                        <RadioGroupItem value={reason.id} id={reason.id} />
+                        <Label htmlFor={reason.id} className="cursor-pointer">{reason.label}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                  
+                  {selectedReason === 'other' && (
+                    <div className="mt-3 pl-6">
+                      <Textarea
+                        placeholder="Please specify the rejection reason..."
+                        value={customReason}
+                        onChange={(e) => setCustomReason(e.target.value)}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <Button 
+                  variant="default" 
+                  className="w-full bg-red-600 hover:bg-red-700"
+                  onClick={handleReject}
+                  disabled={isSubmitting || !selectedReason || (selectedReason === 'other' && !customReason.trim())}
+                >
+                  {isSubmitting ? "Processing..." : "Reject Document"}
+                </Button>
               </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => {
+              setVerifyDialogOpen(false);
+              setSelectedReason("");
+              setCustomReason("");
+              setSelectedTab("approve");
+            }}>
               Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={handleReject}
-              disabled={isSubmitting || !rejectionReason.trim()}
-            >
-              {isSubmitting ? "Processing..." : "Reject Document"}
             </Button>
           </DialogFooter>
         </DialogContent>

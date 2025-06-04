@@ -14,21 +14,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, FileEdit, Trash } from "lucide-react";
+import { MoreHorizontal, Eye, FileEdit } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Winga } from "../types";
-import { useWingaStore } from "../store";
+import { Affiliate } from "../types";
+import { useAffiliateStore } from "../store";
+import { useUserStore as useAuthUserStore } from "@/features/auth/stores/user-store"; // Aliasing to avoid naming conflict if useUserStore is already used for affiliate's own store
 
-interface WingaTableProps {
+interface AffiliateTableProps {
   filterStatus?: string;
   search?: string;
   vendorId?: string;
 }
 
-export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) {
+export function AffiliateTable({ filterStatus, search, vendorId }: AffiliateTableProps) {
   const router = useRouter();
-  const { wingas, loading, fetchWingas } = useWingaStore();
+  const { affiliates, loading, fetchAffiliates } = useAffiliateStore();
+  const { user } = useAuthUserStore();
+  const tenantId = user?.tenant_id; // Assuming tenant_id exists on the User object from useUserStore
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -50,18 +53,25 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
       }
 
       if (filterStatus && filterStatus !== "all") {
-        filters.verification_status = filterStatus;
+        filters.status = filterStatus; // Changed from verification_status to status
       }
 
       if (vendorId) {
         filters.vendor_id = vendorId;
       }
 
-      await fetchWingas(filters);
+      const headers: Record<string, string> = {};
+      if (tenantId) {
+        headers['X-Tenant-ID'] = tenantId;
+      } else {
+        console.warn('AffiliateTable: Tenant ID is missing. API call may be incomplete.');
+        // Optionally, you might prevent the fetchAffiliates call if tenantId is strictly required
+      }
+      await fetchAffiliates(filters, headers);
     };
 
     fetchData();
-  }, [fetchWingas, currentPage, filterStatus, search, vendorId]);
+  }, [fetchAffiliates, currentPage, filterStatus, search, vendorId, tenantId]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
@@ -87,11 +97,11 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
   };
 
   const handleView = (id: string) => {
-    router.push(`/dashboard/vendors/winga/${id}`);
+    router.push(`/dashboard/vendors/affiliates/${id}`);
   };
 
   const handleEdit = (id: string) => {
-    router.push(`/dashboard/vendors/winga/edit/${id}`);
+    router.push(`/dashboard/vendors/affiliates/edit/${id}`);
   };
 
   return (
@@ -101,10 +111,8 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
           <TableHeader>
             <TableRow>
               <TableHead>Affiliate Name</TableHead>
-              <TableHead>Contact Person</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
-              <TableHead>Location</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -117,28 +125,24 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : wingas.length === 0 ? (
+            ) : affiliates.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center">
-                  No winga affiliates found.
+                  No affiliates found.
                 </TableCell>
               </TableRow>
             ) : (
-              wingas.map((winga) => (
-                <TableRow key={winga.winga_id}>
+              affiliates.map((affiliate) => (
+                <TableRow key={affiliate.id}> {/* Changed key to affiliate.id */}
                   <TableCell className="font-medium">
-                    {winga.affiliate_name}
+                    {affiliate.name} {/* Changed to affiliate.name */}
                   </TableCell>
-                  <TableCell>{winga.contact_person}</TableCell>
-                  <TableCell>{winga.contact_email}</TableCell>
-                  <TableCell>{winga.contact_phone}</TableCell>
+                  <TableCell>{affiliate.email}</TableCell> {/* Changed to affiliate.email */}
+                  <TableCell>{affiliate.phone}</TableCell> {/* Changed to affiliate.phone */}
                   <TableCell>
-                    {winga.city}, {winga.country}
+                    {getStatusBadge(affiliate.status)} {/* Changed to affiliate.status */}
                   </TableCell>
-                  <TableCell>
-                    {getStatusBadge(winga.verification_status)}
-                  </TableCell>
-                  <TableCell>{formatDate(winga.created_at)}</TableCell>
+                  <TableCell>{formatDate(affiliate.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -149,13 +153,13 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleView(winga.winga_id)}
+                          onClick={() => handleView(affiliate.id)} /* Changed to affiliate.id */
                         >
                           <Eye className="mr-2 h-4 w-4" />
                           View
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleEdit(winga.winga_id)}
+                          onClick={() => handleEdit(affiliate.id)} /* Changed to affiliate.id */
                         >
                           <FileEdit className="mr-2 h-4 w-4" />
                           Edit
@@ -184,7 +188,7 @@ export function WingaTable({ filterStatus, search, vendorId }: WingaTableProps) 
           variant="outline"
           size="sm"
           onClick={() => setCurrentPage((prev) => prev + 1)}
-          disabled={wingas.length < itemsPerPage || loading}
+          disabled={affiliates.length < itemsPerPage || loading}
         >
           Next
         </Button>

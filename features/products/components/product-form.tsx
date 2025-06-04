@@ -142,9 +142,10 @@ export function ProductForm({
   const [activeTab, setActiveTab] = useState("basic");
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isImageUploading, setIsImageUploading] = useState(false);
   
-  // Determine if form is submitting from either external or internal state
-  const isSubmitting = externalIsSubmitting || internalIsSubmitting;
+  // Determine if form is submitting from either external or internal state, or if images are uploading
+  const isSubmitting = externalIsSubmitting || internalIsSubmitting || isImageUploading;
 
   // Load vendors and categories
   const { vendors, fetchVendors } = useVendorStore();
@@ -1099,6 +1100,7 @@ export function ProductForm({
                                 value={field.value || []}
                                 onChange={field.onChange}
                                 previewAlt="Product image"
+                                onUploadingChange={setIsImageUploading}
                               />
                             </FormControl>
                             <FormDescription>

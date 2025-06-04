@@ -54,7 +54,7 @@ import { Tenant } from "@/features/tenants/types";
 import { useCategoryStore } from "@/features/categories/store";
 import { useTenantStore } from "@/features/tenants/store";
 import { useVendorStore } from "../store";
-import { StoreBannerEditor } from "./store-banner-editor";
+import { BannerEditor } from "@/components/ui/banner-editor";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
 
@@ -1310,12 +1310,13 @@ export function VendorForm({
               return (
                 <FormItem>
                   <FormControl>
-                    <StoreBannerEditor
+                    <BannerEditor
                       banners={banners}
                       onChange={(updatedBanners) => field.onChange(updatedBanners)}
-                      storeId={storeId}
-                      vendorId={vendorId}
-                      readOnly={false}
+                      resourceId={storeId}
+                      entityId={vendorId}
+                      onDeleteBanner={vendorStore.deleteStoreBanner}
+                      onUpdateResource={vendorStore.updateStore}
                     />
                   </FormControl>
                   <FormDescription className="text-sm text-muted-foreground mt-2">
