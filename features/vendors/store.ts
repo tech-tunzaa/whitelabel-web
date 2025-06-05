@@ -12,7 +12,7 @@ interface VendorStore {
   setLoading: (loading: boolean) => void;
   setStoreError: (error: VendorError | null) => void;
   setVendor: (vendor: Vendor | null) => void;
-  setVendors: (vendors: Vendor[]) => void;
+  setVendors: (vendors: VendorApiResponse) => void;
   fetchVendor: (id: string, headers?: Record<string, string>) => Promise<Vendor>;
   fetchVendorByUser: (userId: string, headers?: Record<string, string>) => Promise<Vendor>;
   fetchVendors: (filter?: VendorFilter, headers?: Record<string, string>) => Promise<VendorListResponse>;
@@ -142,8 +142,8 @@ export const useVendorStore = create<VendorStore>()(
         const response = await apiClient.get<ApiResponse<VendorListResponse>>(`/marketplace/vendors?${params.toString()}`, undefined, headers);
 
         // Log the response structure to debug
-        console.log('API Response:', response);
-        console.log('Response data:', response.data);
+        // console.log('API Response:', response);
+        // console.log('Response data:', response.data);
 
         if (response.data) {
           // Check if response has a nested data property
@@ -151,17 +151,17 @@ export const useVendorStore = create<VendorStore>()(
             console.log('Response data.data:', response.data.data);
             // Use the nested data property
             const vendorData = response.data.data as VendorListResponse;
-            console.log('Extracted vendor data:', vendorData);
+            // console.log('Extracted vendor data:', vendorData);
             // Update state with the items directly from the API
-            setVendors(vendorData.items || []);
+            setVendors(vendorData || {});
             setLoading(false);
             return vendorData;
           } else if (response.data.items) {
             // The items might be directly in response.data (matching our enhanced ApiResponse type)
-            console.log('Using response.data.items directly as items array');
+            // console.log('Using response.data.items directly as items array');
             const vendorData = response.data as unknown as VendorListResponse;
-            console.log('Vendor data from direct approach:', vendorData);
-            setVendors(vendorData.items || []);
+            // console.log('Vendor data from direct approach:', vendorData);
+            setVendors(vendorData || {});
             setLoading(false);
             return vendorData;
           }

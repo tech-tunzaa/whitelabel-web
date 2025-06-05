@@ -64,42 +64,35 @@ export default function DeliveryPartnersPage() {
             case "active":
                 return {
                     ...baseFilter,
-                    status: "approved",
+                    kyc_verified: true,
                     is_active: true
                 }
             case "inactive":
                 return {
                     ...baseFilter,
-                    status: "approved",
+                    kyc_verified: true,
                     is_active: false
                 }
             case "individual":
                 return {
                     ...baseFilter,
-                    status: "approved",
-                    type: "individual"
+                    partner_type: "individual"
                 }
             case "businesses":
                 return {
                     ...baseFilter,
-                    status: "approved",
-                    type: "business"
+                    partner_type: "business"
                 }
             case "pickup_points":
                 return {
                     ...baseFilter,
-                    status: "approved",
-                    type: "pickup_point"
+                    kyc_verified: true,
+                    partner_type: "pickup_point"
                 }
-            case "pending":
+            case "un_verified":
                 return {
                     ...baseFilter,
-                    status: "pending"
-                }
-            case "rejected":
-                return {
-                    ...baseFilter,
-                    status: "rejected"
+                    kyc_verified: false,
                 }
             default:
                 return baseFilter
@@ -124,38 +117,20 @@ export default function DeliveryPartnersPage() {
     }, [fetchDeliveryPartners, activeTab, currentPage, searchQuery])
 
     const handlePartnerClick = (partner: DeliveryPartner) => {
-        router.push(`/dashboard/delivery-partners/${partner.partner_id}`)
+        router.push(`/dashboard/delivery-partners/${partner.id}`)
     }
 
     const handleStatusChange = async (partnerId: string, status: string, rejectionReason?: string) => {
         try {
             let updateData: any = {};
-            
-            // Handle different status changes
-            if (status === "approved") {
-                // Approve a pending partner
-                updateData = { 
-                    status: "approved",
-                    verification_status: "approved", 
-                    is_active: true 
-                };
-            } else if (status === "rejected") {
-                // Reject a pending partner
-                updateData = { 
-                    status: "rejected",
-                    verification_status: "rejected",
-                    rejection_reason: rejectionReason || "Application rejected" 
-                };
-            } else if (status === "active") {
+
+            if (status === "active") {
                 // Activate a suspended partner
                 updateData = { 
-                    status: "active",
                     is_active: true 
                 };
             } else if (status === "suspended") {
-                // Suspend an active partner
                 updateData = { 
-                    status: "suspended",
                     is_active: false 
                 };
             }
@@ -236,18 +211,16 @@ export default function DeliveryPartnersPage() {
                     </Button>
                 </div>
 
-                <div>
-                    <ErrorCard
-                        title="Failed to load delivery partners"
-                        error={{
-                            status: storeError.status?.toString() || "Error",
-                            message: storeError.message || "An error occurred"
-                        }}
-                        buttonText="Retry"
-                        buttonAction={() => fetchDeliveryPartners(getFilters(), tenantHeaders)}
-                        buttonIcon={RefreshCw}
-                    />
-                </div>
+                <ErrorCard
+                    title="Failed to load delivery partners"
+                    error={{
+                        status: storeError.status?.toString() || "Error",
+                        message: storeError.message || "An error occurred"
+                    }}
+                    buttonText="Retry"
+                    buttonAction={() => fetchDeliveryPartners(getFilters(), tenantHeaders)}
+                    buttonIcon={RefreshCw}
+                />
             </div>
         )
     }
@@ -278,7 +251,6 @@ export default function DeliveryPartnersPage() {
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value)
-                                setCurrentPage(1) // Reset to first page when searching
                             }}
                         />
                     </div>
@@ -292,8 +264,7 @@ export default function DeliveryPartnersPage() {
                         <TabsTrigger value="individual">Individual</TabsTrigger>
                         <TabsTrigger value="businesses">Businesses</TabsTrigger>
                         <TabsTrigger value="pickup_points">Pickup Points</TabsTrigger>
-                        <TabsTrigger value="pending">Pending</TabsTrigger>
-                        <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                        <TabsTrigger value="un_verified">Unverified</TabsTrigger>
                     </TabsList>
                     
                     {isTabLoading ? (

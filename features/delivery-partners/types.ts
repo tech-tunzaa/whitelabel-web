@@ -3,12 +3,17 @@ export interface Location {
         lat: number
         lng: number
     }
-    radiusKm: number
 }
 
 export interface VehicleInfo {
     type: string
-    details: string
+    plateNumber: string
+    details: [
+        {
+            key: string
+            value: string
+        }
+    ]
 }
 
 export interface KycDocument {
@@ -26,12 +31,21 @@ export interface Kyc {
 export interface DeliveryPartner {
     _id: string
     userId: string
+    user: {
+        first_name: string
+        last_name: string
+        email: string
+        phone_number: string
+    }
     type: 'individual' | 'business' | 'pickup_point'
     name: string
     profilePicture: string
     location?: Location
     vehicleInfo?: VehicleInfo
-    commissionPercent: number
+    costPerKm?: number
+    flatFee?: number
+    description?: string
+    taxId?: string
     drivers?: string[]
     kyc: Kyc
     status: 'pending' | 'active' | 'rejected' | 'suspended'

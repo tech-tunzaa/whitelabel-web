@@ -7,7 +7,7 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-// import { Pagination } from "@/components/ui/pagination";
+import Pagination from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -108,7 +108,7 @@ export default function VendorsPage() {
   };
 
   // Filter vendors based on search query
-  const filteredVendors = vendors?.filter((vendor) => {
+  const filteredVendors = vendors?.items?.filter((vendor) => {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase();
@@ -228,16 +228,23 @@ export default function VendorsPage() {
               <Spinner />
             </div>
           ) : (
-            <VendorTable
-              vendors={filteredVendors}
-              onVendorClick={handleVendorClick}
-              onStatusChange={handleStatusChange}
-              activeTab={activeTab}
-            />
+            <div>
+              <VendorTable
+                vendors={filteredVendors}
+                onVendorClick={handleVendorClick}
+                onStatusChange={handleStatusChange}
+                activeTab={activeTab}
+              />
+              {console.log(vendors)}
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={vendors.total}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
           )}
         </Tabs>
-
-        {/* Pagination would go here */}
       </div>
     </div>
   );

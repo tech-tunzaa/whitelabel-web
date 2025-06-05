@@ -100,7 +100,7 @@ export function DeliveryPartnerTable({
               ) : (
                 deliveryPartners.map((partner) => (
                   <TableRow
-                    key={partner._id}
+                    key={partner.id}
                     onClick={() => onPartnerClick(partner)}
                     className="cursor-pointer"
                   >
@@ -157,33 +157,11 @@ export function DeliveryPartnerTable({
                             View Details
                           </DropdownMenuItem>
                           
-                          {partner.status === "pending" && (
+                          {partner.is_active && (
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onStatusChange(partner._id, "approved");
-                              }}
-                            >
-                              <Check className="mr-2 h-4 w-4 text-success" />
-                              Approve
-                            </DropdownMenuItem>
-                          )}
-                          
-                          {partner.status === "pending" && (
-                            <DropdownMenuItem
-                              onClick={(e) => openRejectDialog(e, partner._id)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <X className="mr-2 h-4 w-4" />
-                              Reject
-                            </DropdownMenuItem>
-                          )}
-                          
-                          {partner.status === "active" && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onStatusChange(partner._id, "suspended");
+                                onStatusChange(partner.id, "suspended");
                               }}
                             >
                               <X className="mr-2 h-4 w-4" />
@@ -191,11 +169,11 @@ export function DeliveryPartnerTable({
                             </DropdownMenuItem>
                           )}
                           
-                          {partner.status === "suspended" && (
+                          {!partner.is_active && (
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onStatusChange(partner._id, "active");
+                                onStatusChange(partner.id, "active");
                               }}
                             >
                               <Check className="mr-2 h-4 w-4 text-success" />

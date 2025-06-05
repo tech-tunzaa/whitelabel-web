@@ -38,7 +38,9 @@ import {
   Info,
   Link,
   UserCog,
-  Eye
+  Eye,
+  Search,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -59,6 +61,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 
 import { useVendorStore, vendorStore } from "@/features/vendors/store";
 import { useCategoryStore } from '@/features/categories/store';
@@ -69,6 +72,8 @@ import { DocumentVerificationDialog } from "@/components/ui/document-verificatio
 import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 import { BannerEditor } from "@/components/ui/banner-editor";
+import { useAffiliateStore } from "@/features/vendors/affiliates/store";
+import { AffiliateTable } from "@/features/vendors/affiliates/components/affiliate-table";
 
 interface VendorPageProps {
   params: {
@@ -904,9 +909,68 @@ export default function VendorPage({ params }: VendorPageProps) {
   }
 
   function AffiliatesTab() {
+    const { fetchAffiliates, updateAffiliateStatus, affiliates, loading } = useAffiliateStore();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useState("all");
+
+    // Define filter based on active tab
+    const getFilters = () => {
+      const base: any = {
+        skip: 0,
+        limit: 10,
+        vendor_id: id,
+      };
+      if (searchQuery) base.search = searchQuery;
+      if (activeTab !== "all") base.status = activeTab;
+      return base;
+    };
+
+    useEffect(() => {
+      const headers: Record<string, string> = {};
+      if (tenant_id) headers["X-Tenant-ID"] = tenant_id;
+      fetchAffiliates(getFilters(), headers);
+    }, [searchQuery, activeTab]);
+
+    const handleStatusChange = async (affiliateId: string, status: string, reason?: string) => {
+      const headers: Record<string, string> = {};
+      if (tenant_id) headers["X-Tenant-ID"] = tenant_id;
+      const payload: any = { verification_status: status };
+      if (status === "rejected") payload.rejection_reason = reason || "Rejected";
+      await updateAffiliateStatus(affiliateId, payload, headers);
+      // refresh list
+      fetchAffiliates(getFilters(), headers);
+    };
+
     return (
       <TabsContent value="affiliate" className="space-y-4 mt-4">
-        {/* Affiliates Tab Content */}
+        <div className="flex justify-between mb-4">
+          <div className="relative w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search affiliates..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+
+          <AffiliateTable
+            filterStatus={activeTab === "all" ? undefined : activeTab}
+            search={searchQuery}
+            vendorId={id}
+            onStatusChange={handleStatusChange}
+          />
+        </Tabs>
       </TabsContent>
     );
   }

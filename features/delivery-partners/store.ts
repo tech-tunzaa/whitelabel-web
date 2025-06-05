@@ -134,9 +134,9 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()(
         const params = new URLSearchParams();
         if (filter.skip) params.append('skip', filter.skip.toString());
         if (filter.limit) params.append('limit', filter.limit.toString());
-        if (filter.search) params.append('search', filter.search);
-        if (filter.status) params.append('status', filter.status);
-        if (filter.type) params.append('type', filter.type);
+        if (filter.is_active) params.append('is_active', filter.is_active);
+        if (filter.kyc_verified) params.append('kyc_verified', filter.kyc_verified);
+        if (filter.partner_type) params.append('partner_type', filter.partner_type);
 
         const response = await apiClient.get<DeliveryPartnerApiResponse>(`/partners/?${params.toString()}`, undefined, headers);
         

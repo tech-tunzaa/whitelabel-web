@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, FileEdit } from "lucide-react";
+import { MoreHorizontal, Eye, FileEdit, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Affiliate } from "../types";
@@ -25,14 +25,16 @@ interface AffiliateTableProps {
   filterStatus?: string;
   search?: string;
   vendorId?: string;
+  onStatusChange?: (id: string, status: string, reason?: string) => Promise<void>;
 }
 
-export function AffiliateTable({ filterStatus, search, vendorId }: AffiliateTableProps) {
+export function AffiliateTable({ filterStatus, search, vendorId, onStatusChange }: AffiliateTableProps) {
   const router = useRouter();
   const { affiliates, loading, fetchAffiliates } = useAffiliateStore();
   const { user } = useAuthUserStore();
   const tenantId = user?.tenant_id; // Assuming tenant_id exists on the User object from useUserStore
   const [currentPage, setCurrentPage] = useState(1);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -104,6 +106,22 @@ export function AffiliateTable({ filterStatus, search, vendorId }: AffiliateTabl
     router.push(`/dashboard/vendors/affiliates/edit/${id}`);
   };
 
+  const handleStatusChange = async (id: string, status: "approved" | "rejected") => {
+    if (!onStatusChange) return;
+    try {
+      setProcessingId(id);
+      let reason: string | undefined;
+      if (status === "rejected") {
+        reason = window.prompt("Enter rejection reason", "Invalid information") || "Rejected by admin";
+      }
+      await onStatusChange(id, status, reason);
+    } catch (err) {
+      console.error("Failed to update affiliate status", err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
@@ -152,18 +170,22 @@ export function AffiliateTable({ filterStatus, search, vendorId }: AffiliateTabl
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleView(affiliate.id)} /* Changed to affiliate.id */
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
+                        <DropdownMenuItem onClick={() => handleView(affiliate.id)}>
+                          <Eye className="mr-2 h-4 w-4" /> View
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(affiliate.id)} /* Changed to affiliate.id */
-                        >
-                          <FileEdit className="mr-2 h-4 w-4" />
-                          Edit
+                        <DropdownMenuItem onClick={() => handleEdit(affiliate.id)}>
+                          <FileEdit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
+                        {affiliate.status === "pending" && (
+                          <>
+                            <DropdownMenuItem disabled={processingId === affiliate.id} onClick={() => handleStatusChange(affiliate.id, "approved")}> 
+                              <Check className="mr-2 h-4 w-4" /> Approve
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={processingId === affiliate.id} onClick={() => handleStatusChange(affiliate.id, "rejected")}> 
+                              <X className="mr-2 h-4 w-4" /> Reject
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

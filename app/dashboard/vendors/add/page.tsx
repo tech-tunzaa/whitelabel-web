@@ -20,7 +20,6 @@ export default function VendorAddPage() {
   const handleCreateVendor = async (data: VendorFormValues) => {
     setIsSubmitting(true);
     try {
-      // Set up headers with X-Tenant-ID for non-superowners
       const tenantId = (session?.user as any)?.tenant_id;
       const headers: Record<string, string> = {};
       if (tenantId) {

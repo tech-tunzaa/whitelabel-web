@@ -3,99 +3,69 @@ export type StockStatus = "in_stock" | "out_of_stock" | "low_stock";
 
 export interface ProductImage {
   url: string;
-  alt: string;
-  pos: number;
-}
-
-export interface ProductVariantAttribute {
-  name: string;
-  value: string;
-}
-
-export interface ProductInventory {
-  stockLevel: number;
-  stockStatus: StockStatus;
+  alt?: string; // Alt text is often optional but recommended
+  pos?: number; // Optional: for ordering images if needed
+  is_primary?: boolean; // To mark the main image
 }
 
 export interface ProductVariant {
-  _id: string;
-  sku: string;
-  attributes: ProductVariantAttribute[];
-  price: number;
-  inventory: ProductInventory;
+  _id?: string; // Optional: not present for new variants client-side, present for existing
+  name: string; // e.g., "Color"
+  value: string; // e.g., "Red"
+  price_adjust?: number; // Optional, defaults to 0. Applied to product's base_price.
+  stock?: number;   // Optional, for variant-specific stock.
+  image_url?: string;        // Optional: URL for the variant's thumbnail image.
+  sku?: string;       // Optional: e.g., "-RED-XL". Full SKU = product.sku + sku_suffix.
 }
 
 export interface Product {
-  _id: string;
-  product_id: string;
-  vendorId: string;
+  _id: string; // Typically the database ID
+  product_id: string; // Often same as _id, or a separate business-facing ID. Review if needed.
+  vendor_id: string;
   name: string;
   slug: string;
-  status: ProductStatus;
-  verification_status: "pending" | "approved" | "rejected";
-  rejection_reason?: string;
-  brandId: string;
-  description: string;
-  short_description: string;
-  sku: string;
+  description?: string;
+  short_description?: string;
+  sku: string; // Base SKU for the product
+  barcode?: string;
   base_price: number;
-  sale_price: number;
-  cost_price: number;
-  inventory_quantity: number;
-  inventory_tracking: boolean;
-  low_stock_threshold: number;
-  vendor_id: string;
-  store_id: string;
+  sale_price?: number;
+  cost_price?: number;
+  inventory_quantity?: number; // Overall stock if not tracking by variants or if has_variants is false
+  inventory_tracking?: boolean; // True if inventory is tracked (either overall or per variant)
+  low_stock_threshold?: number;
   category_ids: string[];
-  featured: boolean;
-  is_active: boolean;
-  is_featured: boolean;
-  nonDeliverable: boolean;
-  requires_shipping: boolean;
+  tags?: string[];
+  images?: ProductImage[]; // Main product images
   has_variants: boolean;
-  weight: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  categoryIds: string[];
-  images: ProductImage[];
   variants?: ProductVariant[];
-  price?: number;
-  inventory?: ProductInventory;
-  promotionId?: string;
-  promotion?: any;
-  createdAt: string;
-  updatedAt: string;
-  approved_at?: string;
-  rejected_at?: string;
+  weight?: number;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  requires_shipping?: boolean;
+  status: ProductStatus; // Should align with ProductStatus type
+  is_active?: boolean;
+  is_featured?: boolean;
+  promotion?: string | null; // Assuming promotion can be a string (e.g., ID or code) or null
+  store_id: string; // ID of the store this product belongs to
+  tenant_id: string; // ID of the tenant this product belongs to
+
+  // Timestamps and other metadata from backend
+  created_at?: string | Date;
+  updated_at?: string | Date;
+  approved_at?: string | Date;
+  rejected_at?: string | Date;
+  verification_status?: "pending" | "approved" | "rejected"; // Added from original
+  rejection_reason?: string; // Added from original
+  // Add any other fields that your backend `Product` model might have
+  // For example:
+  // brand_id?: string;
+  // currency_code?: string;
 }
 
-export interface ProductFilter {
-  skip?: number;
-  limit?: number;
-  search?: string;
-  status?: string;
-  categoryId?: string;
-  vendorId?: string;
-}
-
-export interface ProductListResponse {
-  items: Product[];
-  total: number;
-  skip: number;
-  limit: number;
-}
-
-export type ProductAction =
-  | 'fetchList'
-  | 'fetchOne'
-  | 'create'
-  | 'update'
-  | 'delete';
-
-export interface ProductError {
-  message: string;
-  status?: number;
-}
+// Note: ProductFormValues will be inferred from productFormSchema in schema.ts.
+// Ensure the Product type here aligns with what your API expects/returns for a full product object,
+// and ProductFormValues (derived from schema) aligns with the fields managed directly by the form.

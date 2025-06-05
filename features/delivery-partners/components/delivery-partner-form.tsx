@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { z } from "zod"
 import { ArrowLeft, Upload } from "lucide-react"
 
@@ -40,100 +40,9 @@ import { PhoneInput } from "@/components/ui/phone-input"
 import { MapPicker } from "@/components/ui/map-picker"
 import { cn } from "@/lib/utils"
 
-
-const deliveryPartnerFormSchema = z.object({
-  // Common fields
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  phone: z.string().min(10, {
-    message: "Please enter a valid phone number.",
-  }),
-  type: z.enum(['individual', 'business', 'pickup_point'], {
-    required_error: "Please select a delivery partner type.",
-  }),
-  description: z
-    .string()
-    .min(10, {
-      message: "Description must be at least 10 characters.",
-    })
-    .max(500, {
-      message: "Description must not exceed 500 characters.",
-    }),
-  street: z.string().min(1, {
-    message: "Street address is required.",
-  }),
-  city: z.string().min(1, {
-    message: "City is required.",
-  }),
-  state: z.string().min(1, {
-    message: "State/Province is required.",
-  }),
-  zip: z.string().min(1, {
-    message: "ZIP/Postal code is required.",
-  }),
-  country: z.string().min(1, {
-    message: "Country is required.",
-  }),
-  // Location coordinates
-  coordinates: z.tuple([z.number(), z.number()]).optional(),
-  
-  // Cost per km for individuals and businesses (replacing commission)
-  cost_per_km: z.string().optional(),
-  
-  // Commission percent for pickup points only
-  commissionPercent: z.string().optional(),
-
-  // Individual specific fields
-  dateOfBirth: z.string().optional(),
-  nationalId: z.string().optional(),
-  vehicleType: z.string().optional(),
-  plateNumber: z.string().optional(),
-  licenseNumber: z.string().optional(),
-  // Vehicle information fields
-  vehicleMake: z.string().optional(),
-  vehicleModel: z.string().optional(),
-  vehicleYear: z.string().optional(),
-  vehicleInsurance: z.string().optional(),
-  vehicleRegistration: z.string().optional(),
-
-  // Document verification
-  verification_documents: z.array(
-    z.object({
-      document_type: z.string(),
-      document_url: z.string().optional(),
-      expires_at: z.string().optional(),
-      verification_status: z.string().optional()
-    })
-  ).optional(),
-
-  // Business specific fields
-  businessName: z.string().optional(),
-  taxId: z.string().optional(),
-  drivers: z.array(z.object({
-    name: z.string(),
-    phone: z.string(),
-    countryCode: z.string().optional(),
-    email: z.string(),
-    licenseNumber: z.string(),
-    vehicleType: z.string(),
-    plateNumber: z.string(),
-    // Vehicle information fields
-    vehicleMake: z.string().optional(),
-    vehicleModel: z.string().optional(),
-    vehicleYear: z.string().optional(),
-    vehicleInsurance: z.string().optional(),
-    vehicleRegistration: z.string().optional(),
-    // Cost per km for individual drivers
-    cost_per_km: z.string().optional(),
-  })).optional(),
-
-  // Pickup point specific fields
-  operatingHours: z.string().optional(),
-})
+import { deliveryPartnerFormSchema } from "../schema"
+import { useDeliveryPartnerStore } from "../store";
+import { useRouter } from "next/navigation";
 
 type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>
 
@@ -162,10 +71,14 @@ const defaultValues: Partial<DeliveryPartnerFormValues> = {
     vehicleMake: "",
     vehicleModel: "",
     vehicleYear: "",
-    vehicleInsurance: "",
-    vehicleRegistration: "",
     cost_per_km: "",
   }],
+  user: {
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone_number: "",
+  }
 }
 
 const partnerTypes = [
@@ -181,12 +94,6 @@ const vehicleTypes = [
   { id: "bicycle", label: "Bicycle", description: "Bicycle delivery service", icon: "🚲" },
 ]
 
-const commissionPercentages = [
-  { value: "5", label: "5%" },
-  { value: "10", label: "10%" },
-  { value: "15", label: "15%" },
-  { value: "20", label: "20%" },
-]
 
 interface DeliveryPartnerFormProps {
   onSubmit: (data: DeliveryPartnerFormValues) => void
@@ -202,16 +109,18 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
   const [bankDocs, setBankDocs] = useState<File[]>([])
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationSuccess, setVerificationSuccess] = useState(false)
-
-  // Add state for document expiry dates
-  const [identityDocsExpiry, setIdentityDocsExpiry] = useState<Record<string, string>>({})
-  const [vehicleDocsExpiry, setVehicleDocsExpiry] = useState<Record<string, string>>({})
-  const [bankDocsExpiry, setBankDocsExpiry] = useState<Record<string, string>>({})
+  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
 
   const form = useForm<DeliveryPartnerFormValues>({
     resolver: zodResolver(deliveryPartnerFormSchema),
     defaultValues: initialData ? { ...defaultValues, ...initialData } : defaultValues,
     mode: "onChange",
+  })
+
+  // Manage drivers array using useFieldArray instead of form.watch
+  const { fields: drivers, append: appendDriver, remove: removeDriverField } = useFieldArray({
+    control: form.control,
+    name: "drivers",
   })
 
   // Reset verification states and set active tab to basic when form type changes
@@ -222,39 +131,27 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
   }, [form.watch("type")])
 
   const selectedType = form.watch("type")
-  const drivers = form.watch("drivers") || []
 
   const addDriver = () => {
-    const currentDrivers = form.getValues("drivers") || []
-    form.setValue("drivers", [
-      ...currentDrivers,
-      {
-        name: "",
-        phone: "",
-        countryCode: "+255",
-        email: "",
-        licenseNumber: "",
-        vehicleType: "",
-        plateNumber: "",
-        vehicleMake: "",
-        vehicleModel: "",
-        vehicleYear: "",
-        vehicleInsurance: "",
-        vehicleRegistration: "",
-      },
-    ])
+    appendDriver({
+      name: "",
+      phone: "",
+      email: "",
+      licenseNumber: "",
+      vehicleType: "",
+      plateNumber: "",
+      vehicleMake: "",
+      vehicleModel: "",
+      vehicleYear: "",
+    })
   }
 
   const removeDriver = (index: number) => {
-    const drivers = form.getValues("drivers") || []
-    form.setValue("drivers", drivers.filter((_, i) => i !== index))
-    
+    removeDriverField(index)
     // Update verifiedDrivers to remove the deleted driver and reindex
     setVerifiedDrivers(prev => {
-      // Remove the driver at the specified index
       const filtered = prev.filter(i => i !== index)
-      // Adjust indices for drivers that came after the removed one
-      return filtered.map(i => i > index ? i - 1 : i)
+      return filtered.map(i => (i > index ? i - 1 : i))
     })
   }
 
@@ -296,9 +193,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
       const vehicleDetails = {
         make: "Toyota",
         model: "Corolla",
-        year: "2020",
-        insurance: "Comprehensive - Valid until Dec 2025",
-        registration: "Registered to John Doe",
+        year: "2020"
       }
       
       // Update form values with the retrieved data
@@ -306,8 +201,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
         form.setValue(`drivers.${driverIndex}.vehicleMake`, vehicleDetails.make)
         form.setValue(`drivers.${driverIndex}.vehicleModel`, vehicleDetails.model)
         form.setValue(`drivers.${driverIndex}.vehicleYear`, vehicleDetails.year)
-        form.setValue(`drivers.${driverIndex}.vehicleInsurance`, vehicleDetails.insurance)
-        form.setValue(`drivers.${driverIndex}.vehicleRegistration`, vehicleDetails.registration)
         
         // Add this driver to the verified list
         setVerifiedDrivers(prev => {
@@ -320,8 +213,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
         form.setValue("vehicleMake", vehicleDetails.make)
         form.setValue("vehicleModel", vehicleDetails.model)
         form.setValue("vehicleYear", vehicleDetails.year)
-        form.setValue("vehicleInsurance", vehicleDetails.insurance)
-        form.setValue("vehicleRegistration", vehicleDetails.registration)
         setVerificationSuccess(true)
       }
       
@@ -334,46 +225,18 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
     }
   }
 
-  const renderFileList = (
-    files: File[],
-    setFiles: React.Dispatch<React.SetStateAction<File[]>>
-  ) => {
-    return files.length > 0 ? (
-      <div className="mt-2 space-y-2">
-        {files.map((file) => (
-          <div
-            key={file.name}
-            className="flex items-center justify-between bg-muted p-2 rounded-md"
-          >
-            <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => removeFile(file.name, files, setFiles)}
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <p className="text-sm text-muted-foreground mt-2">No files uploaded yet.</p>
-    )
-  }
-
   // Define tab navigation order based on partner type
   const getTabOrder = () => {
     if (selectedType === 'individual') {
       return ["basic", "vehicle", "address", "documents", "review"]
     } else if (selectedType === 'business') {
       return ["basic", "drivers", "address", "documents", "review"]
-    } else { // pickup_point
+    } else if (selectedType === 'pickup_point'){
       return ["basic", "address", "documents", "review"]
     }
   }
 
-  function nextTab() {
+  const nextTab = () => {
     // If we're on the documents tab, validate that at least one document is uploaded
     if (activeTab === "documents") {
       // Check if at least one document is uploaded
@@ -396,7 +259,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
     }
   }
 
-  function prevTab() {
+  const prevTab = () => {
     const tabOrder = getTabOrder()
     const currentIndex = tabOrder.indexOf(activeTab)
     if (currentIndex > 0) {
@@ -404,71 +267,38 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
     }
   }
 
-  function validateAndSubmit() {
-    if (activeTab === "basic") {
-      // Validate basic information fields based on partner type
-      // Need to use proper typing for form.trigger to match DeliveryPartnerFormValues keys
-      const fieldsToValidate: (keyof DeliveryPartnerFormValues)[] = [
-        "type", "name", "email", "phone", "cost_per_km"
-      ]
-      
-      if (selectedType === 'business' || selectedType === 'pickup_point') {
-        fieldsToValidate.push("businessName", "taxId", "description")
-      }
-      
-      form
-        .trigger(fieldsToValidate)
-        .then((isValid) => {
-          if (isValid) nextTab()
-        })
-    } else if (activeTab === "vehicle") {
-      // Validate vehicle fields for individual partners
-      form
-        .trigger([
-          "vehicleType",
-          "plateNumber",
-          "vehicleMake",
-          "vehicleModel",
-          "vehicleYear",
-          "vehicleInsurance"
-        ])
-        .then((isValid) => {
-          if (isValid) nextTab()
-        })
-    } else if (activeTab === "drivers") {
-      // Validate drivers fields for business partners
-      // Just check if at least one driver is present
-      if (drivers.length === 0) {
-        toast("Driver required", {
-          description: "Please add at least one driver before proceeding.",
-        })
-        return
-      }
-      nextTab()
-    } else if (activeTab === "address") {
-      // Validate address fields
-      form
-        .trigger([
-          "street",
-          "city",
-          "state",
-          "zip",
-          "country",
-          "coordinates"
-        ])
-        .then((isValid) => {
-          if (isValid) nextTab()
-        })
-    } else {
-      nextTab()
+  const handleSubmit = (data: DeliveryPartnerFormValues) => {
+    try {
+      setInternalIsSubmitting(true);
+      // Package data for submission
+      const packagedData = {
+        ...data,
+        name: data.type === 'individual' ? `${data.user.first_name} ${data.user.last_name}` : data.name,
+        commission_percent: "10",
+        // drivers: Array.isArray(data.drivers) ? data.drivers : [],
+        drivers: [],
+      };
+      console.log(packagedData);
+      // Pass packaged data to parent onSubmit
+      onSubmit(packagedData);
+    } catch (error) {
+      console.error("Form submission error:", error);
+      toast.error("Failed to package the form data. Please try again.");
+    } finally {
+      setInternalIsSubmitting(false);
     }
-  }
+  };
+
+  const handleFormError = (error: any) => {
+    console.error("Form error:", error);
+    toast.error("Form validation failed. Please check the form fields.");
+  };
 
   return (
     <Card>
       <CardContent className="p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit, handleFormError)} className="space-y-6">
             <div className="gap-6">
               <FormField
                 control={form.control}
@@ -549,7 +379,9 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                   Next
                 </Button>
               ) : (
-                <Button type="submit">Submit Application</Button>
+                <Button type="submit" disabled={internalIsSubmitting}>
+                  {internalIsSubmitting ? "Submitting..." : "Submit Application"}
+                </Button>
               )}
             </div>
           </form>
@@ -568,12 +400,12 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="user.first_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name <RequiredField /></FormLabel>
+                      <FormLabel>First Name <RequiredField /></FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input placeholder="John" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -581,12 +413,12 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                 />
                 <FormField
                   control={form.control}
-                  name="dateOfBirth"
+                  name="user.last_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
+                      <FormLabel>Last Name <RequiredField /></FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input placeholder="Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -628,7 +460,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="businessName"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Business Name <RequiredField /></FormLabel>
@@ -691,31 +523,48 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="operatingHours"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Operating Hours <RequiredField /></FormLabel>
-                      <FormControl>
-                        <Input placeholder="9:00 AM - 5:00 PM" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
             </div>
           )}
 
           <Separator />
-
           <div>
             <h3 className="text-lg font-medium mb-4">Contact Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {(selectedType === 'business' || selectedType ==='pickup_point') && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="user.first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="John" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="user.last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name <RequiredField /></FormLabel>
+                        <FormControl>
+                          <Input placeholder="Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
               <FormField
                 control={form.control}
-                name="email"
+                name="user.email"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email <RequiredField /></FormLabel>
@@ -731,13 +580,12 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
               />
               <FormField
                 control={form.control}
-                name="phone"
+                name="user.phone_number"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone <RequiredField /></FormLabel>
                     <FormControl>
                       <PhoneInput
-                        countryCode="+255"
                         onChange={(value) => {
                           if (typeof value === 'object' && value !== null) {
                             // Handle object type return value
@@ -751,9 +599,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                         onBlur={field.onBlur}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Your phone number for contact purposes.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -777,8 +622,8 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                           <Input
                             type="number"
                             min="0"
-                            step="0.01"
-                            placeholder="0.00"
+                            step="10"
+                            placeholder="100"
                             {...field}
                           />
                           <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
@@ -804,27 +649,13 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="commissionPercent"
+                  name="flat_fee"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Commission Percentage <RequiredField /></FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select commission percentage" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {commissionPercentages.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Flat Fee <RequiredField /></FormLabel>
+                      <FormControl>
+                        <Input type="number" step="10" placeholder="1000" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -855,14 +686,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                     <MapPicker
                       value={field.value}
                       onChange={field.onChange}
-                      onAddressFound={(address) => {
-                        // Update the address fields when a location is selected
-                        if (address.address_line1) form.setValue("street", address.address_line1);
-                        if (address.city) form.setValue("city", address.city);
-                        if (address.state_province) form.setValue("state", address.state_province);
-                        if (address.postal_code) form.setValue("zip", address.postal_code);
-                        if (address.country) form.setValue("country", address.country);
-                      }}
                       useCurrentLocation={false}
                       height="300px"
                     />
@@ -870,74 +693,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                   <FormDescription>
                     Select a location on the map or search for an address. Drag the marker to adjust the location.
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="street"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Street Address <RequiredField /></FormLabel>
-                  <FormControl>
-                    <Input placeholder="Street address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City <RequiredField /></FormLabel>
-                  <FormControl>
-                    <Input placeholder="City" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State/Province <RequiredField /></FormLabel>
-                  <FormControl>
-                    <Input placeholder="State/Province" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="zip"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ZIP/Postal Code <RequiredField /></FormLabel>
-                  <FormControl>
-                    <Input placeholder="ZIP/Postal code" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Country <RequiredField /></FormLabel>
-                  <FormControl>
-                    <Input placeholder="Country" {...field} />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -1148,7 +903,19 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                     <FormItem>
                       <FormLabel>Driver Phone <RequiredField /></FormLabel>
                       <FormControl>
-                        <Input placeholder="Phone Number" {...field} />
+                        <PhoneInput
+                          onChange={(value) => {
+                            if (typeof value === 'object' && value !== null) {
+                              // Handle object type return value
+                              field.onChange(value.phoneNumber || '');
+                            } else {
+                              // Handle string return value
+                              field.onChange(value);
+                            }
+                          }}
+                          value={field.value}
+                          onBlur={field.onBlur}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1180,43 +947,73 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name={`drivers.${index}.vehicleType`}
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col gap-2">
-                      <FormLabel>Vehicle Type <RequiredField /></FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="grid grid-cols-2 gap-4"
-                        >
-                          {vehicleTypes.map((type) => (
-                            <div key={type.id}>
-                              <RadioGroupItem
-                                value={type.id}
-                                id={`${type.id}-${index}`}
-                                className="peer sr-only"
-                              />
-                              <Label
-                                htmlFor={`${type.id}-${index}`}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                              >
-                                <span className="text-2xl mb-2">{type.icon}</span>
-                                <span className="font-medium">{type.label}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {type.description}
-                                </span>
-                              </Label>
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name={`drivers.${index}.vehicleType`}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-2">
+                        <FormLabel>Vehicle Type <RequiredField /></FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="grid grid-cols-2 gap-4"
+                          >
+                            {vehicleTypes.map((type) => (
+                              <div key={type.id}>
+                                <RadioGroupItem
+                                  value={type.id}
+                                  id={`${type.id}-${index}`}
+                                  className="peer sr-only"
+                                />
+                                <Label
+                                  htmlFor={`${type.id}-${index}`}
+                                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                                >
+                                  <span className="text-2xl mb-2">{type.icon}</span>
+                                  <span className="font-medium">{type.label}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {type.description}
+                                  </span>
+                                </Label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`drivers.${index}.cost_per_km`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cost per Kilometer <RequiredField /></FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="10"
+                              placeholder="100"
+                              {...field}
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
+                              TZS/km
                             </div>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          The amount charged per kilometer for delivery.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -1389,7 +1186,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                   Business Name
                 </h4>
                 <p className="text-base">
-                  {reviewValues?.businessName || "—"}
+                  {reviewValues?.name || "—"}
                 </p>
               </div>
               <div>
@@ -1397,7 +1194,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                   Email
                 </h4>
                 <p className="text-base">
-                  {reviewValues?.email || "—"}
+                  {reviewValues?.user?.email || "—"}
                 </p>
               </div>
               <div>
@@ -1405,7 +1202,7 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                   Phone
                 </h4>
                 <p className="text-base">
-                  {reviewValues?.phone || "—"}
+                  {reviewValues?.user?.phone_number || "—"}
                 </p>
               </div>
               <div>
@@ -1435,25 +1232,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
             </h4>
             <p className="text-base">
               {reviewValues?.description || "—"}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="text-lg font-medium mb-4">
-              Business Address
-            </h3>
-            <p className="text-base">
-              {reviewValues?.street || "—"}
-            </p>
-            <p className="text-base">
-              {reviewValues?.city || "—"},{" "}
-              {reviewValues?.state || "—"}{" "}
-              {reviewValues?.zip || "—"}
-            </p>
-            <p className="text-base">
-              {reviewValues?.country || "—"}
             </p>
           </div>
 
@@ -1515,10 +1293,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                     <div>
                       <span className="text-xs text-muted-foreground">Year:</span>
                       <p className="text-sm">{reviewValues?.vehicleYear || "—"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Insurance:</span>
-                      <p className="text-sm">{reviewValues?.vehicleInsurance || "—"}</p>
                     </div>
                   </div>
                 </div>

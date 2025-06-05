@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { use } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DeliveryPartnerForm } from "@/features/delivery-partners/components/delivery-partner-form";
@@ -21,13 +20,13 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
   const [partner, setPartner] = useState<DeliveryPartner | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { fetchDeliveryPartner } = useDeliveryPartnerStore();
+  const { fetchDeliveryPartner, updateDeliveryPartner } = useDeliveryPartnerStore();
 
   // Define tenant headers
   const tenantHeaders = {
     "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
   };
-  
+
   useEffect(() => {
     const loadPartner = async () => {
       try {
@@ -42,9 +41,27 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
         setLoading(false);
       }
     };
-    
+
     loadPartner();
   }, [id, fetchDeliveryPartner]);
+
+  const handleSubmit = async (data: any) => {
+    try {
+      setLoading(true);
+      const updatedPartner: DeliveryPartner = {
+        ...partner,
+        name: data.type === 'individual' ? `${data.user.first_name} ${data.user.last_name}` : data.businessName,
+        ...data,
+      };
+      await updateDeliveryPartner(id, updatedPartner, tenantHeaders);
+      router.push("/dashboard/delivery-partners");
+    } catch (err) {
+      console.error('Error updating delivery partner:', err);
+      setError('Failed to update delivery partner. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!partner) {
     return (
@@ -81,7 +98,6 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
             className="mr-4"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -95,16 +111,10 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <DeliveryPartnerForm 
-          initialData={partner} 
-          disableTypeChange={true}
-          onSubmit={(data) => {
-            updateDeliveryPartner({
-              ...partner,
-              ...data,
-            });
-            router.push("/dashboard/delivery-partners");
-          }} 
+        <DeliveryPartnerForm
+          initialData={partner}
+          onSubmit={handleSubmit}
+          onCancel={() => router.push("/dashboard/delivery-partners")}
         />
       </div>
     </div>
