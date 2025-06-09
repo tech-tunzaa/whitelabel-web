@@ -1,19 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Package, ShoppingBag, Store, Truck, User, X } from "lucide-react";
+import dynamic from 'next/dynamic';
+import { useSession } from "next-auth/react";
+import { 
+  ArrowLeft, Check, X, Edit, User as UserIcon, Mail, Phone, MapPin as MapPinIcon, 
+  FileText, Calendar, AlertCircle, Trash2, Eye, Truck, Building as BuildingIcon, 
+  DollarSign, Info, RefreshCw, ShieldCheck, ListChecks, Users, User, Briefcase, MapPin,
+  ShieldX // Ensure ShieldX and AlertTriangle are present
+} from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
-import { DeliveryPartner } from "@/features/delivery-partners/types";
+import { DeliveryPartner, KycDocument, VehicleInfo, Location } from "@/features/delivery-partners/types";
+const MapPicker = dynamic(() => import('@/components/ui/map-picker').then(mod => mod.MapPicker), {
+  ssr: false,
+  loading: () => <div className="h-60 w-full flex items-center justify-center bg-muted rounded-md"><Spinner /></div>
+});
+import { VerificationDocumentCard } from "@/components/ui/verification-document-card"; // Assuming this path
+import { FilePreviewModal } from "@/components/ui/file-preview-modal"; // Assuming this path
+import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog"; // Assuming this path
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DriversTab } from './DriversTab'; // Import the new DriversTab component
 
 interface DeliveryPartnerPageProps {
   params: {
@@ -21,404 +43,535 @@ interface DeliveryPartnerPageProps {
   };
 }
 
+const InfoItem = ({ icon, label, value }: { icon?: React.ReactNode, label: string, value: React.ReactNode }) => (
+  <div className="flex items-start space-x-2 py-1">
+    {icon && <div className="flex-shrink-0 w-5 h-5 text-muted-foreground mt-0.5">{icon}</div>}
+    <div className="flex-grow">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</p>
+      <p className="text-sm text-muted-foreground break-words">{value || "N/A"}</p>
+    </div>
+  </div>
+);
+
+const getPartnerTypeLabel = (type: string | undefined) => {
+  if (!type) return "N/A";
+  switch (type) {
+    case 'individual': return 'Individual Rider';
+    case 'business': return 'Delivery Business';
+    case 'pickup_point': return 'Pickup Point';
+    default: return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+};
+
+const StatusBadge = ({ status, className }: { status: string; className?: string }) => {
+  if (typeof status !== 'string' || !status.trim()) {
+    // Fallback for undefined, null, or empty status
+    return (
+      <Badge variant="outline" className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${className || ''} bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`}>
+        <Info className="h-3.5 w-3.5 mr-1" /> 
+        Unknown
+      </Badge>
+    );
+  }
+
+  let variant: "default" | "destructive" | "outline" | "secondary" = "default";
+  let icon: React.ReactNode = null;
+  let text = status.charAt(0).toUpperCase() + status.slice(1);
+
+  switch (status) {
+    case 'active':
+      variant = 'default'; // Typically green, but using default and styling with className
+      icon = <ShieldCheck className="h-3.5 w-3.5" />;
+      className = `${className || ''} bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
+      break;
+    case 'pending':
+      variant = 'outline';
+      icon = <ListChecks className="h-3.5 w-3.5" />;
+      className = `${className || ''} bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200`;
+      text = 'Pending Approval';
+      break;
+    case 'rejected':
+      variant = 'destructive';
+      icon = <ShieldX className="h-3.5 w-3.5" />;
+      className = `${className || ''} bg-red-100 text-red-700 border-red-300 hover:bg-red-200`;
+      break;
+    case 'suspended':
+      variant = 'default'; // Using default and styling with className for orange/yellow
+      icon = <AlertCircle className="h-3.5 w-3.5" />;
+      className = `${className || ''} bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200`;
+      break;
+    default:
+      icon = <Info className="h-3.5 w-3.5" />;
+      className = `${className || ''} bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`;
+      break;
+  }
+
+  return (
+    <Badge variant={variant} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${className}`}>
+      {icon}
+      {text}
+    </Badge>
+  );
+};
+
 export default function DeliveryPartnerPage({ params }: DeliveryPartnerPageProps) {
   const router = useRouter();
-  const { id } = params;
-  const [partner, setPartner] = useState<DeliveryPartner | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const { fetchDeliveryPartner } = useDeliveryPartnerStore();
+  const { data: session } = useSession();
+  const tenantId = useMemo(() => (session?.user as any)?.tenant_id, [session]);
 
-  // Define tenant headers
-  const tenantHeaders = {
-    "X-Tenant-ID": "4c56d0c3-55d9-495b-ae26-0d922d430a42",
-  };
+  const { id: partnerIdFromParams } = params;
   
+  const {
+    deliveryPartner: partner,
+    loading,
+    error,
+    fetchDeliveryPartner,
+    updateDeliveryPartnerStatus,
+    // TODO: Add methods for document verification if needed, e.g., verifyKycDocument
+  } = useDeliveryPartnerStore();
+
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [verificationDoc, setVerificationDoc] = useState<KycDocument | null>(null);
+
+  // Placeholder for verifying a KYC document
+  const handleVerifyDocument = async (documentId: string) => {
+    if (!partner || !tenantId) return;
+    console.log(`Attempting to verify document: ${documentId} for partner: ${partner.partner_id || partner._id}`);
+    // TODO: Implement store.verifyKycDocument(partner._id, documentId, { "X-Tenant-ID": tenantId });
+    // await verifyKycDocument(partner._id, documentId, { "X-Tenant-ID": tenantId });
+    toast.info("Verification action triggered. Store method needs implementation.", {
+      description: `Document ID: ${documentId}`,
+    });
+    // Optionally re-fetch partner data if the store method was called
+    // fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
+  };
+
+  // Placeholder for rejecting a KYC document
+  const handleRejectDocument = async (documentId: string, reason: string) => {
+    if (!partner || !tenantId) return;
+    console.log(`Attempting to reject document: ${documentId} for partner: ${partner.partner_id || partner._id} with reason: ${reason}`);
+    // TODO: Implement store.rejectKycDocument(partner._id, documentId, reason, { "X-Tenant-ID": tenantId });
+    // await rejectKycDocument(partner._id, documentId, reason, { "X-Tenant-ID": tenantId });
+    toast.info("Rejection action triggered. Store method needs implementation.", {
+      description: `Document ID: ${documentId}, Reason: ${reason}`,
+    });
+    // Optionally re-fetch partner data
+    // fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
+  };
+
   useEffect(() => {
-    const loadPartner = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const partnerData = await fetchDeliveryPartner(id, tenantHeaders);
-        setPartner(partnerData);
-      } catch (err) {
-        console.error('Error fetching delivery partner:', err);
-        setError('Failed to load delivery partner details. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadPartner();
-  }, [id, fetchDeliveryPartner]);
-
-  const getPartnerTypeLabel = (type: string) => {
-    switch (type) {
-      case "individual":
-        return "Individual";
-      case "business":
-        return "Business";
-      case "pickup_point":
-        return "Pickup Point";
-      default:
-        return type;
+    if (partnerIdFromParams && tenantId) {
+      fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
     }
+  }, [partnerIdFromParams, tenantId, fetchDeliveryPartner]);
+
+  const handleStatusChange = async (newStatus: 'active' | 'rejected' | 'suspended' | 'pending', reason?: string) => {
+    if (!partner || !partner.partner_id || !tenantId) return;
+    setIsUpdatingStatus(true);
+    const toastId = toast.loading(`Updating status to ${newStatus}...`);
+    try {
+      await updateDeliveryPartnerStatus(partner.partner_id, newStatus, reason, { "X-Tenant-ID": tenantId });
+      toast.success("Partner status updated successfully.", { id: toastId });
+      // Re-fetch partner data to get the latest status
+      fetchDeliveryPartner(partner.partner_id, { "X-Tenant-ID": tenantId });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update partner status.", { id: toastId });
+    }
+    setIsUpdatingStatus(false);
   };
 
-  const getVehicleTypeLabel = (type: string = "") => {
-    switch (type) {
-      case "boda":
-      case "motorcycle":
-        return "Motorcycle (Boda Boda)";
-      case "car":
-        return "Car";
-      case "bicycle":
-        return "Bicycle";
-      case "truck":
-        return "Truck";
-      default:
-        return type || "N/A";
-    }
+  const handlePreviewDocument = (doc: KycDocument) => {
+    setPreviewUrl(doc.link);
+    setIsPreviewOpen(true);
   };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "active":
-        return "default";
-      case "pending":
-        return "secondary";
-      case "rejected":
-      case "suspended":
-        return "destructive";
-      default:
-        return "secondary";
-    }
+  const handleOpenVerificationModal = (doc: KycDocument) => {
+    setVerificationDoc(doc);
+    setIsVerificationModalOpen(true);
+  };
+
+  const handleDocumentApprove = async (documentId: string, expiryDate?: string) => {
+    if (!partner || !partner.partner_id || !tenantId || !verificationDoc) return;
+    // TODO: Implement actual document approval logic using a store action
+    // Example: await approveKycDocument(partner.partner_id, verificationDoc.type, documentId, expiryDate, { "X-Tenant-ID": tenantId });
+    toast.info("Document approval action (not implemented yet).");
+    setIsVerificationModalOpen(false);
+    setVerificationDoc(null);
+    // Re-fetch partner data
+    // fetchDeliveryPartnerById(partner.partner_id, { "X-Tenant-ID": tenantId });
+  };
+
+  const handleDocumentReject = async (documentId: string, reason: string) => {
+    if (!partner || !partner.partner_id || !tenantId || !verificationDoc) return;
+    // TODO: Implement actual document rejection logic using a store action
+    // Example: await rejectKycDocument(partner.partner_id, verificationDoc.type, documentId, reason, { "X-Tenant-ID": tenantId });
+    toast.info("Document rejection action (not implemented yet).");
+    setIsVerificationModalOpen(false);
+    setVerificationDoc(null);
+    // Re-fetch partner data
+    // fetchDeliveryPartnerById(partner.partner_id, { "X-Tenant-ID": tenantId });
   };
   
-  // Helper function for safe date formatting
-  const formatDate = (dateString: string | undefined, formatStr: string): string => {
-    if (!dateString) return 'Unknown';
+  const handleDeletePartner = async () => {
+    if (!partner || !partner.partner_id || !tenantId) return;
+    const toastId = toast.loading("Deleting delivery partner...");
     try {
-      // Use a consistent date parsing approach to avoid hydration errors
-      const date = new Date(dateString);
-      // Check if the date is valid before formatting
-      if (isNaN(date.getTime())) {
-        return 'Invalid date';
-      }
-      return format(date, formatStr);
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Invalid date';
+      // TODO: Implement deleteDeliveryPartner in store
+      // await deleteDeliveryPartner(partner.partner_id, { "X-Tenant-ID": tenantId });
+      toast.success("Delivery partner deleted successfully (simulated).", { id: toastId });
+      router.push("/dashboard/delivery-partners");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete partner.", { id: toastId });
     }
   };
 
-  if (loading) {
+  const getStatusVariant = (status: string | undefined): "default" | "outline" | "secondary" | "success" | "warning" | "destructive" => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'pending': return 'warning';
+      case 'rejected': return 'destructive';
+      case 'suspended': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return "N/A";
+    try {
+      return format(new Date(dateString), "PPpp"); // Example: Sep 17, 2023, 12:30:00 PM
+    } catch {
+      return "Invalid Date";
+    }
+  };
+
+  if (loading && !partner) {
+    return <Spinner />;
+  }
+
+  if (error || !partner) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center p-4 border-b">
+      <ErrorCard
+        title="Failed to load delivery partner"
+        error={{
+          status: error?.status?.toString() || "Error",
+          message: error?.message || "An error occurred while fetching partner details."
+        }}
+        buttonText="Back to Delivery Partners"
+        buttonAction={() => router.push("/dashboard/delivery-partners")}
+        buttonIcon={ArrowLeft}
+      />
+    );
+  }
+
+  const partnerName = partner.name || `${partner.user?.first_name || ''} ${partner.user?.last_name || ''}`.trim() || "Unnamed Partner";
+  const partnerAvatarFallback = (partnerName.substring(0, 2) || "DP").toUpperCase();
+
+  // Main layout: Two columns (Content and Sidebar)
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-background z-10">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push("/dashboard/delivery-partners")}
-            className="mr-4"
+            className="shrink-0"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Back</span>
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Loading Partner Details</h1>
-        </div>
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
-        </div>
-      </div>
-    );
-  }
-  
-  if (error || !partner) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Delivery Partner Not Found</h1>
-            <p className="text-muted-foreground">
-              {error || "The delivery partner you are looking for does not exist."}
-            </p>
+          
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12 border">
+              <AvatarImage 
+                src={partner.profile_picture || undefined} 
+                alt={partnerName} 
+              />
+              <AvatarFallback className="text-lg">
+                {partnerAvatarFallback}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div>
+              <h1 className="text-xl lg:text-2xl font-semibold tracking-tight">{partnerName}</h1>
+              <p className="text-muted-foreground text-xs lg:text-sm flex items-center gap-1.5 capitalize">
+                {partner.type === 'individual' && <User className="h-3.5 w-3.5" />}
+                {partner.type === 'business' && <Briefcase className="h-3.5 w-3.5" />}
+                {partner.type === 'pickup_point' && <MapPin className="h-3.5 w-3.5" />}
+                {partner.type ? partner.type.replace('_', ' ') : 'Type N/A'}
+                <span className="text-gray-500 font-mono text-[11px] lg:text-xs ml-1">ID: {partner.partner_id}</span>
+              </p>
+            </div>
           </div>
         </div>
-        <div className="p-4">
+        
+        <div className="flex items-center gap-2.5">
+          <StatusBadge status={partner.is_active ? 'active' : 'inactive'} />
           <Button
             variant="outline"
-            onClick={() => router.push("/dashboard/delivery-partners")}
+            size="sm"
+            onClick={() => router.push(`/dashboard/delivery-partners/${partner.partner_id}/edit`)}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Delivery Partners
+            <Edit className="h-3.5 w-3.5 mr-1.5" />
+            Edit
           </Button>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center p-4 border-b">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/delivery-partners")}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {partner.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {getPartnerTypeLabel(partner.type)} • ID: {partner.id}
-          </p>
-        </div>
-        <Badge variant={getStatusVariant(partner.status || '')} className="ml-auto">
-          {partner.status ? partner.status.charAt(0).toUpperCase() + partner.status.slice(1) : 'Unknown'}
-        </Badge>
-      </div>
+      <div className="p-4 md:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 xl:gap-8">
+        {/* Main Content Area - Takes 2/3 width on large screens */} 
+        <div className="lg:col-span-2 space-y-6">
+          {partner.type === 'business' ? (
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="overview" className="text-sm font-medium">
+                  <Info className="mr-2 h-4 w-4" /> Business Overview
+                </TabsTrigger>
+                <TabsTrigger value="drivers" className="text-sm font-medium">
+                  <Users className="mr-2 h-4 w-4" /> Drivers
+                </TabsTrigger>
+              </TabsList>
 
-      <div className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Partner Details</CardTitle>
-                <CardDescription>
-                  {getPartnerTypeLabel(partner.type)} Delivery Partner
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center mb-6">
-                  <Avatar className="h-24 w-24 mr-6">
-                    <AvatarImage src={partner.profilePicture} alt={partner.name} />
-                    <AvatarFallback>
-                      {partner.type === 'individual' ? (
-                        <User className="h-12 w-12" />
-                      ) : partner.type === 'business' ? (
-                        <Truck className="h-12 w-12" />
-                      ) : (
-                        <Package className="h-12 w-12" />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{partner.name}</h3>
-                    <p className="text-sm text-muted-foreground">Type: {getPartnerTypeLabel(partner.type)}</p>
-                    <p className="text-sm text-muted-foreground">Since: {formatDate(partner.createdAt, "MMMM yyyy")}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">User ID</p>
-                    <p className="text-sm">{partner.userId}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Commission</p>
-                    <p className="text-sm">{partner.commissionPercent}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">KYC Verified</p>
-                    <Badge variant={partner.kyc.verified ? "default" : "secondary"}>
-                      {partner.kyc.verified ? "Verified" : "Pending Verification"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Status</p>
-                    <Badge variant={getStatusVariant(partner.status || '')}>
-                      {partner.status ? partner.status.charAt(0).toUpperCase() + partner.status.slice(1) : 'Unknown'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Last Updated</p>
-                    <p className="text-sm">{formatDate(partner.updatedAt, "PPP")}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Type-specific cards */}
-            {partner.type === 'individual' && partner.vehicleInfo && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Individual Partner Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Vehicle Type</p>
-                      <p className="text-sm">{getVehicleTypeLabel(partner.vehicleInfo.type)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Vehicle Details</p>
-                      <p className="text-sm">{partner.vehicleInfo.details}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {partner.type === 'business' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business Partner Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {partner.vehicleInfo && (
-                      <>
-                        <div>
-                          <p className="text-sm font-medium">Vehicle Type</p>
-                          <p className="text-sm">{getVehicleTypeLabel(partner.vehicleInfo.type)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Vehicle Details</p>
-                          <p className="text-sm">{partner.vehicleInfo.details}</p>
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">Drivers</p>
-                      <p className="text-sm">{partner.drivers && partner.drivers.length > 0 ? partner.drivers.length : 'No'} registered drivers</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {partner.type === 'pickup_point' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pickup Point Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Pickup Point Type</p>
-                      <p className="text-sm">Public Pickup Location</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Operating Hours</p>
-                      <p className="text-sm">Standard Hours (9 AM - 5 PM)</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {partner.location && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Location Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Coordinates</p>
-                      <p className="text-sm">Lat: {partner.location.coordinates.lat}, Lng: {partner.location.coordinates.lng}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Service Radius</p>
-                      <p className="text-sm">{partner.location.radiusKm} km</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 h-60 bg-muted rounded-md flex items-center justify-center">
-                    <p className="text-muted-foreground">Map View (Placeholder)</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>KYC Documents</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {partner.kyc.documents.length === 0 ? (
-                  <p className="text-sm">No KYC documents uploaded yet.</p>
-                ) : (
-                  partner.kyc.documents.map((doc, index) => (
-                    <div key={index} className="border p-3 rounded-md">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium">{doc.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</p>
-                        <Badge variant={doc.verified ? "default" : "secondary"}>
-                          {doc.verified ? "Verified" : "Pending"}
-                        </Badge>
+              <TabsContent value="overview">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-16 w-16 border">
+                        <AvatarImage src={partner.profile_picture || undefined} alt={partnerName} />
+                        <AvatarFallback className="text-xl">{partnerAvatarFallback}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-2xl font-semibold">{partnerName}</CardTitle>
+                        <p className="text-sm text-muted-foreground">ID: {partner.partner_id} <Badge variant="outline" className="ml-2 capitalize">{getPartnerTypeLabel(partner.type)}</Badge></p>
                       </div>
-                      <p className="text-sm mb-2">Number: {doc.number}</p>
-                      <a 
-                        href={doc.link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
-                      >
-                        View Document
-                      </a>
                     </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {partner.description && (
+                      <InfoItem icon={<FileText className="h-4 w-4"/>} label="Description" value={partner.description} />
+                    )}
+                    <Separator/>
+                    <h4 className="font-medium text-md">Contact Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      <InfoItem icon={<Mail className="h-4 w-4"/>} label="Contact Email" value={partner.user?.email} />
+                      <InfoItem icon={<Phone className="h-4 w-4"/>} label="Contact Phone" value={partner.user?.phone_number} />
+                      <InfoItem icon={<BuildingIcon className="h-4 w-4"/>} label="Tax ID / Reg No." value={partner.tax_id || 'N/A'} />
+                    </div>
+                    <Separator/>
+                    <h4 className="font-medium text-md">Associated User Account</h4>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      <InfoItem icon={<UserIcon className="h-4 w-4"/>} label="Account Name" value={`${partner.user?.first_name || ''} ${partner.user?.last_name || ''}`.trim() || 'N/A'} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {partner.status === "pending" && (
-                  <>
-                    <Button 
-                      className="w-full" 
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/approve`)}
-                    >
-                      <Check className="mr-2 h-4 w-4" /> Approve Partner
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      className="w-full" 
-                      onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/reject`)}
-                    >
-                      <X className="mr-2 h-4 w-4" /> Reject Partner
-                    </Button>
-                  </>
-                )}
-                {partner.status === "active" && (
-                  <Button 
-                    variant="destructive" 
-                    className="w-full" 
-                    onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/suspend`)}
-                  >
-                    <X className="mr-2 h-4 w-4" /> Suspend Partner
+              <TabsContent value="drivers">
+                {/* DriversTab is already designed as a Card with Header and Content */}
+                <DriversTab partnerId={partner.partner_id!} tenantId={tenantId!} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            // Non-Business Partner Layout (Stack of Cards)
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-16 w-16 border">
+                      <AvatarImage src={partner.profilePicture || undefined} alt={partnerName} />
+                      <AvatarFallback className="text-xl">{partnerAvatarFallback}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-2xl font-semibold">{partnerName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">ID: {partner.partner_id || partner._id} <Badge variant="outline" className="ml-2 capitalize">{getPartnerTypeLabel(partner.type)}</Badge></p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {partner.description && (
+                    <InfoItem icon={<FileText className="h-4 w-4"/>} label="Description" value={partner.description} />
+                  )}
+                  <Separator/>
+                  <h4 className="font-medium text-md">Contact Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <InfoItem icon={<Mail className="h-4 w-4"/>} label="Contact Email" value={partner.user?.email} />
+                    <InfoItem icon={<Phone className="h-4 w-4"/>} label="Contact Phone" value={partner.user?.phone_number} />
+                    {partner.location?.address && (
+                      <InfoItem icon={<MapPinIcon className="h-4 w-4"/>} label="Address" value={partner.location.address} />
+                    )}
+                  </div>
+                  <Separator/>
+                  <h4 className="font-medium text-md">Associated User Account</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <InfoItem icon={<UserIcon className="h-4 w-4"/>} label="Account Name" value={`${partner.user?.first_name || ''} ${partner.user?.last_name || ''}`.trim() || 'N/A'} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Operational Info Card for Non-Business */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center"><Truck className="mr-2 h-5 w-5 text-primary" /> Operational Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {partner.location?.coordinates && (
+                    <div>
+                      <h4 className="font-medium text-md mb-2">Service Area / Location</h4>
+                      <MapPicker 
+                        value={[partner.location.coordinates.lat, partner.location.coordinates.lng]}
+                        onChange={() => {}} 
+                        readOnly={true}
+                        height="250px"
+                      />
+                    </div>
+                  )}
+                  {partner.type === 'individual' && partner.vehicle_info && (
+                    <div>
+                      <h4 className="font-medium text-md mb-2">Vehicle Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <InfoItem label="Vehicle Type" value={partner.vehicle_info.type || 'N/A'} />
+                        <InfoItem label="Plate Number" value={partner.vehicle_info.plate_number || 'N/A'} />
+                      </div>
+                      {partner.vehicle_info && Array.isArray(partner.vehicle_info.details) && partner.vehicle_info.details.length > 0 && (
+                        <div className="mt-3">
+                          <Label className="text-sm font-semibold">Additional Vehicle Details</Label>
+                          <ul className="list-disc list-inside pl-4 text-sm mt-1">
+                            {partner.vehicle_info.details.map(detail => (
+                              <li key={detail.key}>{detail.key}: {detail.value}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(partner.type === 'pickup_point' || partner.type ==='individual') && (
+                    <div>
+                      <Separator />
+                      <h4 className="font-medium text-md mb-2">Pricing</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        {partner.type == 'individual' && <InfoItem label="Cost Per Km" value={partner.cost_per_km || 'N/A'} />}
+                        {partner.type == 'pickup_point' && <InfoItem label="Flat Fee" value={partner.flat_fee || 'N/A'} />}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div> {/* End Main Content Area (lg:col-span-2) */} 
+
+        {/* Sidebar - Takes 1/3 width on large screens */} 
+        <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center">
+                <ListChecks className="mr-2 h-5 w-5" /> Verification Status
+              </CardTitle>
+              <CardDescription>
+                Overall KYC Status: 
+                <Badge variant={partner.kyc?.verified ? "success" : "warning"} className="ml-2 capitalize">
+                  {partner.kyc?.verified ? <><ShieldCheck className="h-3 w-3 mr-1" />Verified</> : <><AlertCircle className="h-3 w-3 mr-1" />{partner.kyc?.status || 'Pending'}</>}
+                </Badge>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(partner.kyc?.documents && partner.kyc.documents.length > 0) ? (
+                partner.kyc.documents.map((doc: KycDocument, index) => (
+                  <VerificationDocumentCard
+                    key={doc.number || `kyc-doc-${index}`}
+                    document={{
+                      document_id: doc.number,
+                      document_type: doc.type,
+                      document_url: doc.link,
+                      verification_status: doc.verified ? "approved" : "pending",
+                    }}
+                    onApprove={handleVerifyDocument} 
+                    onReject={handleRejectDocument}
+                    showActions={true} // Or false if actions should only be in KYC tab
+                    className="mb-2 last:mb-0"
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-2">No KYC documents submitted.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {partner.status === 'pending' && (
+                <>
+                  <Button onClick={() => handleStatusChange('active')} className="w-full" disabled={isUpdatingStatus} size="sm">
+                    {isUpdatingStatus ? <Spinner className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />} Approve Partner
                   </Button>
-                )}
-                {partner.status === "suspended" && (
-                  <Button 
-                    className="w-full" 
-                    onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/reactivate`)}
-                  >
-                    <Check className="mr-2 h-4 w-4" /> Reactivate Partner
+                  <Button variant="outline" onClick={() => handleStatusChange('rejected')} className="w-full" disabled={isUpdatingStatus} size="sm">
+                    {isUpdatingStatus ? <Spinner className="mr-2 h-4 w-4" /> : <X className="mr-2 h-4 w-4" />} Reject Partner
                   </Button>
-                )}
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => router.push(`/dashboard/delivery-partners/${partner.id}/edit`)}
-                >
-                  Edit Partner Details
+                </>
+              )}
+              {partner.status === 'active' && (
+                <Button variant="outline" onClick={() => handleStatusChange('suspended')} className="w-full" disabled={isUpdatingStatus} size="sm">
+                  {isUpdatingStatus ? <Spinner className="mr-2 h-4 w-4" /> : <AlertCircle className="mr-2 h-4 w-4" />} Suspend Partner
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+              {(partner.status === 'suspended' || partner.status === 'rejected') && (
+                <Button onClick={() => handleStatusChange('active')} className="w-full" disabled={isUpdatingStatus} size="sm">
+                  {isUpdatingStatus ? <Spinner className="mr-2 h-4 w-4" /> : <RefreshCw className="mr-2 h-4 w-4" />} Reactivate Partner
+                </Button>
+              )}
+              <Separator className="my-3" />
+              <Button variant="outline" onClick={() => router.push(`/dashboard/delivery-partners/${partner.partner_id || partner._id}/edit`)} className="w-full" size="sm">
+                <Edit className="mr-2 h-4 w-4" /> Edit Partner Details
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full hover:bg-red-700" size="sm">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Partner
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the delivery partner
+                      <strong>{partnerName}</strong> and all associated data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={handleDeletePartner}>Confirm Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
         </div>
       </div>
+      </div>
+
+      <FilePreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} fileUrl={previewUrl} />
+      {verificationDoc && (
+        <DocumentVerificationDialog
+          isOpen={isVerificationModalOpen}
+          onClose={() => { setIsVerificationModalOpen(false); setVerificationDoc(null); }}
+          document={{
+            id: verificationDoc.number, 
+            name: verificationDoc.type,
+            url: verificationDoc.link,
+          }}
+          onApprove={handleDocumentApprove}
+          onReject={handleDocumentReject}
+        />
+      )}
     </div>
   );
 }

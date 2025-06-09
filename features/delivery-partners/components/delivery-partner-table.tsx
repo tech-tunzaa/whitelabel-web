@@ -64,14 +64,10 @@ export function DeliveryPartnerTable({
   
   // Status badges mapping
   const getStatusBadge = (partner: DeliveryPartner) => {
-    if (partner.status === "active") {
+    if (partner.is_active) {
       return <Badge variant="success">Active</Badge>;
-    } else if (partner.status === "rejected") {
-      return <Badge variant="destructive">Rejected</Badge>;
-    } else if (partner.status === "suspended") {
-      return <Badge variant="outline">Suspended</Badge>;
-    } else {
-      return <Badge variant="warning">Pending</Badge>;
+    } else if (!partner.is_active) {
+      return <Badge variant="destructive">Inactive</Badge>;
     }
   };
   
@@ -84,7 +80,6 @@ export function DeliveryPartnerTable({
               <TableRow>
                 <TableHead>Partner</TableHead>
                 <TableHead className="hidden md:table-cell">Type</TableHead>
-                <TableHead className="hidden md:table-cell">Commission</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Registered</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -100,7 +95,7 @@ export function DeliveryPartnerTable({
               ) : (
                 deliveryPartners.map((partner) => (
                   <TableRow
-                    key={partner.id}
+                    key={partner.partner_id}
                     onClick={() => onPartnerClick(partner)}
                     className="cursor-pointer"
                   >
@@ -108,7 +103,7 @@ export function DeliveryPartnerTable({
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarImage
-                            src={partner.profilePicture || "/placeholder.svg"}
+                            src={partner.profile_picture || "/placeholder.svg"}
                             alt={partner.name || "Partner"}
                           />
                           <AvatarFallback>
@@ -118,7 +113,7 @@ export function DeliveryPartnerTable({
                         <div>
                           <div>{partner.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {partner.userId}
+                            {partner.user_id}
                           </div>
                         </div>
                       </div>
@@ -126,14 +121,11 @@ export function DeliveryPartnerTable({
                     <TableCell className="hidden md:table-cell">
                       <Badge variant="outline">{partner.type}</Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {partner.commissionPercent}%
-                    </TableCell>
                     <TableCell>
                       {getStatusBadge(partner)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {new Date(partner.createdAt).toLocaleDateString(
+                      {new Date(partner.created_at).toLocaleDateString(
                         "en-US",
                         { year: "numeric", month: "2-digit", day: "2-digit" }
                       )}
@@ -154,6 +146,7 @@ export function DeliveryPartnerTable({
                               onPartnerClick(partner);
                             }}
                           >
+                            <Eye />
                             View Details
                           </DropdownMenuItem>
                           

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from 'next/dynamic';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import { z } from "zod"
@@ -37,7 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RequiredField } from "@/components/ui/required-field"
 import { DocumentUpload, DocumentWithMeta } from "@/components/ui/document-upload"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { MapPicker } from "@/components/ui/map-picker"
+// import { MapPicker } from "@/components/ui/map-picker" // Original static import
 import { cn } from "@/lib/utils"
 
 import { deliveryPartnerFormSchema } from "../schema"
@@ -45,6 +46,11 @@ import { useDeliveryPartnerStore } from "../store";
 import { useRouter } from "next/navigation";
 
 type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>
+
+const MapPicker = dynamic(() => 
+  import('@/components/ui/map-picker').then(mod => mod.MapPicker),
+  { ssr: false, loading: () => <p>Loading map...</p> } 
+);
 
 const defaultValues: Partial<DeliveryPartnerFormValues> = {
   type: 'individual',
@@ -824,32 +830,6 @@ export function DeliveryPartnerForm({ onSubmit, onCancel, initialData, disableTy
                       <FormLabel>Year</FormLabel>
                       <FormControl>
                         <Input {...field} placeholder="Enter year..." />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="vehicleInsurance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Insurance</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter insurance details..." />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="vehicleRegistration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Registration</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter registration details..." />
                       </FormControl>
                     </FormItem>
                   )}

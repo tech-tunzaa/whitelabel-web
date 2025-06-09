@@ -78,6 +78,17 @@ export function VerificationDocumentCard({
   showActions = true,
   className
 }: VerificationDocumentCardProps) {
+  if (!document) {
+    console.error("VerificationDocumentCard: received undefined 'document' prop.");
+    return (
+      <Card className={cn("border-dashed border-red-300 bg-red-50 p-4", className)}>
+        <div className="flex items-center text-red-700">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <p className="font-medium">Error: Document data is missing.</p>
+        </div>
+      </Card>
+    );
+  }
   const [previewOpen, setPreviewOpen] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState("approve");
@@ -149,7 +160,7 @@ export function VerificationDocumentCard({
     }
   };
 
-  const documentName = document.file_name || document.document_type.replace(/_/g, ' ');
+  const documentName = document.file_name || document.document_type?.replace(/_/g, ' ') || document.id || 'Unnamed Document';
   const isPending = document.verification_status === "pending";
   const isRejected = document.verification_status === "rejected";
   const isApproved = document.verification_status === "approved";
@@ -170,7 +181,7 @@ export function VerificationDocumentCard({
               </div>
               
               <p className="text-sm text-muted-foreground mb-2">
-                {document.document_type.replace(/_/g, ' ')}
+                {document.document_type ? document.document_type.replace(/_/g, ' ') : 'N/A'}
               </p>
               
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
@@ -258,7 +269,7 @@ export function VerificationDocumentCard({
               <div>
                 <h3 className="font-medium">{documentName}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Type: {document.document_type.replace(/_/g, ' ')}
+                  Type: {document.document_type ? document.document_type.replace(/_/g, ' ') : 'N/A'}
                 </p>
               </div>
             </div>

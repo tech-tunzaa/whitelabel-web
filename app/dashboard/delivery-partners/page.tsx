@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store"
-import { DeliveryPartner, DeliveryPartnerFilter } from "@/features/delivery-partners/types"
+import { DeliveryPartner, DeliveryPartnerFilter, DeliveryPartnerListResponse } from "@/features/delivery-partners/types"
 import { DeliveryPartnerTable } from "@/features/delivery-partners/components/delivery-partner-table"
 import { ErrorCard } from "@/components/ui/error-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Plus, RefreshCw, Search } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Pagination } from "@/components/ui/pagination"
+import Pagination from "@/components/ui/pagination"
 
 const getStatusChangeMessage = (status: string) => {
     switch (status) {
@@ -35,12 +35,14 @@ export default function DeliveryPartnersPage() {
     const session = useSession()
     // Access tenant ID safely from session data
     const tenantId = session?.data?.user ? (session.data.user as any).tenant_id : undefined
-    const { deliveryPartners, loading, storeError, fetchDeliveryPartners, updateDeliveryPartner } = useDeliveryPartnerStore()
-    const [searchQuery, setSearchQuery] = useState("")
-    const [currentPage, setCurrentPage] = useState(1)
-    const [activeTab, setActiveTab] = useState("all")
-    const [isTabLoading, setIsTabLoading] = useState(false)
-    const pageSize = 20
+    const { deliveryPartners, loading, storeError, fetchDeliveryPartners, updateDeliveryPartner } = useDeliveryPartnerStore();
+    const pageSize = 20;
+  // Initialize deliveryPartners with a default structure for items and total
+  const [currentPartnersData, setCurrentPartnersData] = useState<DeliveryPartnerListResponse>({ items: [], total: 0, skip: 0, limit: pageSize });
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [activeTab, setActiveTab] = useState("all");
+    const [isTabLoading, setIsTabLoading] = useState(false);
 
     // Define tenant headers
     const tenantHeaders = {
@@ -105,7 +107,13 @@ export default function DeliveryPartnersPage() {
             try {
                 setIsTabLoading(true)
                 const filters = getFilters()
-                await fetchDeliveryPartners(filters, tenantHeaders)
+                const data = await fetchDeliveryPartners(filters, tenantHeaders);
+        if (data && data.items !== undefined && data.total !== undefined) {
+          setCurrentPartnersData(data);
+        } else {
+          // Handle cases where data might not be in the expected format, or is null/undefined
+          setCurrentPartnersData({ items: [], total: 0, skip: 0, limit: pageSize });
+        }
             } catch (error) {
                 console.error("Error fetching delivery partners:", error)
             } finally {
@@ -113,11 +121,11 @@ export default function DeliveryPartnersPage() {
             }
         }
 
-        fetchPartnersData()
-    }, [fetchDeliveryPartners, activeTab, currentPage, searchQuery])
+        fetchPartnersData();
+  }, [fetchDeliveryPartners, activeTab, currentPage, searchQuery, tenantId]);
 
     const handlePartnerClick = (partner: DeliveryPartner) => {
-        router.push(`/dashboard/delivery-partners/${partner.id}`)
+        router.push(`/dashboard/delivery-partners/${partner.partner_id}`)
     }
 
     const handleStatusChange = async (partnerId: string, status: string, rejectionReason?: string) => {
@@ -162,20 +170,21 @@ export default function DeliveryPartnersPage() {
     }
     
     // Filter partners based on search query
-    const filteredPartners = deliveryPartners?.filter((partner) => {
-        if (!searchQuery.trim()) return true
-        
-        const query = searchQuery.toLowerCase()
-        
-        return (
-            partner.business_name?.toLowerCase().includes(query) ||
-            partner.name?.toLowerCase().includes(query) ||
-            partner.contact_email?.toLowerCase().includes(query) ||
-            partner.contact_phone?.toLowerCase().includes(query)
-        )
-    }) || []
+    const filteredPartners = currentPartnersData?.items?.filter((partner: DeliveryPartner) => {
+        if (!searchQuery.trim()) return true;
 
-    if (loading && !deliveryPartners) {
+        const query = searchQuery.toLowerCase();
+
+        return (
+            partner.name?.toLowerCase().includes(query) ||
+            partner.user?.first_name?.toLowerCase().includes(query) ||
+            partner.user?.last_name?.toLowerCase().includes(query) ||
+            partner.user?.email?.toLowerCase().includes(query) ||
+            partner.user?.phone_number?.toLowerCase().includes(query)
+        );
+    }) || [];
+
+    if (loading && currentPartnersData.items.length === 0) {
         return (
             <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b">
@@ -195,7 +204,7 @@ export default function DeliveryPartnersPage() {
         )
     }
 
-    if (!deliveryPartners && !loading && storeError) {
+    if (!currentPartnersData.items.length && !loading && storeError) {
         return (
             <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b">
@@ -250,7 +259,8 @@ export default function DeliveryPartnersPage() {
                             className="pl-8"
                             value={searchQuery}
                             onChange={(e) => {
-                                setSearchQuery(e.target.value)
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1); // Reset to first page when searching
                             }}
                         />
                     </div>
@@ -277,9 +287,15 @@ export default function DeliveryPartnersPage() {
                             activeTab={activeTab}
                         />
                     )}
+                    {currentPartnersData && currentPartnersData.items && currentPartnersData.items.length > 0 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            pageSize={pageSize}
+                            totalItems={currentPartnersData.total}
+                            onPageChange={(page: number) => setCurrentPage(page)}
+                        />
+                    )}
                 </Tabs>
-
-                {/* Pagination would go here */}
             </div>
         </div>
     )

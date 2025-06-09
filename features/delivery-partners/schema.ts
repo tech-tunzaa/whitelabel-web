@@ -15,6 +15,18 @@ export const driverSchema = z.object({
 });
 
 // Main delivery-partner form schema (mirrors API payload requirements)
+export const formKycDocumentSchema = z.object({
+  id: z.string().optional(), // ID from API KycDocument if available
+  type: z.string(), // Document type, e.g., 'national_id', 'passport'
+  number: z.string().optional(), // Document number
+  link: z.string().optional(), // URL to the document file
+  file: z.any().optional(), // For new File objects (z.instanceof(File) can be used but ensure client-side only)
+  status: z.enum(['pending_verification', 'verified', 'rejected', 'uploaded', 'new']).optional(), // Status of the document
+  expires_at: z.string().optional().nullable(),
+  rejection_reason: z.string().optional().nullable(),
+  // Any other fields the DocumentUpload component might need or pass through
+});
+
 export const deliveryPartnerFormSchema = z.object({
   type: z.enum(["individual", "business", "pickup_point"], {
     required_error: "Please select a delivery partner type",
@@ -35,6 +47,7 @@ export const deliveryPartnerFormSchema = z.object({
   drivers: z.array(driverSchema).optional(),
 
   coordinates: z.tuple([z.number(), z.number()]).optional(),
+  kyc_documents: z.array(formKycDocumentSchema).optional(),
 });
 
 export type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>;

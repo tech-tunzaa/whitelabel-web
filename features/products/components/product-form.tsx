@@ -44,8 +44,8 @@ import { MultiImageUpload, type ImageFile } from "@/components/ui/multi-image-up
 
 import { useCategoryStore } from "@/features/categories/store";
 import { useVendorStore } from "@/features/vendors/store";
-import { useFieldArray } from "react-hook-form"; // Added for variants
-import { Pencil } from "lucide-react"; // Added for edit icon
+import { useFieldArray } from "react-hook-form";
+import { Pencil } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -96,7 +96,7 @@ const defaultValues: Partial<ProductFormValues> = {
   is_active: true,
   is_featured: false,
   promotion: null,
-  store_id: "6960bda2-4a94-4cfd-a6dc-1e2e4b3acbfc", // Default store ID
+  store_id: "6960bda2-4a94-4cfd-a6dc-1e2e4b3acbfc",
 };
 
 interface ProductFormProps {

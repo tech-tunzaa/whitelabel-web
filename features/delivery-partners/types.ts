@@ -7,19 +7,17 @@ export interface Location {
 
 export interface VehicleInfo {
     type: string
-    plateNumber: string
-    details: [
-        {
-            key: string
-            value: string
-        }
-    ]
+    plate_number: string
+    details?: { key: string; value: string; }[]
 }
 
 export interface KycDocument {
     type: string
     number: string
     link: string
+    expires_at?: string
+    rejected_at?: string
+    rejected_reason?: string
     verified?: boolean
 }
 
@@ -30,7 +28,7 @@ export interface Kyc {
 
 export interface DeliveryPartner {
     _id: string
-    userId: string
+    user_id: string
     user: {
         first_name: string
         last_name: string
@@ -39,18 +37,18 @@ export interface DeliveryPartner {
     }
     type: 'individual' | 'business' | 'pickup_point'
     name: string
-    profilePicture: string
+    profile_picture: string
     location?: Location
-    vehicleInfo?: VehicleInfo
-    costPerKm?: number
-    flatFee?: number
+    vehicle_info?: VehicleInfo
+    cost_per_km?: number
+    flat_fee?: number
     description?: string
-    taxId?: string
+    tax_id?: string
     drivers?: string[]
     kyc: Kyc
     status: 'pending' | 'active' | 'rejected' | 'suspended'
-    createdAt: string
-    updatedAt: string
+    created_at: string
+    updated_at: string
 }
 
 export interface DeliveryPartnerFilter {

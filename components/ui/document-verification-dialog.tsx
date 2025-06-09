@@ -1,38 +1,48 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { CheckCircle, XCircle, AlertTriangle, Calendar, Eye } from "lucide-react"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { DatePicker } from "@/components/ui/date-picker"
-import { Badge } from "@/components/ui/badge"
-import { getDocumentType, isImageFile, isPdfFile } from "@/lib/services/file-upload.service"
-import { FilePreviewModal } from "@/components/ui/file-preview-modal"
+import { useState, useEffect } from "react";
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Calendar,
+  Eye,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Badge } from "@/components/ui/badge";
+import {
+  getDocumentType,
+  isImageFile,
+  isPdfFile,
+} from "@/lib/services/file-upload.service";
+import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 
 interface DocumentVerificationDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  documentId: string
-  documentType: string
-  documentName: string
-  documentUrl?: string
-  expiryDate?: string
-  onApprove: (documentId: string, expiryDate?: string) => Promise<void>
-  onReject: (documentId: string, reason: string) => Promise<void>
-  onPreview?: (url: string) => void
+  isOpen: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentType: string;
+  documentName: string;
+  documentUrl?: string;
+  expiresAt?: string;
+  onApprove: (documentId: string, expiresAt?: string) => Promise<void>;
+  onReject: (documentId: string, reason: string) => Promise<void>;
+  onPreview?: (url: string) => void;
 }
 
 export function DocumentVerificationDialog({
@@ -42,98 +52,100 @@ export function DocumentVerificationDialog({
   documentType,
   documentName,
   documentUrl,
-  expiryDate,
+  expiresAt,
   onApprove,
   onReject,
-  onPreview
+  onPreview,
 }: DocumentVerificationDialogProps) {
-  const [tab, setTab] = useState("approve")
-  const [rejectionReason, setRejectionReason] = useState("")
-  const [rejectionType, setRejectionType] = useState("invalid")
-  const [selectedExpiryDate, setSelectedExpiryDate] = useState<Date | undefined>(
-    expiryDate ? new Date(expiryDate) : undefined
-  )
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [tab, setTab] = useState("approve");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionType, setRejectionType] = useState("invalid");
+  const [selectedExpiryDate, setSelectedExpiryDate] = useState<
+    Date | undefined
+  >(expiresAt ? new Date(expiresAt) : undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Update expiry date when the document changes
   useEffect(() => {
-    if (expiryDate) {
-      setSelectedExpiryDate(new Date(expiryDate))
+    if (expiresAt) {
+      setSelectedExpiryDate(new Date(expiresAt));
     } else {
-      setSelectedExpiryDate(undefined)
+      setSelectedExpiryDate(undefined);
     }
-  }, [expiryDate, documentId])
+  }, [expiresAt, documentId]);
 
   const handleApprove = async () => {
     try {
-      setIsSubmitting(true)
-      setError(null)
-      await onApprove(documentId, selectedExpiryDate?.toISOString())
-      onClose()
+      setIsSubmitting(true);
+      setError(null);
+      await onApprove(documentId, selectedExpiryDate?.toISOString());
+      onClose();
     } catch (err) {
-      setError("Failed to approve document")
-      console.error(err)
+      setError("Failed to approve document");
+      console.error(err);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Get a predefined reason based on rejection type
   const getPredefinedReason = (type: string): string => {
     switch (type) {
       case "invalid":
-        return "The document does not meet our validation requirements."
+        return "The document does not meet our validation requirements.";
       case "expired":
-        return "The document has expired and is no longer valid."
+        return "The document has expired and is no longer valid.";
       case "unclear":
-        return "The document is too blurry or unclear to read properly."
+        return "The document is too blurry or unclear to read properly.";
       case "incomplete":
-        return "The document is missing required information."
+        return "The document is missing required information.";
       case "fraudulent":
-        return "The document appears to be altered or forged."
+        return "The document appears to be altered or forged.";
       default:
         return rejectionReason;
     }
-  }
+  };
 
   const handleReject = async () => {
     // For "other" type, require a custom reason
     if (rejectionType === "other" && !rejectionReason.trim()) {
-      setError("Please provide a reason for rejection")
-      return
+      setError("Please provide a reason for rejection");
+      return;
     }
 
     try {
-      setIsSubmitting(true)
-      setError(null)
-      
+      setIsSubmitting(true);
+      setError(null);
+
       // Use predefined reason for standard rejection types, or custom reason for "other"
-      const finalReason = rejectionType === "other" 
-        ? rejectionReason 
-        : getPredefinedReason(rejectionType);
-      
-      await onReject(documentId, finalReason)
-      onClose()
+      const finalReason =
+        rejectionType === "other"
+          ? rejectionReason
+          : getPredefinedReason(rejectionType);
+
+      await onReject(documentId, finalReason);
+      onClose();
     } catch (err) {
-      setError("Failed to reject document")
-      console.error(err)
+      setError("Failed to reject document");
+      console.error(err);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const resetForm = () => {
-    setTab("approve")
-    setRejectionReason("")
-    setRejectionType("invalid")
-    setError(null)
-  }
+    setTab("approve");
+    setRejectionReason("");
+    setRejectionType("invalid");
+    setError(null);
+  };
 
   // Determine if document can be previewed
-  const canPreviewDocument = documentUrl && (isImageFile(documentUrl) || isPdfFile(documentUrl))
-  
+  const canPreviewDocument =
+    documentUrl && (isImageFile(documentUrl) || isPdfFile(documentUrl));
+
   // Handle document preview
   const handlePreviewDocument = () => {
     if (onPreview && documentUrl) {
@@ -145,21 +157,24 @@ export function DocumentVerificationDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          resetForm()
-          onClose()
-        }
-      }}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetForm();
+            onClose();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Verify Document</span>
               {documentUrl && canPreviewDocument && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex gap-1 items-center" 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex gap-1 items-center"
                   onClick={handlePreviewDocument}
                 >
                   <Eye size={16} />
@@ -168,7 +183,9 @@ export function DocumentVerificationDialog({
               )}
             </DialogTitle>
             <DialogDescription className="flex items-center justify-between">
-              <span>{documentType.replace(/_/g, " ")} - {documentName}</span>
+              <span>
+                {documentType.replace(/_/g, " ")} - {documentName}
+              </span>
             </DialogDescription>
           </DialogHeader>
 
@@ -177,7 +194,7 @@ export function DocumentVerificationDialog({
               <TabsTrigger value="approve">Approve</TabsTrigger>
               <TabsTrigger value="reject">Reject</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="approve" className="space-y-4 py-4">
               <div className="flex flex-col items-center gap-2 text-center">
                 <CheckCircle className="h-12 w-12 text-green-500" />
@@ -188,7 +205,9 @@ export function DocumentVerificationDialog({
               </div>
 
               {/* Expiry date picker for certain document types */}
-              {documentType.match(/passport|license|id|certificate|permit/i) && (
+              {documentType.match(
+                /passport|license|id|certificate|permit/i
+              ) && (
                 <div className="space-y-2 mt-4">
                   <Label htmlFor="expiry-date">Expiry Date (Optional)</Label>
                   <div className="grid gap-2">
@@ -202,7 +221,9 @@ export function DocumentVerificationDialog({
                       <p className="text-xs text-muted-foreground">
                         Selected: {format(selectedExpiryDate, "PPP")}
                         {new Date(selectedExpiryDate) < new Date() && (
-                          <Badge variant="destructive" className="ml-2">Expired</Badge>
+                          <Badge variant="destructive" className="ml-2">
+                            Expired
+                          </Badge>
                         )}
                       </p>
                     )}
@@ -210,7 +231,7 @@ export function DocumentVerificationDialog({
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="reject" className="space-y-4 py-4">
               <div className="flex flex-col items-center gap-2 text-center mb-4">
                 <XCircle className="h-12 w-12 text-red-500" />
@@ -221,8 +242,8 @@ export function DocumentVerificationDialog({
               </div>
 
               <div className="space-y-4">
-                <RadioGroup 
-                  value={rejectionType} 
+                <RadioGroup
+                  value={rejectionType}
                   onValueChange={setRejectionType}
                   className="flex flex-col space-y-2"
                 >
@@ -269,7 +290,7 @@ export function DocumentVerificationDialog({
               </div>
             </TabsContent>
           </Tabs>
-          
+
           {error && (
             <div className="flex items-center p-3 mt-2 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
               <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -278,25 +299,21 @@ export function DocumentVerificationDialog({
           )}
 
           <DialogFooter className="pt-4">
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             {tab === "approve" ? (
-              <Button 
-                onClick={handleApprove}
-                disabled={isSubmitting}
-              >
+              <Button onClick={handleApprove} disabled={isSubmitting}>
                 {isSubmitting ? "Processing..." : "Approve"}
               </Button>
             ) : (
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={handleReject}
-                disabled={isSubmitting || (rejectionType === "other" && !rejectionReason.trim())}
+                disabled={
+                  isSubmitting ||
+                  (rejectionType === "other" && !rejectionReason.trim())
+                }
               >
                 {isSubmitting ? "Processing..." : "Reject"}
               </Button>
@@ -304,7 +321,7 @@ export function DocumentVerificationDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* File preview modal */}
       {documentUrl && (
         <FilePreviewModal
@@ -316,4 +333,4 @@ export function DocumentVerificationDialog({
       )}
     </>
   );
-} 
+}
