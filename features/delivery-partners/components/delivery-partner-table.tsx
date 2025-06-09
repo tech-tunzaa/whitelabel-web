@@ -26,6 +26,8 @@ import { Check, MoreHorizontal, X } from "lucide-react";
 import { DeliveryPartner } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Eye } from "lucide-react";
+
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[];
