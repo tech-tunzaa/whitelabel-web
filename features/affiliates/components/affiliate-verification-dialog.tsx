@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Minimal props for testing, adjust if page.tsx complains about missing props
-interface AffiliateDialogProps {
+interface AffiliateVerificationDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   title?: string;
@@ -12,7 +12,10 @@ interface AffiliateDialogProps {
   withReason?: boolean;
 }
 
-export const AffiliateDialog: React.FC<AffiliateDialogProps> = (props) => {
-  return <div data-testid="affiliate-dialog-placeholder">Affiliate Dialog Placeholder</div>;
+export const AffiliateVerificationDialog: React.FC<AffiliateVerificationDialogProps> = (props) => {
+  return 
+  <div data-testid="affiliate-dialog-placeholder">
+    
+  </div>;
 };
 

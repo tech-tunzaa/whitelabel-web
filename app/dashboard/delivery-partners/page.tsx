@@ -36,7 +36,7 @@ export default function DeliveryPartnersPage() {
     // Access tenant ID safely from session data
     const tenantId = session?.data?.user ? (session.data.user as any).tenant_id : undefined
     const { deliveryPartners, loading, storeError, fetchDeliveryPartners, updateDeliveryPartner } = useDeliveryPartnerStore();
-    const pageSize = 20;
+    const pageSize = 10;
   // Initialize deliveryPartners with a default structure for items and total
   const [currentPartnersData, setCurrentPartnersData] = useState<DeliveryPartnerListResponse>({ items: [], total: 0, skip: 0, limit: pageSize });
     const [searchQuery, setSearchQuery] = useState("");

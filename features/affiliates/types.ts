@@ -16,15 +16,13 @@ export interface PaginationMeta {
   totalPages?: number;
 }
 
-export interface ApiResponse<T> {
-  status: number;
-  success: boolean;
-  message?: string;
-  data: T;
-  meta?: PaginationMeta;
-}
-
-// AffiliateFormValues is now imported and re-exported from schema.ts
+export type AffiliatesApiResponseData = {
+  affiliates: Affiliate[];
+  total: number;
+  currentPage?: number;
+  // Potentially other pagination fields if the API returns them directly in `data`
+  // and not just in `meta`. For now, sticking to what's in the generic type in store.ts.
+};
 
 // Verification Document Type
 export type VerificationDocument = {
@@ -144,7 +142,9 @@ export type AffiliateAction =
   | 'reject'
   | 'updateStatus'
   | 'activate'
-  | 'deactivate';
+  | 'deactivate'
+  | 'uploadKyc'
+  | 'fetchVendorPartnerRequests';
 
 export type AffiliateStatus = "pending" | "approved" | "rejected";
 
@@ -158,3 +158,34 @@ export type CreateAffiliatePayload = AffiliateFormValues & {
 
 // UpdateAffiliatePayload: Partial of AffiliateFormValues.
 export type UpdateAffiliatePayload = Partial<AffiliateFormValues>;
+
+// Vendor Partner Request (associated with an Affiliate)
+export type VendorPartnerRequestStatus = "pending" | "approved" | "rejected" | "active" | "inactive"; // Expanding based on sample and common statuses
+
+export interface VendorPartnerRequest {
+  vendor_id: string;
+  vendor_name: string;
+  joined_at: string; // ISO date string
+  commission_rate: number;
+  status: VendorPartnerRequestStatus;
+  // Add any other fields that the API might return for a vendor partner request
+  // For example:
+  // requested_by_affiliate_id?: string; // If the API includes this
+  // vendor_contact_email?: string;
+  // vendor_contact_phone?: string;
+}
+
+export type VendorPartnerRequestsApiResponseData = {
+  requests: VendorPartnerRequest[]; // Assuming the API returns an array of requests
+  total: number;
+  currentPage?: number;
+  // Potentially other pagination fields if the API returns them directly in `data`
+};
+
+// You might also want a filter type for these requests if needed later
+export type VendorPartnerRequestFilter = {
+  skip?: number;
+  limit?: number;
+  status?: VendorPartnerRequestStatus;
+  // any other filterable fields
+};

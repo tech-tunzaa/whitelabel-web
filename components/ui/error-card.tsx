@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,7 @@ export function ErrorCard({
       <div className="flex items-center justify-between p-4 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {error && (
-            <p className="text-muted-foreground">
-              {error.message}
-            </p>
-          )}
+          {error && <p className="text-muted-foreground">{error.message}</p>}
         </div>
       </div>
       <div className="p-4">

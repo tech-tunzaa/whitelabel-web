@@ -1,76 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents, AttributionControl } from "react-leaflet";
-import L from "leaflet";
-import { Map as LeafletMap } from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { cn } from "@/lib/utils";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  Libraries,
+} from '@react-google-maps/api';
+import usePlacesAutocomplete, {
+  getGeocode,
+  getLatLng,
+} from 'use-places-autocomplete';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { X, LocateFixed } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// Add global styles once when component is loaded
-const injectMapStyles = () => {
-  // Only run in browser environment
-  if (typeof window === "undefined") return;
-  
-  // Check if styles are already injected
-  if (document.getElementById("map-picker-styles")) return;
-  
-  // Create style element
-  const style = document.createElement("style");
-  style.id = "map-picker-styles";
-  style.innerHTML = `
-    /* Hide attribution control */
-    .leaflet-control-attribution {
-      display: none !important;
-    }
-    
-    /* Styling for map container */
-    .leaflet-container {
-      border-radius: 0.5rem;
-      border: 1px solid hsl(240 5.9% 90%);
-    }
-    
-    /* Improve controls visibility */
-    .leaflet-control-zoom a {
-      color: #333;
-    }
-  `;
-  
-  // Append to document head
-  document.head.appendChild(style);
-};
-
-// Fix Leaflet marker icon issue in Next.js
-const MarkerIcon = () => {
-  useEffect(() => {
-    // Only run in browser environment
-    if (typeof window !== "undefined") {
-      // Fix the missing icon issue in leaflet with Next.js
-      // Using any to bypass the TypeScript error
-      const iconDefault = L.Icon.Default as any;
-      delete iconDefault.prototype._getIconUrl;
-      
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-      });
-    }
-  }, []);
-
-  return null;
-};
-
-// Component to handle map click events and update marker position
-const MapClickHandler = ({ onPositionChange }: { onPositionChange: (position: [number, number]) => void }) => {
-  useMapEvents({
-    click: (e: L.LeafletMouseEvent) => {
-      onPositionChange([e.latlng.lat, e.latlng.lng]);
-    }
-  });
-  
-  return null;
-};
+const libraries: Libraries = ['places'];
 
 interface MapPickerProps {
   value?: [number, number] | null;
@@ -83,7 +29,7 @@ interface MapPickerProps {
     country?: string;
   }) => void;
   className?: string;
-  defaultCenter?: [number, number]; // Default center coordinates
+  defaultCenter?: [number, number];
   zoom?: number;
   height?: string;
   width?: string;
@@ -91,26 +37,22 @@ interface MapPickerProps {
   readOnly?: boolean;
 }
 
-// Function to perform reverse geocoding using Nominatim API
 async function reverseGeocode(lat: number, lng: number) {
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`);
-    const data = await response.json();
-    
-    if (data && data.address) {
-      const address = data.address;
-      
+    const geocoder = new window.google.maps.Geocoder();
+    const { results } = await geocoder.geocode({ location: { lat, lng } });
+
+    if (results && results[0]) {
+      const addressComponents = results[0].address_components;
+      const getAddressComponent = (type: string) =>
+        addressComponents.find(c => c.types.includes(type))?.long_name || '';
+
       return {
-        address_line1: [
-          address.road,
-          address.house_number,
-          address.neighbourhood,
-          address.suburb
-        ].filter(Boolean).join(', '),
-        city: address.city || address.town || address.village || address.hamlet,
-        state_province: address.state || address.region || address.county,
-        postal_code: address.postcode,
-        country: address.country
+        address_line1: results[0].formatted_address,
+        city: getAddressComponent('locality'),
+        state_province: getAddressComponent('administrative_area_level_1'),
+        postal_code: getAddressComponent('postal_code'),
+        country: getAddressComponent('country'),
       };
     }
     return null;
@@ -125,158 +67,217 @@ export function MapPicker({
   onChange,
   onAddressFound,
   className,
-  defaultCenter = [-6.8235, 39.2695], // Default to Dar es Salaam, Tanzania
+  defaultCenter = [-6.8235, 39.2695],
   zoom = 13,
-  height = "300px",
-  width = "100%",
+  height = '300px',
+  width = '100%',
   disabled = false,
   readOnly = false,
 }: MapPickerProps) {
-  // Inject CSS styles for the map
-  useEffect(() => {
-    injectMapStyles();
-  }, []);
-  const [position, setPosition] = useState<[number, number] | null>(value || null);
-  const mapRef = useRef<LeafletMap | null>(null);
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries,
+  });
 
-  // Update internal state when prop value changes
+  const [position, setPosition] = useState<google.maps.LatLngLiteral | null>(
+    value ? { lat: value[0], lng: value[1] } : null
+  );
+  const mapRef = useRef<google.maps.Map | null>(null);
+
   useEffect(() => {
     if (value) {
-      setPosition(value);
+      setPosition({ lat: value[0], lng: value[1] });
+    } else {
+      setPosition(null);
     }
   }, [value]);
 
-  // Handle position change
-  const handlePositionChange = async (newPosition: [number, number]) => {
-    if (disabled || readOnly) return;
-    
-    setPosition(newPosition);
-    onChange(newPosition);
-    
-    // Center map on the new position
-    if (mapRef.current) {
-      mapRef.current.setView(newPosition, mapRef.current.getZoom());
-    }
-    
-    // Perform reverse geocoding if onAddressFound is provided
-    if (onAddressFound) {
-      const addressData = await reverseGeocode(newPosition[0], newPosition[1]);
-      if (addressData) {
-        onAddressFound(addressData);
-      }
-    }
-  };
+  const handlePositionChange = useCallback(
+    async (latLng: google.maps.LatLng) => {
+      if (disabled || readOnly) return;
 
-  // Handle clearing the coordinates
+      const newPos = { lat: latLng.lat(), lng: latLng.lng() };
+      setPosition(newPos);
+      onChange([newPos.lat, newPos.lng]);
+
+      if (onAddressFound) {
+        const addressData = await reverseGeocode(newPos.lat, newPos.lng);
+        if (addressData) {
+          onAddressFound(addressData);
+        }
+      }
+    },
+    [disabled, readOnly, onChange, onAddressFound]
+  );
+
+  const handleMapClick = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      if (e.latLng) {
+        handlePositionChange(e.latLng);
+      }
+    },
+    [handlePositionChange]
+  );
+
   const handleClear = () => {
     if (disabled || readOnly) return;
-    
     setPosition(null);
     onChange(null);
   };
 
-  // Handle using current location
   const handleUseCurrentLocation = () => {
     if (disabled || readOnly) return;
-    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const newPosition: [number, number] = [position.coords.latitude, position.coords.longitude];
-          setPosition(newPosition);
-          onChange(newPosition);
-          
-          // Center map on the new position
-          if (mapRef.current) {
-            mapRef.current.setView(newPosition, 15);
-          }
-          
-          // Perform reverse geocoding if onAddressFound is provided
-          if (onAddressFound) {
-            const addressData = await reverseGeocode(newPosition[0], newPosition[1]);
-            if (addressData) {
-              onAddressFound(addressData);
-            }
-          }
+        position => {
+          const latLng = new window.google.maps.LatLng(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          handlePositionChange(latLng);
+          mapRef.current?.panTo(latLng);
+          mapRef.current?.setZoom(15);
         },
-        (error) => {
-          let errorMessage = "Could not access your location";
-          
-          // Provide more specific error messages based on error code
-          switch(error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = "Location permission denied. Please enable location access in your browser settings.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = "Location information is unavailable. Please try again.";
-              break;
-            case error.TIMEOUT:
-              errorMessage = "Location request timed out. Please try again.";
-              break;
-          }
-          
-          console.error("Geolocation error:", errorMessage, error);
-          
-          // You could use a toast notification here instead of alert
-          alert(errorMessage);
-        }
+        () => alert('Error: The Geolocation service failed.'),
+        { enableHighAccuracy: true }
       );
+    } else {
+      alert("Error: Your browser doesn't support geolocation.");
+    }
+  };
+
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  if (loadError) return <div>Error loading maps. Make sure you have set the Google Maps API key.</div>;
+  if (!isLoaded) return <div>Loading...</div>;
+
+  return (
+    <div className={cn('space-y-2', className)} style={{ width }}>
+      {!readOnly && (
+        <PlacesAutocomplete
+          onSelect={handlePositionChange}
+          mapRef={mapRef}
+          disabled={disabled}
+        />
+      )}
+      <div style={{ height, width, position: 'relative' }}>
+        <GoogleMap
+          mapContainerStyle={{ width: '100%', height: '100%', borderRadius: '0.5rem' }}
+          center={position || { lat: defaultCenter[0], lng: defaultCenter[1] }}
+          zoom={position ? 15 : zoom}
+          onLoad={onMapLoad}
+          onClick={handleMapClick}
+          options={{
+            disableDefaultUI: true,
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+          }}
+        >
+          {position && <Marker position={position} />}
+        </GoogleMap>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {!readOnly && (
+          <Button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={disabled}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <LocateFixed className="h-4 w-4" />
+            Use Current Location
+          </Button>
+        )}
+        {position && (
+          <Button
+            type="button"
+            onClick={handleClear}
+            disabled={disabled || readOnly}
+            variant="destructive"
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <X className="h-4 w-4" />
+            Clear
+          </Button>
+        )}
+      </div>
+      {position && (
+        <div className="text-sm text-gray-500">
+          Lat: {position.lat.toFixed(6)}, Lng: {position.lng.toFixed(6)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlacesAutocomplete({
+  onSelect,
+  mapRef,
+  disabled,
+}: {
+  onSelect: (latLng: google.maps.LatLng) => void;
+  mapRef: React.RefObject<google.maps.Map | null>;
+  disabled?: boolean;
+}) {
+  const {
+    ready,
+    value,
+    suggestions: { status, data },
+    setValue,
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    requestOptions: {},
+    debounce: 300,
+  });
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+  };
+
+  const handleSelect = async (address: string) => {
+    setValue(address, false);
+    clearSuggestions();
+
+    try {
+      const results = await getGeocode({ address });
+      const latLng = await getLatLng(results[0]);
+      const googleLatLng = new window.google.maps.LatLng(latLng.lat, latLng.lng);
+      onSelect(googleLatLng);
+      mapRef.current?.panTo(googleLatLng);
+      mapRef.current?.setZoom(15);
+    } catch (error) {
+      console.error('Error: ', error);
     }
   };
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <MarkerIcon />
-      
-      <div className="flex gap-2 mb-2">
-        {!disabled && !readOnly && (
-          <>
-            <button
-              type="button"
-              onClick={handleUseCurrentLocation}
-              className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-              disabled={disabled}
+    <div className="relative w-full">
+      <Input
+        value={value}
+        onChange={handleInput}
+        disabled={!ready || disabled}
+        placeholder="Search for a location..."
+        className="w-full"
+      />
+      {status === 'OK' && (
+        <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-md mt-1 shadow-lg">
+          {data.map(({ place_id, description }) => (
+            <li
+              key={place_id}
+              onClick={() => handleSelect(description)}
+              className="p-2 hover:bg-gray-100 cursor-pointer"
             >
-              Use Current Location
-            </button>
-            {position && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="px-3 py-1 text-xs bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
-                disabled={disabled}
-              >
-                Clear
-              </button>
-            )}
-          </>
-        )}
-      </div>
-      
-      <div style={{ height, width }}>
-        {typeof window !== "undefined" && (
-          <MapContainer
-            ref={mapRef}
-            center={position || defaultCenter}
-            zoom={zoom}
-            style={{ height: "100%", width: "100%", borderRadius: "0.5rem" }}
-            attributionControl={false} // Remove attribution control
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {!disabled && !readOnly && (
-              <MapClickHandler onPositionChange={handlePositionChange} />
-            )}
-            {position && <Marker position={position} />}
-          </MapContainer>
-        )}
-      </div>
-      
-      {position && (
-        <div className="text-sm text-muted-foreground mt-1">
-          Latitude: {position[0].toFixed(6)}, Longitude: {position[1].toFixed(6)}
-        </div>
+              {description}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

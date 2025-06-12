@@ -69,7 +69,7 @@ export function DeliveryPartnerTable({
     if (partner.is_active) {
       return <Badge variant="success">Active</Badge>;
     } else if (!partner.is_active) {
-      return <Badge variant="destructive">Inactive</Badge>;
+      return <Badge variant="outline" className="bg-slate-200 text-slate-800 border-slate-400">Inactive</Badge>;
     }
   };
   
@@ -115,7 +115,7 @@ export function DeliveryPartnerTable({
                         <div>
                           <div>{partner.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {partner.user_id}
+                            {partner.partner_id}
                           </div>
                         </div>
                       </div>
@@ -127,10 +127,7 @@ export function DeliveryPartnerTable({
                       {getStatusBadge(partner)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {new Date(partner.created_at).toLocaleDateString(
-                        "en-US",
-                        { year: "numeric", month: "2-digit", day: "2-digit" }
-                      )}
+                      {partner.created_at}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -156,7 +153,7 @@ export function DeliveryPartnerTable({
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onStatusChange(partner.id, "suspended");
+                                onStatusChange(partner.partner_id, "suspended");
                               }}
                             >
                               <X className="mr-2 h-4 w-4" />
@@ -168,7 +165,7 @@ export function DeliveryPartnerTable({
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onStatusChange(partner.id, "active");
+                                onStatusChange(partner.partner_id, "active");
                               }}
                             >
                               <Check className="mr-2 h-4 w-4 text-success" />

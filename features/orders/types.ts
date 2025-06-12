@@ -31,6 +31,7 @@ export type ShippingMethod = "standard" | "express" | "free";
 export interface OrderError {
   message: string;
   status?: number;
+  details?: Record<string, any>;
 }
 
 export interface OrderFilter {
@@ -83,14 +84,26 @@ export interface PaymentDetails {
   notes?: string;
 }
 
-export interface DeliveryDetails {
+export interface PickupPoint {
   partner_id: string;
-  cost: number;
-  status?: string;
-  tracking_number?: string;
-  estimated_delivery?: string;
-  actual_delivery?: string;
-  notes?: string;
+  timestamp: string;
+}
+
+export interface DeliveryStage {
+  partner_id: string;
+  stage: "delivered" | "failed" | "assigned" | "in_transit";
+  timestamp: string;
+}
+
+export interface DeliveryDetails {
+  id: string;
+  order_id: string;
+  pickup_points: PickupPoint[];
+  stages: DeliveryStage[];
+  current_stage: string;
+  created_at: string;
+  updated_at: string;
+  tenant_id: string;
 }
 
 export interface OrderItem {
@@ -187,6 +200,12 @@ export interface CartTotals {
   currency: string;
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
 export type OrderApiResponse = {
   data?: Order | Order[] | OrderListResponse;
   items?: Order[];
@@ -198,3 +217,41 @@ export type OrderApiResponse = {
 export type CartApiResponse = {
   data: Cart | CartTotals;
 };
+
+export interface DeliveryStage {
+  partner_id: string;
+  stage: 'assigned' | 'in_transit' | 'delivered' | 'failed';
+  timestamp: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+}
+
+export interface PickupPoint {
+  partner_id: string;
+  timestamp: string;
+}
+
+export interface AssignDeliveryPayload {
+  order_id: string;
+  pickup_points?: PickupPoint[];
+  stages: DeliveryStage[];
+  current_stage: 'assigned' | 'in_transit' | 'delivered' | 'failed';
+  estimated_delivery_time?: string;
+}
+
+export interface Delivery {
+  _id: string;
+  order_id: string;
+  partner_id: string;
+  pickup_points: PickupPoint[];
+  stages: DeliveryStage[];
+  current_stage: string;
+  status: 'active' | 'completed' | 'cancelled';
+  estimated_delivery_time?: string;
+  actual_delivery_time?: string;
+  delivery_proof?: string;
+  created_at: string;
+  updated_at: string;
+}

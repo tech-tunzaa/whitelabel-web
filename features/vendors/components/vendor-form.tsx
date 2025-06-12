@@ -95,6 +95,7 @@ export function VendorForm({
   console.log('VendorForm store data:', initialData?.store);
   
   const { data: session } = useSession();
+  const vendorStore = useVendorStore();
   const tenantId = (session?.user as any)?.tenant_id || "";
   const userRole = session?.user?.role || "";
   const isSuperOwner = userRole === "super_owner";

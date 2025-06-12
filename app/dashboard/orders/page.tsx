@@ -171,7 +171,7 @@ export default function OrdersPage() {
   }, [activeTab, currentPage, searchQuery, dateRange]);
   
   // Determine which orders to show based on active tab
-  const displayOrders = activeTab === "all" ? orders : orders.filter(order => order.status === activeTab);
+  const displayOrders = activeTab === "all" ? (orders || []) : (orders || []).filter(order => order.status === activeTab);
 
   if (loading && !orders) {
     return (

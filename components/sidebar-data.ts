@@ -67,13 +67,12 @@ export const navigationData = {
       url: "/dashboard/vendors",
       icon: IconUsers,
       roles: ["super_owner", "admin", "sub_admin"],
-      items: [
-        {
-          title: "Affiliates (Mawinga)",
-          url: "/dashboard/vendors/affiliates",
-          icon: IconUserCode,
-        }
-      ]
+    },
+    {
+      title: "Affiliates (Mawinga)",
+      url: "/dashboard/affiliates",
+      icon: IconUserCode,
+      roles: ["super_owner", "admin", "sub_admin"],
     },
     {
       title: "Delivery Partners",
@@ -94,8 +93,8 @@ export const navigationData = {
       roles: ["super_owner", "admin", "sub_admin", "support"],
       items: [
         {
-          title: "Delivery",
-          url: "/dashboard/orders/delivery",
+          title: "Deliveries",
+          url: "/dashboard/orders/deliveries",
           icon: IconTruck,
         },
         {

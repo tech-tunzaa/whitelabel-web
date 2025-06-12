@@ -1,317 +1,265 @@
 import { create } from 'zustand';
-import { ApiResponse } from '@/features/vendors/types';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { DeliveryPartner, DeliveryPartnerFilter, DeliveryPartnerListResponse, DeliveryPartnerAction, DeliveryPartnerError, KycDocument } from './types';
+import {
+  DeliveryPartner,
+  DeliveryPartnerFilter,
+  DeliveryPartnerListResponse,
+  DeliveryPartnerError,
+  KycDocument,
+  ApiResponse,
+} from './types';
 
 interface DeliveryPartnerStore {
-  deliveryPartners: any[];
-  deliveryPartner: any | null;
+  partners: DeliveryPartner[];
+  partner: DeliveryPartner | null;
   loading: boolean;
-  storeError: DeliveryPartnerError | null;
-  activeAction: DeliveryPartnerAction | null;
-  setActiveAction: (action: DeliveryPartnerAction | null) => void;
+  error: DeliveryPartnerError | null;
+  activeAction: string | null;
+  // Setters
+  setActiveAction: (action: string | null) => void;
   setLoading: (loading: boolean) => void;
-  setStoreError: (error: DeliveryPartnerError | null) => void;
-  setDeliveryPartner: (deliveryPartner: any | null) => void;
-  setDeliveryPartners: (deliveryPartners: any[]) => void;
-  fetchDeliveryPartner: (id: string, headers?: Record<string, string>) => Promise<any>;
-  fetchDeliveryPartnerByUser: (userId: string, headers?: Record<string, string>) => Promise<any>;
-  fetchDeliveryPartners: (filter?: DeliveryPartnerFilter, headers?: Record<string, string>) => Promise<any>;
-  createDeliveryPartner: (data: any, headers?: Record<string, string>) => Promise<any>;
-  updateDeliveryPartner: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
-  deleteDeliveryPartner: (id: string, headers?: Record<string, string>) => Promise<any>;
-  uploadKycDocuments: (id: string, documents: any[], headers?: Record<string, string>) => Promise<void>;
+  setError: (error: DeliveryPartnerError | null) => void;
+  setPartner: (partner: DeliveryPartner | null) => void;
+  setPartners: (partners: DeliveryPartner[]) => void;
+  // Async Actions
+  fetchDeliveryPartners: (filter?: DeliveryPartnerFilter, headers?: Record<string, string>) => Promise<DeliveryPartnerListResponse>;
+  fetchDeliveryPartner: (id: string, headers?: Record<string, string>) => Promise<DeliveryPartner>;
+  createDeliveryPartner: (data: Partial<DeliveryPartner>, headers?: Record<string, string>) => Promise<DeliveryPartner>;
+  updateDeliveryPartner: (id: string, data: Partial<DeliveryPartner>, headers?: Record<string, string>) => Promise<DeliveryPartner>;
+  updateDeliveryPartnerStatus: (id: string, status: 'active' | 'rejected' | 'suspended' | 'pending', reason?: string, headers?: Record<string, string>) => Promise<void>;
+  deleteDeliveryPartner: (id: string, headers?: Record<string, string>) => Promise<void>;
+  uploadKycDocuments: (id: string, documents: KycDocument[], headers?: Record<string, string>) => Promise<void>;
 }
 
-export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()(
-  (set, get) => ({
-    deliveryPartners: [],
-    deliveryPartner: null,
-    loading: true,
-    storeError: null,
-    activeAction: null,
+export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get) => ({
+  partners: [],
+  partner: null,
+  loading: false,
+  error: null,
+  activeAction: null,
 
-    setActiveAction: (action) => set({ activeAction: action }),
-    setLoading: (loading) => set({ loading }),
-    setStoreError: (error) => set({ storeError: error }),
-    setDeliveryPartner: (deliveryPartner: DeliveryPartner | null) => set({ deliveryPartner }),
-    setDeliveryPartners: (deliveryPartners: DeliveryPartner[]) => set({ deliveryPartners }),
+  // Setters
+  setActiveAction: (action) => set({ activeAction: action }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error: error }),
+  setPartner: (partner) => set({ partner }),
+  setPartners: (partners) => set({ partners }),
 
-    fetchDeliveryPartner: async (id: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError, setDeliveryPartner } = get();
-      try {
-        setActiveAction('fetchOne');
-        setLoading(true);
-        const response = await apiClient.get<any>(`/partners/${id}`, undefined, headers);
-        
-        console.log('Delivery Partner API Response:', response);
-        
-        // Try multiple possible response structures
-        let partnerData = null;
-        
-        // Option 1: response.data.data structure
-        if (response.data && response.data.data) {
-          console.log('Found delivery partner data in response.data.data');
-          partnerData = response.data.data;
-        } 
-        // Option 2: response.data structure (direct)
-        else if (response.data) {
-          console.log('Using response.data directly as delivery partner data');
-          partnerData = response.data;
-        }
-        
-        // Check if we found partner data
-        if (partnerData) {
-          console.log('Successfully extracted delivery partner data:', partnerData);
-          
-          // Use data as-is
-          setDeliveryPartner(partnerData);
-          setLoading(false);
-          return partnerData;
-        }
-        
-        console.error('Delivery partner data not found or in unexpected format', response);
-        setLoading(false);
-        throw new Error('Delivery partner data not found or in unexpected format');
-      } catch (error: unknown) {
-        console.error('Error fetching delivery partner:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch delivery partner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setDeliveryPartner(null);
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
+  // Async Actions
+  fetchDeliveryPartners: async (filter: DeliveryPartnerFilter = {}, headers?: Record<string, string>): Promise<DeliveryPartnerListResponse> => {
+    const { setActiveAction, setLoading, setError, setPartners } = get();
+    setActiveAction('fetchList');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (filter.skip !== undefined) params.append('skip', filter.skip.toString());
+      if (filter.limit !== undefined) params.append('limit', filter.limit.toString());
+      if (filter.is_active !== undefined) params.append('is_active', filter.is_active.toString());
+      if (filter.kyc_verified !== undefined) params.append('kyc_verified', filter.kyc_verified.toString());
+      if (filter.partner_type) params.append('partner_type', filter.partner_type);
+
+      const response = await apiClient.get<any>(`/partners/?${params.toString()}`, undefined, headers);
+      
+      console.log('API Response:', response);
+
+      let partnerData: DeliveryPartnerListResponse | null = null;
+      const payload: any = response.data;
+      
+      // The API can return data directly or nested within a 'data' property.
+      // This handles the case where payload is DeliveryPartnerListResponse.
+      if (payload && Array.isArray(payload.items)) {
+        console.log('Treating payload directly as DeliveryPartnerListResponse');
+        partnerData = payload as DeliveryPartnerListResponse;
+      } 
+      // This handles the case where payload is { data: DeliveryPartnerListResponse }.
+      else if (payload && payload.data && Array.isArray(payload.data.items)) {
+        console.log('Treating payload as nested object');
+        partnerData = payload.data as DeliveryPartnerListResponse;
       }
-    },
 
-    fetchDeliveryPartnerByUser: async (userId: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError, setDeliveryPartner } = get();
-      try {
-        setActiveAction('fetchByUser');
-        setLoading(true);
-        const response = await apiClient.get<ApiResponse<any>>(`/partners/?user_id=${userId}`, undefined, headers);
-        
-        let partnerData = null;
-        
-        if (response.data && response.data.data) {
-          partnerData = response.data.data;
-        } else if (response.data) {
-          partnerData = response.data;
-        }
-        
-        if (partnerData) {
-          // Use data as-is
-          setDeliveryPartner(partnerData);
-          setLoading(false);
-          return partnerData;
-        }
-        
-        throw new Error('Delivery partner not found');
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch delivery partner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
+      if (partnerData) {
+        setPartners(partnerData.items);
+        return partnerData;
       }
-    },
-
-    fetchDeliveryPartners: async (filter: DeliveryPartnerFilter = {}, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError, setDeliveryPartners } = get();
-      try {
-        setActiveAction('fetchList');
-        setLoading(true);
-        const params = new URLSearchParams();
-        if (filter.skip) params.append('skip', filter.skip.toString());
-        if (filter.limit) params.append('limit', filter.limit.toString());
-        if (filter.is_active) params.append('is_active', filter.is_active);
-        if (filter.kyc_verified) params.append('kyc_verified', filter.kyc_verified);
-        if (filter.partner_type) params.append('partner_type', filter.partner_type);
-
-        const response = await apiClient.get<DeliveryPartnerApiResponse>(`/partners/?${params.toString()}`, undefined, headers);
-        
-        console.log('API Response:', response);
-        
-        // Check if response has a nested data property
-        if (response.data && response.data.data) {
-          console.log('Response data.data:', response.data.data);
-          // Use the nested data property
-          const partnerData = response.data.data as DeliveryPartnerApiResponse;
-          // Update state with the items directly from the API
-          const items = Array.isArray(partnerData.items) ? partnerData.items : 
-                        Array.isArray(partnerData) ? partnerData : [];
-          setDeliveryPartners(items);
-          setLoading(false);
-          return { ...partnerData, items };
-        } else if (response.data) {
-          // API might be returning data directly without nesting
-          console.log('Treating response.data directly as DeliveryPartnerListResponse');
-          const partnerData = response.data as DeliveryPartnerApiResponse;
-          const items = Array.isArray(partnerData.items) ? partnerData.items : 
-                        Array.isArray(partnerData) ? partnerData : [];
-          setDeliveryPartners(items);
-          setLoading(false);
-          return { ...partnerData, items };
-        }
-        
-        // Return empty result if no data
-        console.log('No data found in response, returning empty result');
-        const emptyResult = {
-          items: [],
-          total: 0,
-          skip: filter.skip || 0,
-          limit: filter.limit || 10
-        };
-        
-        setLoading(false);
-        return emptyResult;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch delivery partners';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    createDeliveryPartner: async (data: any, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('create');
-        setLoading(true);
-        
-        const response = await apiClient.post<ApiResponse<any>>('/partners/', data, headers);
-        
-        let partnerData = null;
-        
-        if (response.data && response.data.data) {
-          partnerData = response.data.data;
-        } else if (response.data) {
-          partnerData = response.data;
-        }
-        
-        if (partnerData) {
-          setLoading(false);
-          return partnerData;
-        }
-        
-        throw new Error('Failed to create delivery partner');
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to create delivery partner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    updateDeliveryPartner: async (id: string, data: any, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('update');
-        setLoading(true);
-        
-        const response = await apiClient.put<ApiResponse<any>>(`/partners/${id}`, data, headers);
-        
-        let partnerData = null;
-        
-        if (response.data && response.data.data) {
-          partnerData = response.data.data;
-        } else if (response.data) {
-          partnerData = response.data;
-        }
-        
-        if (partnerData) {
-          setLoading(false);
-          return partnerData;
-        }
-        
-        throw new Error('Failed to update delivery partner');
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update delivery partner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    deleteDeliveryPartner: async (id: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('delete');
-        setLoading(true);
-        
-        const response = await apiClient.delete<ApiResponse<any>>(`/partners/${id}/`, undefined, headers);
-        
-        setLoading(false);
-        return response.data;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete delivery partner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    uploadKycDocuments: async (id: string, documents: any[], headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('uploadKyc');
-        setLoading(true);
-        
-        // Use the API endpoint to update KYC documents
-        await apiClient.post<ApiResponse<any>>(
-          `/partners/${id}/kyc/documents`,
-          documents,
-          headers
-        );
-        
-        setLoading(false);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to upload KYC documents';
-        const errorStatus = (error as any)?.response?.status;
-        
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus || 500
-        });
-        
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
+      
+      console.warn('API response did not contain expected data structure:', response.data);
+      setPartners([]);
+      return {
+        items: [],
+        total: 0,
+        skip: filter.skip || 0,
+        limit: filter.limit || 10,
+      };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch delivery partners';
+      const errorStatus = error.response?.status;
+      console.error('Error fetching delivery partners:', errorMessage, 'Status:', errorStatus);
+      setError({
+        message: errorMessage,
+        status: errorStatus,
+      });
+      setPartners([]); // Clear data on error
+      throw error;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
     }
-  })
-);
+  },
+
+  fetchDeliveryPartner: async (id: string, headers?: Record<string, string>): Promise<DeliveryPartner> => {
+    const { setLoading, setError, setPartner, setActiveAction } = get();
+    setActiveAction('fetchDeliveryPartner');
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.get<any>(`/partners/${id}`, undefined, headers);
+      console.log('Received API response for partner:', response.data);
+
+      let partnerData: DeliveryPartner | null = null;
+      // Check if data is nested under a 'data' property
+      if (response.data && response.data.data) {
+        partnerData = response.data.data;
+      } 
+      // Check if the response data itself is the partner object
+      else if (response.data && (response.data.partner_id || response.data._id)) {
+        partnerData = response.data;
+      }
+
+      if (partnerData) {
+        console.log('Setting partner state with:', partnerData);
+        setPartner(partnerData);
+        return partnerData;
+      } else {
+        console.error('Partner data not found in response or in unexpected format:', response.data);
+        throw new Error('Partner data not found in response');
+      }
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to fetch delivery partner', status: error.response?.status };
+      setError(errorData);
+      setPartner(null);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  createDeliveryPartner: async (data: Partial<DeliveryPartner>, headers?: Record<string, string>): Promise<DeliveryPartner> => {
+    const { setLoading, setError, setActiveAction } = get();
+    setActiveAction('createDeliveryPartner');
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post<ApiResponse<DeliveryPartner>>('/partners/', data, headers);
+      const newPartner = response.data.data;
+      set((state) => ({ partners: [...state.partners, newPartner] }));
+      toast.success('Delivery partner created successfully.');
+      return newPartner;
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to create delivery partner', status: error.response?.status };
+      setError(errorData);
+      toast.error(errorData.message);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  updateDeliveryPartner: async (id: string, data: Partial<DeliveryPartner>, headers?: Record<string, string>): Promise<DeliveryPartner> => {
+    const { setLoading, setError, setActiveAction } = get();
+    setActiveAction('updateDeliveryPartner');
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.patch<ApiResponse<DeliveryPartner>>(`/partners/${id}`, data, headers);
+      const updatedPartner = response.data.data;
+      set((state) => ({
+        partners: state.partners.map((p) => (p._id === id ? updatedPartner : p)),
+        partner: state.partner?._id === id ? updatedPartner : state.partner,
+      }));
+      toast.success('Delivery partner updated successfully.');
+      return updatedPartner;
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to update delivery partner', status: error.response?.status };
+      setError(errorData);
+      toast.error(errorData.message);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  updateDeliveryPartnerStatus: async (id, status, reason, headers) => {
+    const { setLoading, setError, setActiveAction, fetchDeliveryPartner } = get();
+    setActiveAction('updateDeliveryPartnerStatus');
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: { status: string; rejection_reason?: string } = { status };
+      if (status === 'rejected' && reason) {
+        payload.rejection_reason = reason;
+      }
+      await apiClient.patch(`/partners/${id}/status`, payload, headers);
+      toast.success('Partner status updated successfully.');
+      // Refresh partner data
+      await fetchDeliveryPartner(id, headers);
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to update partner status', status: error.response?.status };
+      setError(errorData);
+      toast.error(errorData.message);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  deleteDeliveryPartner: async (id: string, headers?: Record<string, string>): Promise<void> => {
+    const { setLoading, setError, setActiveAction } = get();
+    setActiveAction('deleteDeliveryPartner');
+    setLoading(true);
+    setError(null);
+    try {
+      await apiClient.delete(`/partners/${id}`, undefined, headers);
+      set((state) => ({
+        partners: state.partners.filter((p) => p._id !== id),
+        partner: state.partner?._id === id ? null : state.partner,
+      }));
+      toast.success('Delivery partner deleted successfully.');
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to delete delivery partner', status: error.response?.status };
+      setError(errorData);
+      toast.error(errorData.message);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  uploadKycDocuments: async (id: string, documents: KycDocument[], headers?: Record<string, string>): Promise<void> => {
+    const { setLoading, setError, setActiveAction, fetchDeliveryPartner } = get();
+    setActiveAction('uploadKycDocuments');
+    setLoading(true);
+    setError(null);
+    try {
+      await apiClient.post(`/partners/${id}/kyc/documents`, { documents }, headers);
+      toast.success('KYC documents uploaded successfully.');
+      // Refresh partner data to show new documents
+      await fetchDeliveryPartner(id, headers);
+    } catch (error: any) {
+      const errorData = { message: error.message || 'Failed to upload KYC documents', status: error.response?.status };
+      setError(errorData);
+      toast.error(errorData.message);
+      throw errorData;
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+}));

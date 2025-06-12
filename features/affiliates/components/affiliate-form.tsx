@@ -446,7 +446,7 @@ export function AffiliateForm({ initialData, affiliateId, vendorId }: AffiliateF
             // Optionally, you might want to stop and not redirect, or redirect with a warning
           }
         }
-        router.push(`/dashboard/vendors/affiliates/${currentAffiliateId}`);
+        router.push(`/dashboard/affiliates/${currentAffiliateId}`);
       } else {
         // Error should have been handled and toasted by the store's error handling mechanism
         // (e.g., via a useEffect watching store.error)

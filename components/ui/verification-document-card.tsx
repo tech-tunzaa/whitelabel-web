@@ -33,21 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-export interface VerificationDocumentType {
-  id?: string;
-  document_id?: string;
-  document_type: string;
-  document_url: string;
-  file_name?: string;
-  file_size?: number;
-  mime_type?: string;
-  expires_at?: string;
-  verification_status?: "pending" | "approved" | "rejected";
-  rejection_reason?: string;
-  submitted_at?: string;
-  verified_at?: string;
-}
+import type { VerificationDocument } from "@/features/affiliates/types";
 
 type RejectionReason = {
   id: string;
@@ -64,7 +50,7 @@ const REJECTION_REASONS: RejectionReason[] = [
 ];
 
 interface VerificationDocumentCardProps {
-  document: VerificationDocumentType;
+  document: VerificationDocument;
   onApprove?: (documentId: string) => Promise<void>;
   onReject?: (documentId: string, reason: string) => Promise<void>;
   showActions?: boolean;
@@ -161,9 +147,9 @@ export function VerificationDocumentCard({
   };
 
   const documentName = document.file_name || document.document_type?.replace(/_/g, ' ') || document.id || 'Unnamed Document';
-  const isPending = document.verification_status === "pending";
-  const isRejected = document.verification_status === "rejected";
-  const isApproved = document.verification_status === "approved";
+  const isPending = document.status === "pending";
+  const isRejected = document.status === "rejected";
+  const isApproved = document.status === "approved";
 
   return (
     <>
@@ -177,7 +163,7 @@ export function VerificationDocumentCard({
             <div className="flex-grow min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold truncate">{documentName}</h3>
-                {getStatusBadge(document.verification_status || "pending")}
+                {getStatusBadge(document.status || "pending")}
               </div>
               
               <p className="text-sm text-muted-foreground mb-2">

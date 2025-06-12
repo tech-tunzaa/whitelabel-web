@@ -222,6 +222,9 @@ const createApiClient = () => {
     put: <T>(url: string, data?: any, headers?: Record<string, string>) => {
       return apiClient.put<ApiResponse<T>>(url, data, { headers });
     },
+    patch: <T>(url: string, data?: any, headers?: Record<string, string>) => {
+      return apiClient.patch<ApiResponse<T>>(url, data, { headers });
+    },
     delete: <T>(url: string, data?: any, headers?: Record<string, string>) => {
       return apiClient.delete<ApiResponse<T>>(url, { data, headers });
     },

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
-import { AffiliateForm } from "@/features/vendors/affiliates/components";
-import { useAffiliateStore } from "@/features/vendors/affiliates/store";
+import { AffiliateForm } from "@/features/affiliates/components";
+import { useAffiliateStore } from "@/features/affiliates/store";
 import { toast } from "sonner";
 
 interface EditAffiliatePageProps {
@@ -17,16 +17,33 @@ interface EditAffiliatePageProps {
 export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
   const { id } = params;
   const router = useRouter();
-  const { affiliate, loading, storeError, fetchAffiliate } = useAffiliateStore();
+  const { affiliate, loading, storeError, fetchAffiliate } =
+    useAffiliateStore();
   const [fetchAttempted, setFetchAttempted] = useState(false);
 
-  console.log('[EditAffiliatePage] Render. ID:', id, 'Loading:', loading, 'Affiliate ID:', affiliate?.id, 'Fetch Attempted:', fetchAttempted, 'StoreError:', storeError?.message);
+  console.log(
+    "[EditAffiliatePage] Render. ID:",
+    id,
+    "Loading:",
+    loading,
+    "Affiliate ID:",
+    affiliate?.id,
+    "Fetch Attempted:",
+    fetchAttempted,
+    "StoreError:",
+    storeError?.message
+  );
 
   useEffect(() => {
-        console.log('[EditAffiliatePage] useEffect. ID:', id, 'Fetch Attempted:', fetchAttempted);
+    console.log(
+      "[EditAffiliatePage] useEffect. ID:",
+      id,
+      "Fetch Attempted:",
+      fetchAttempted
+    );
     if (id && !fetchAttempted) {
       setFetchAttempted(true);
-      console.log('[EditAffiliatePage] Calling fetchAffiliate for ID:', id);
+      console.log("[EditAffiliatePage] Calling fetchAffiliate for ID:", id);
       fetchAffiliate(id).catch((error) => {
         // Error handling is already in the store, toast can be here or based on storeError in render
         console.error("Fetch affiliate from useEffect failed:", error);
@@ -36,9 +53,7 @@ export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
   }, [id, fetchAffiliate, fetchAttempted, router]); // Added fetchAttempted, removed loading, affiliate, storeError
 
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (fetchAttempted && !loading && !affiliate && storeError) {
@@ -65,9 +80,9 @@ export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
               status: storeError?.status?.toString() || "Error",
               message: storeError?.message || "An error occurred",
             }}
-            buttonText="Retry"
-            buttonAction={() => fetchAffiliate(id)}
-            buttonIcon={RefreshCw}
+            buttonText="Back to Affiliates"
+            buttonAction={() => router.push("/dashboard/affiliates")}
+            buttonIcon={ArrowLeft}
           />
         </div>
       </div>

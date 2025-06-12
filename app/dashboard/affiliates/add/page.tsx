@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { AffiliateForm } from "@/features/vendors/affiliates/components";
+import { AffiliateForm } from "@/features/affiliates/components";
 
 export default function AddAffiliatePage() {
   const router = useRouter();
@@ -11,7 +11,7 @@ export default function AddAffiliatePage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center p-4 border-b">
-        <Button variant="ghost" onClick={() => router.back()}>
+        <Button variant="ghost" onClick={() => router.push("/dashboard/affiliates")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
         </Button>
         <div>
