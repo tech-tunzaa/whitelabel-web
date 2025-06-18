@@ -146,6 +146,7 @@ function SortableBannerItem({
                 readOnly={readOnly || isUploading}
                 height="h-40"
                 width="w-full"
+                imgHeight="h-70"
                 previewAlt={banner.alt_text || "Banner image"}
                 buttonText="Upload Banner"
                 className="mb-2 transition-all duration-200 hover:shadow-md"
@@ -158,28 +159,30 @@ function SortableBannerItem({
 
           {/* Banner fields */}
           <div className="space-y-4">
-            <div>
-              <Label htmlFor={`banner-title-${index}`} className="font-medium">Title</Label>
-              <Input
-                id={`banner-title-${index}`}
-                value={banner.title}
-                onChange={(e) => onUpdate(index, "title", e.target.value)}
-                placeholder="Enter banner title"
-                disabled={readOnly}
-                className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`banner-title-${index}`} className="font-medium">Title</Label>
+                <Input
+                  id={`banner-title-${index}`}
+                  value={banner.title}
+                  onChange={(e) => onUpdate(index, "title", e.target.value)}
+                  placeholder="Enter banner title"
+                  disabled={readOnly}
+                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor={`banner-alt-${index}`} className="font-medium">Alt Text</Label>
-              <Input
-                id={`banner-alt-${index}`}
-                value={banner.alt_text || ""}
-                onChange={(e) => onUpdate(index, "alt_text", e.target.value)}
-                placeholder="Describe this image (for accessibility)"
-                disabled={readOnly}
-                className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-              />
+              <div>
+                <Label htmlFor={`banner-alt-${index}`} className="font-medium">Alt Text</Label>
+                <Input
+                  id={`banner-alt-${index}`}
+                  value={banner.alt_text || ""}
+                  onChange={(e) => onUpdate(index, "alt_text", e.target.value)}
+                  placeholder="Describe this image (for accessibility)"
+                  disabled={readOnly}
+                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
+                />
+              </div>
             </div>
             
             {/* Display Order Field */}
@@ -187,7 +190,7 @@ function SortableBannerItem({
               <Label htmlFor={`banner-order-${index}`} className="font-medium">Display Order</Label>
               <Input
                 id={`banner-order-${index}`}
-                type="number"
+                type="hidden"
                 value={banner.display_order || index + 1}
                 onChange={(e) => {
                   const value = parseInt(e.target.value);
@@ -238,7 +241,7 @@ function SortableBannerItem({
             ))}
             
             {/* Active Status */}
-            <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+            <div className="rounded-lg p-3 flex items-center justify-between border p-3 py-4">
               <Label htmlFor={`banner-active-${index}`} className="flex-grow font-medium">Active</Label>
               <Switch
                 id={`banner-active-${index}`}

@@ -1,6 +1,13 @@
 import { z } from "zod";
 
 // Define schemas
+export const bannerSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  image_url: z.string().url("Invalid URL"),
+  alt_text: z.string().optional(),
+  display_order: z.number(),
+});
+
 export const brandingSchema = z.object({
   logoUrl: z.string().url("Invalid URL").optional().or(z.literal("")).nullable(),
   theme: z.object({
@@ -38,13 +45,15 @@ export const brandingSchema = z.object({
       border: z.string().regex(/^#[0-9A-F]{6}$/i, {
         message: "Please enter a valid hex color code.",
       }),
-    })
+    }),
   }),
 });
 
 export const modulesSchema = z.record(z.boolean()).optional().nullable();
 
 export const tenantFormSchema = z.object({
+  first_name: z.string().min(1, "First name is required"),
+  last_name: z.string().min(1, "Last name is required"),
   name: z.string().min(2, {
     message: "Tenant name is required",
   }),
@@ -79,7 +88,8 @@ export const tenantFormSchema = z.object({
   trial_ends_at: z.string().optional().or(z.literal("")),
   is_active: z.boolean().optional(),
   modules: modulesSchema,
-  branding: brandingSchema,
+  branding: brandingSchema.optional().nullable(),
+  banners: z.array(bannerSchema).optional().nullable(),
 });
 
 export type TenantFormValues = z.infer<typeof tenantFormSchema>;

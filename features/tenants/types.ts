@@ -2,29 +2,38 @@ import { TenantFormValues } from "./schema";
 
 export type { TenantFormValues };
 
-export type TenantBranding = {
-  logoUrl: string;
-  theme: {
-    logo: {
-      primary: string | null;
-      secondary: string | null;
-      icon: string | null;
-    };
-    colors: {
+export type Banner = {
+  title: string;
+  image_url: string;
+  alt_text?: string;
+  display_order: number;
+};
+
+export type TenantTheme = {
+  logo: {
+    primary: string | null;
+    secondary: string | null;
+    icon: string | null;
+  };
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    text: {
       primary: string;
       secondary: string;
-      accent: string;
-      text: {
-        primary: string;
-        secondary: string;
-      };
-      background: {
-        primary: string;
-        secondary: string;
-      };
-      border: string;
     };
+    background: {
+      primary: string;
+      secondary: string;
+    };
+    border: string;
   };
+};
+
+export type TenantBranding = {
+  logoUrl?: string | null;
+  theme: TenantTheme;
 };
 
 export type TenantModules = {
@@ -33,29 +42,17 @@ export type TenantModules = {
   inventory: boolean;
 };
 
-export type BillingHistoryItem = {
-  id: number;
-  date: string;
-  description: string;
-  amount: string;
-  status: 'paid' | 'pending' | 'failed';
-};
-
-export type RevenueData = {
-  summary: {
-    total: number;
-    growth: number;
-    transactions: number;
-  };
-  monthly: {
-    month: string;
-    amount: number;
-  }[];
+export type User = {
+  user_id?: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
 };
 
 export type Tenant = {
   id: string;
-  user_id: string;
+  user: User;
   name: string;
   domain: string;
   country_code: string;
@@ -68,7 +65,8 @@ export type Tenant = {
   trial_ends_at: string | null;
   plan: string | null;
   modules: TenantModules;
-  branding: TenantBranding;
+  branding: TenantBranding | null;
+  banners: Banner[] | null;
   metadata: Record<string, any>;
   createdAt: string;
   updatedAt: string;
