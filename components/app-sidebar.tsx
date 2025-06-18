@@ -27,7 +27,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
 import navigationData from "./sidebar-data";
-import { title } from "process";
+import packageJson from "../package.json";
 
 type ExtendedUser = {
   role: string;
@@ -67,12 +67,12 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
 
   // Filter navigation items based on user role
   const userRole = (session?.user as ExtendedUser)?.role;
-  
+
   // Consistent filtering logic for both main and secondary navigation
   const filterByRole = (item: any) => {
     if (!userRole) return false;
     // Check if roles is a string (for single role) or an array
-    if (typeof item.roles === 'string') {
+    if (typeof item.roles === "string") {
       return item.roles === userRole;
     }
     // Check if the item has a roles array and if it includes the user's role
@@ -170,6 +170,11 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
+        <div className="px-2 py-1">
+          <p className="text-xs text-muted-foreground text-center">
+            v{packageJson.version}
+          </p>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
