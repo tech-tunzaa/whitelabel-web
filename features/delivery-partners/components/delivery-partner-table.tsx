@@ -22,12 +22,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, MoreHorizontal, X } from "lucide-react";
+import { Check, MoreHorizontal, X, Eye } from "lucide-react";
+import { format } from 'date-fns';
 import { DeliveryPartner } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye } from "lucide-react";
-
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[];
@@ -127,7 +126,7 @@ export function DeliveryPartnerTable({
                       {getStatusBadge(partner)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {partner.created_at}
+                      {format(new Date(partner.created_at), 'PP')}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

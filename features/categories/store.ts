@@ -13,6 +13,7 @@ interface CategoryApiResponse extends ApiResponse<any> {
 
 interface CategoryStore {
   categories: Category[];
+  total: number;
   category: Category | null;
   loading: boolean;
   storeError: CategoryError | null;
@@ -32,6 +33,7 @@ interface CategoryStore {
 
 export const useCategoryStore = create<CategoryStore>((set, get) => ({
   categories: [],
+  total: 0,
   category: null,
   loading: true,
   storeError: null,
@@ -107,7 +109,7 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
       if (filter.skip) params.skip = filter.skip.toString();
       if (filter.limit) params.limit = filter.limit.toString();
       if (filter.search) params.search = filter.search;
-      if (filter.status) params.status = filter.status;
+      if (filter.is_active !== undefined) params.is_active = filter.is_active.toString();
 
       // Use direct API call instead of apiClient
       const queryString = Object.keys(params).length ? `?${new URLSearchParams(params).toString()}` : '';
@@ -115,22 +117,17 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
       
       // Process the categories response
       
-      // Check if response has a nested data property
-      if (response.data && response.data.data) {
-        // Use the nested data property
-        const categoryData = response.data.data as CategoryApiResponse;
-        // Update state with the items directly from the API
-        const items = Array.isArray(categoryData.items) ? categoryData.items : 
-                      Array.isArray(categoryData) ? categoryData : [];
-        setCategories(items);
-        setLoading(false);
-        return { ...categoryData, items };
-      } else if (response.data) {
-        // API might be returning data directly without nesting
-        const categoryData = response.data as CategoryApiResponse;
-        const items = Array.isArray(categoryData.items) ? categoryData.items : 
-                      Array.isArray(categoryData) ? categoryData : [];
-        setCategories(items);
+      // Check if response has a nested data property or is the data itself
+      const categoryData = (response.data?.data || response.data) as CategoryApiResponse | null;
+
+      if (categoryData) {
+        const items = Array.isArray(categoryData.items) 
+          ? categoryData.items 
+          : Array.isArray(categoryData) 
+            ? categoryData 
+            : [];
+        
+        set({ categories: items, total: categoryData.total || items.length });
         setLoading(false);
         return { ...categoryData, items };
       }

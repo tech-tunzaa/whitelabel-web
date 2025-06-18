@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Plus, Search } from "lucide-react"
 import { useUserStore } from "@/features/auth/stores/user-store"
 import { User } from "@/features/auth/types/user"
@@ -16,6 +17,7 @@ import { Separator } from "@/components/ui/separator"
 
 export default function UsersPage() {
   const router = useRouter()
+  const { data:session } = useSession()
   const {
     users,
     loading,
@@ -30,12 +32,18 @@ export default function UsersPage() {
   } = useUserStore()
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const tenantId = session?.user?.tenant_id;
+  
+  // Define tenant headers
+  const tenantHeaders = {
+    "X-Tenant-ID": tenantId,
+  };
   
   // Fetch users on component mount
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        await fetchUsers()
+        await fetchUsers(undefined, tenantHeaders)
       } catch (error) {
         console.error('Failed to load users:', error)
       }

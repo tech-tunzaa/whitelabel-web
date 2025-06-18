@@ -1,27 +1,47 @@
-"use client";
+"use client"
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Globe, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
+import { getCurrentLanguage, setCurrentLanguage } from "@/src/i18n";
 
 export function SiteHeader() {
   const { theme, setTheme } = useTheme();
-  const [language, setLanguage] = useState("en");
+  const { t, i18n } = useTranslation();
 
   const languages = {
     en: { name: "English", flag: "🇬🇧" },
     sw: { name: "Swahili", flag: "🇹🇿" },
-    fr: { name: "French", flag: "🇫🇷" },
+    fr: { name: "Français", flag: "🇫🇷" },
+  } as const;
+
+  const handleLanguageChange = (code: keyof typeof languages) => {
+    // Update localStorage and i18n
+    setCurrentLanguage(code);
+    
+    // Force re-render to update translations
+    i18n.changeLanguage(code);
+  };
+
+  // Get current language from i18n (always available on client)
+  const currentLanguage = i18n.language as keyof typeof languages;
+  const currentFlag = languages[currentLanguage]?.flag || languages['en'].flag;
+  const currentName = languages[currentLanguage]?.name || languages['en'].name;
+
+  // Memoize the language switcher content to prevent hydration issues
+  const languageSwitcherContent = {
+    flag: currentFlag,
+    name: currentName,
+    languages: Object.entries(languages).map(([code, { name, flag }]) => ({
+      code: code as keyof typeof languages,
+      name,
+      flag
+    }))
   };
 
   return (
@@ -32,41 +52,37 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">Meneja</h1>
+        <h1 className="text-base font-medium">{t('common:app_name')}</h1>
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="hidden sm:flex">
                 <Globe className="h-4 w-4 mr-2" />
-                <span>{languages[language].flag}</span>
-                <span className="ml-2 hidden md:inline-flex">{languages[language].name}</span>
+                <span>{languageSwitcherContent.flag}</span>
+                <span className="ml-2 hidden md:inline-flex">{languageSwitcherContent.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {Object.entries(languages).map(([code, { name, flag }]) => (
+              {languageSwitcherContent.languages.map(({ code, name, flag }) => (
                 <DropdownMenuItem
                   key={code}
-                  onClick={() => setLanguage(code)}
-                  className={language === code ? "bg-accent" : ""}
+                  onClick={() => handleLanguageChange(code)}
                 >
-                  <span className="mr-2">{flag}</span>
-                  {name}
+                  <div className="flex items-center gap-2">
+                    <span>{flag}</span>
+                    <span>{name}</span>
+                  </div>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          
           <Button
             variant="ghost"
             size="sm"
-            className="hidden sm:flex"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
           >
-            {theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
         </div>

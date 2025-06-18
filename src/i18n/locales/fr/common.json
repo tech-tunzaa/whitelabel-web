@@ -1,0 +1,45 @@
+{
+  "app_name": "Meneja",
+  "search": "Rechercher...",
+  "actions": {
+    "add": "Ajouter",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "view": "Voir",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "saving": "Enregistrement...",
+    "edit_entity": "Modifier {{entity}}",
+    "delete_entity": "Supprimer {{entity}}"
+  },
+  "status": {
+    "active": "Actif",
+    "inactive": "Inactif",
+    "draft": "Brouillon",
+    "pending": "En attente",
+    "approved": "Approuvé",
+    "rejected": "Rejeté"
+  },
+  "messages": {
+    "success": "Succès",
+    "error": "Erreur",
+    "warning": "Avertissement",
+    "info": "Information",
+    "confirm_action": "Êtes-vous sûr(e) ?",
+    "cancel_action": "Annuler l'action",
+    "confirm_delete": "Confirmer la suppression",
+    "tenant_id_missing": "L'ID du locataire est manquant. Veuillez vous assurer que vous êtes connecté et que vous disposez des autorisations requises.",
+    "tenant_id_missing_for_delete": "L'ID du locataire est manquant. Échec de la suppression."
+  },
+  "form": {
+    "slug": "Slug",
+    "description_optional": "Description (Facultatif)",
+    "none": "Aucun"
+  },
+  "entity": {
+    "category": "Catégorie"
+  }
+}

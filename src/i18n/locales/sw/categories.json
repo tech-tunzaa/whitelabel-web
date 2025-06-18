@@ -1,0 +1,83 @@
+{
+  "title": "Vikundi",
+  "description": "Dhibiti na upange vikundi vya bidhaa zako.",
+  "add_category": "Ongeza Kikundi",
+  "tabs": {
+    "all": "Zote",
+    "active": "Vinavyotumika",
+    "inactive": "Visivyotumika"
+  },
+  "table": {
+    "search_placeholder": "Tafuta vikundi kwa jina...",
+    "empty_state": "Hakuna vikundi vilivyopatikana.",
+    "columns": {
+      "name": "Jina",
+      "description": "Maelezo",
+      "status": "Hali",
+      "parent": "Kikundi Kikuu",
+      "image": "Picha",
+      "actions": "Vitendo"
+    }
+  },
+  "form": {
+    "add_title": "Ongeza Kikundi Kipya",
+    "add_description": "Jaza maelezo hapa chini kuunda kikundi kipya.",
+    "edit_title": "Hariri Kikundi",
+    "edit_description": "Sasisha maelezo ya kikundi hiki.",
+    "name_label": "Jina la Kikundi",
+    "name_placeholder": "k.m., Elektroniki",
+    "name_placeholder_detailed": "Ingiza jina la kikundi",
+    "slug_placeholder_detailed": "k.m., elektroniki-slug",
+    "description_placeholder": "Maelezo mafupi ya kikundi.",
+    "parent_category": "Kikundi Kikuu",
+    "select_parent_category": "Chagua kikundi kikuu",
+    "parent_category_description": "Panga kikundi hiki chini ya kingine ili kuunda mpangilio.",
+    "image_label": "Picha ya Kikundi",
+    "image_description": "Pakia picha ya kikundi (si lazima).",
+    "active_label": "Hali ya Matumizi",
+    "active_description": "Vikundi visivyotumika havitaonekana dukani.",
+    "create_button": "Unda Kikundi",
+    "update_button": "Sasisha Kikundi"
+  },
+  "notifications": {
+    "created_successfully": "Kikundi kimeundwa kikamilifu.",
+    "updated_successfully": "Kikundi kimesasishwa kikamilifu.",
+    "deleted_successfully": "Kikundi '{{name}}' kimefutwa kikamilifu.",
+    "failed_to_create": "Imeshindwa kuunda kikundi.",
+    "failed_to_update": "Imeshindwa kusasisha kikundi.",
+    "failed_to_delete": "Imeshindwa kufuta kikundi '{{name}}'.",
+    "status_updated": "Hali ya kikundi imesasishwa."
+  },
+  "delete_dialog": {
+    "title": "Una uhakika unataka kufuta kikundi hiki?",
+    "description": "Huwezi kutengua kitendo hiki. Hii itafuta kabisa kikundi '{{name}}'.",
+    "confirm_button": "Futa",
+    "cancel_button": "Ghairi"
+  },
+  "zod": {
+    "name_required": "Jina la kikundi linahitajika.",
+    "url_invalid": "Lazima iwe URL halali."
+  },
+  "page": {
+    "errorLoading": "Imeshindwa kupakia vikundi",
+    "retry": "Jaribu Tena"
+  },
+  "details_card": {
+    "title": "Maelezo ya Kikundi",
+    "created_at": "Kimeundwa Tarehe"
+  },
+  "products_card": {
+    "title": "Bidhaa",
+    "no_products": "Hakuna bidhaa zilizopatikana katika kikundi hiki.",
+    "add_product": "Ongeza Bidhaa"
+  },
+  "status_card": {
+    "title": "Hali na Taarifa",
+    "current_status": "Hali ya Sasa",
+    "last_updated": "Imebadilishwa Mwisho",
+    "products_count": "Bidhaa katika Kikundi"
+  },
+  "actions_card": {
+    "title": "Vitendo"
+  }
+}

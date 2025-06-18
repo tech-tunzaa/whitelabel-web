@@ -1,0 +1,44 @@
+{
+  "app_name": "Meneja",
+  "search": "Search...",
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "saving": "Saving...",
+    "edit_entity": "Edit {{entity}}",
+    "delete_entity": "Delete {{entity}}"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "messages": {
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "confirm_action": "Are you sure?",
+    "cancel_action": "Cancel",
+    "confirm_delete": "Confirm Delete",
+    "tenant_id_missing_for_delete": "Tenant ID is missing. Cannot perform delete."
+  },
+  "form": {
+    "slug": "Slug",
+    "description_optional": "Description (Optional)",
+    "none": "None"
+  },
+  "entity": {
+    "category": "Category"
+  }
+}

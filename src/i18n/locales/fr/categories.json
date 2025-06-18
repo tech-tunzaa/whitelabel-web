@@ -1,0 +1,83 @@
+{
+  "title": "Catégories",
+  "description": "Gérez et organisez les catégories de vos produits.",
+  "add_category": "Ajouter une Catégorie",
+  "tabs": {
+    "all": "Toutes",
+    "active": "Actives",
+    "inactive": "Inactives"
+  },
+  "table": {
+    "search_placeholder": "Rechercher des catégories par nom...",
+    "empty_state": "Aucune catégorie trouvée.",
+    "columns": {
+      "name": "Nom",
+      "description": "Description",
+      "status": "Statut",
+      "parent": "Catégorie Parente",
+      "image": "Image",
+      "actions": "Actions"
+    }
+  },
+  "form": {
+    "add_title": "Ajouter une Nouvelle Catégorie",
+    "add_description": "Remplissez les détails ci-dessous pour créer une nouvelle catégorie.",
+    "edit_title": "Modifier la Catégorie",
+    "edit_description": "Mettez à jour les informations de cette catégorie.",
+    "name_label": "Nom de la Catégorie",
+    "name_placeholder": "ex: Électronique",
+    "name_placeholder_detailed": "Entrez le nom de la catégorie",
+    "slug_placeholder_detailed": "ex: electronique-slug",
+    "description_placeholder": "Une brève description de la catégorie.",
+    "parent_category": "Catégorie Parente",
+    "select_parent_category": "Sélectionner une catégorie parente",
+    "parent_category_description": "Assignez cette catégorie à une autre pour créer une hiérarchie.",
+    "image_label": "Image de la Catégorie",
+    "image_description": "Téléchargez une image pour la catégorie (facultatif).",
+    "active_label": "Statut Actif",
+    "active_description": "Les catégories inactives ne seront pas visibles dans la boutique.",
+    "create_button": "Créer la Catégorie",
+    "update_button": "Mettre à Jour la Catégorie"
+  },
+  "notifications": {
+    "created_successfully": "Catégorie créée avec succès.",
+    "updated_successfully": "Catégorie mise à jour avec succès.",
+    "deleted_successfully": "La catégorie '{{name}}' a été supprimée avec succès.",
+    "failed_to_create": "Échec de la création de la catégorie.",
+    "failed_to_update": "Échec de la mise à jour de la catégorie.",
+    "failed_to_delete": "Échec de la suppression de la catégorie '{{name}}'.",
+    "status_updated": "Le statut de la catégorie a été mis à jour."
+  },
+  "delete_dialog": {
+    "title": "Êtes-vous sûr de vouloir supprimer cette catégorie ?",
+    "description": "Cette action est irréversible. Cela supprimera définitivement la catégorie '{{name}}'.",
+    "confirm_button": "Supprimer",
+    "cancel_button": "Annuler"
+  },
+  "zod": {
+    "name_required": "Le nom de la catégorie est requis.",
+    "url_invalid": "Doit être une URL valide."
+  },
+  "page": {
+    "errorLoading": "Échec du chargement des catégories",
+    "retry": "Réessayer"
+  },
+  "details_card": {
+    "title": "Détails de la Catégorie",
+    "created_at": "Créé le"
+  },
+  "products_card": {
+    "title": "Produits",
+    "no_products": "Aucun produit trouvé dans cette catégorie.",
+    "add_product": "Ajouter un Produit"
+  },
+  "status_card": {
+    "title": "Statut & Infos",
+    "current_status": "Statut Actuel",
+    "last_updated": "Dernière Mise à Jour",
+    "products_count": "Produits dans la Catégorie"
+  },
+  "actions_card": {
+    "title": "Actions"
+  }
+}

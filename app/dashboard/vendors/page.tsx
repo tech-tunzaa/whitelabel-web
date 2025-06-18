@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw } from "lucide-react";
 
@@ -20,7 +20,8 @@ export default function VendorsPage() {
   const router = useRouter();
   const session = useSession();
   const tenantId = session?.data?.user?.tenant_id;
-  const { vendors, loading, storeError, fetchVendors, updateVendorStatus } = useVendorStore();
+  const { vendors, loading, storeError, fetchVendors, updateVendorStatus } =
+    useVendorStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
@@ -28,15 +29,19 @@ export default function VendorsPage() {
   const pageSize = 10;
 
   // Define tenant headers
-  const tenantHeaders = {
-    'X-Tenant-ID': tenantId
-  };
+  const tenantHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+    return headers;
+  }, [tenantId]);
 
   // Define filter based on active tab
   const getFilters = (): VendorFilter => {
     const baseFilter: VendorFilter = {
       skip: (currentPage - 1) * pageSize,
-      limit: pageSize
+      limit: pageSize,
     };
 
     // Add search filter if available
@@ -47,26 +52,26 @@ export default function VendorsPage() {
     // Add filter based on the active tab
     switch (activeTab) {
       case "active":
-        return { 
-          ...baseFilter, 
-          verification_status: "approved", 
-          is_active: true 
+        return {
+          ...baseFilter,
+          verification_status: "approved",
+          is_active: true,
         };
       case "inactive":
-        return { 
-          ...baseFilter, 
-          verification_status: "approved", 
-          is_active: false 
+        return {
+          ...baseFilter,
+          verification_status: "approved",
+          is_active: false,
         };
       case "pending":
-        return { 
-          ...baseFilter, 
-          verification_status: "pending" 
+        return {
+          ...baseFilter,
+          verification_status: "pending",
         };
       case "rejected":
-        return { 
-          ...baseFilter, 
-          verification_status: "rejected" 
+        return {
+          ...baseFilter,
+          verification_status: "rejected",
         };
       default:
         return baseFilter;
@@ -94,11 +99,20 @@ export default function VendorsPage() {
     router.push(`/dashboard/vendors/${vendor.vendor_id}`);
   };
 
-  const handleStatusChange = async (vendorId: string, status: string, rejectionReason?: string) => {
+  const handleStatusChange = async (
+    vendorId: string,
+    status: string,
+    rejectionReason?: string
+  ) => {
     try {
       // Pass tenant headers and rejection reason to the updateVendorStatus function
-      await updateVendorStatus(vendorId, status, tenantHeaders, rejectionReason);
-      
+      await updateVendorStatus(
+        vendorId,
+        status,
+        tenantHeaders,
+        rejectionReason
+      );
+
       // Refresh the vendor list after status change
       const filters = getFilters();
       fetchVendors(filters, tenantHeaders);
@@ -108,18 +122,19 @@ export default function VendorsPage() {
   };
 
   // Filter vendors based on search query
-  const filteredVendors = vendors?.items?.filter((vendor) => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    
-    return (
-      vendor.business_name?.toLowerCase().includes(query) ||
-      vendor.display_name?.toLowerCase().includes(query) ||
-      vendor.contact_email?.toLowerCase().includes(query) ||
-      vendor.contact_phone?.toLowerCase().includes(query)
-    );
-  }) || [];
+  const filteredVendors =
+    vendors?.items?.filter((vendor) => {
+      if (!searchQuery.trim()) return true;
+
+      const query = searchQuery.toLowerCase();
+
+      return (
+        vendor.business_name?.toLowerCase().includes(query) ||
+        vendor.display_name?.toLowerCase().includes(query) ||
+        vendor.contact_email?.toLowerCase().includes(query) ||
+        vendor.contact_phone?.toLowerCase().includes(query)
+      );
+    }) || [];
 
   // Handle tab change
   const handleTabChange = (value: string) => {
@@ -171,7 +186,7 @@ export default function VendorsPage() {
             title="Failed to load vendors"
             error={{
               status: storeError.status?.toString() || "Error",
-              message: storeError.message || "An error occurred"
+              message: storeError.message || "An error occurred",
             }}
             buttonText="Retry"
             buttonAction={() => fetchVendors(getFilters(), tenantHeaders)}
@@ -222,7 +237,7 @@ export default function VendorsPage() {
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
-          
+
           {isTabLoading ? (
             <div className="flex items-center justify-center h-64">
               <Spinner />

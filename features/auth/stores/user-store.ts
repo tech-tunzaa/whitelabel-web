@@ -135,7 +135,7 @@ export const useUserStore = create<UserStore>()(
       // Build query parameters from filter
       const queryParams: Record<string, any> = { ...filter };
       
-      const response = await apiClient.get<any>('/auth/users', queryParams, headers);
+      const response = await apiClient.get<any>('/users/all', queryParams, headers);
       
       let userData;
       let totalCount = 0;

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useSession } from "next-auth/react"
+import { useSession } from "next-auth/react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -28,6 +29,7 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormProps) {
+  const { t } = useTranslation();
   const { data: session } = useSession()
   const { categories, fetchCategories } = useCategoryStore()
   const [isLoading, setIsLoading] = useState(false)
@@ -130,12 +132,12 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category Name <RequiredField /></FormLabel>
+              <FormLabel>{t('categories.form.category_name')} <RequiredField /></FormLabel>
               <FormControl>
-                <Input placeholder="Electronics, Clothing, etc." {...field} />
+                <Input placeholder={t('categories.form.name_placeholder_detailed')} {...field} />
               </FormControl>
               <FormDescription>
-                This is the name that will be displayed for this category.
+                {t('categories.form.name_description')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -147,16 +149,16 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Slug <RequiredField /></FormLabel>
+              <FormLabel>{t('common.slug')} <RequiredField /></FormLabel>
               <FormControl>
                 <Input
-                  placeholder="category-slug"
+                  placeholder={t('categories.form.slug_placeholder_detailed')}
                   {...field}
                   value={field.value || ''}
                 />
               </FormControl>
               <FormDescription>
-                URL-friendly version of the name. Auto-generated but can be customized.
+                {t('categories.form.slug_description')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -168,17 +170,17 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
+              <FormLabel>{t('common.description_optional')}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Describe this category..."
+                  placeholder={t('categories.form.description_placeholder_detailed')}
                   className="resize-none"
                   {...field}
                   value={field.value || ''}
                 />
               </FormControl>
               <FormDescription>
-                Provide a brief description of this category.
+                {t('categories.form.description_description')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -190,15 +192,15 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="parent_id"
           render={({ field }) => (
             <FormItem className="flex flex-col w-1/2">
-              <FormLabel>Parent Category (Optional)</FormLabel>
+              <FormLabel>{t('categories.form.parent_category_optional')}</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select parent category" />
+                    <SelectValue placeholder={t('categories.form.select_parent_category')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t('common.none')}</SelectItem>
                   {isLoading ? (
                     <div className="p-2 flex justify-center">
                       <Spinner size="sm" />
@@ -224,7 +226,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                 </SelectContent>
               </Select>
               <FormDescription>
-                Select a parent category if this is a subcategory.
+                {t('categories.form.parent_category_description')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -236,7 +238,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           name="image_url"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category Image</FormLabel>
+              <FormLabel>{t('categories.form.category_image')}</FormLabel>
               <FormControl>
                 <ImageUpload
                   id="category-image"
@@ -245,12 +247,12 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
                   onFileChange={(file) => setImageFile(file)}
                   height="h-36"
                   width="w-full"
-                  buttonText="Upload Category Image"
-                  previewAlt={`${form.getValues().name || 'Category'} image`}
+                  buttonText={t('categories.form.upload_category_image')}
+                  previewAlt={t('categories.form.category_image_alt', { name: form.getValues().name || 'Category' })}
                 />
               </FormControl>
               <FormDescription>
-                Upload an image representing this category.
+                {t('categories.form.category_image_description')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -265,10 +267,10 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
               <div className="flex flex-row items-center justify-between rounded-lg border p-4 w-full">
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">
-                    Active
+                    {t('common.active')}
                   </FormLabel>
                   <FormDescription>
-                    Active categories are displayed on your marketplace.
+                    {t('categories.form.active_description')}
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -287,9 +289,9 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onCancel?.()}>
-            Cancel
+            {t('common.cancel')}
           </Button>
-          <Button type="submit">{initialData ? "Update Category" : "Create Category"}</Button>
+          <Button type="submit">{initialData ? t('categories.form.update_category') : t('categories.form.create_category')}</Button>
         </div>
       </form>
     </Form>

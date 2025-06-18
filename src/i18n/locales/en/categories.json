@@ -1,0 +1,109 @@
+{
+  "title": "Categories",
+  "description": "Manage your product categories",
+  "add_category": "Add Category",
+  "edit_category": "Edit Category",
+  "parent_category": "Parent Category",
+  "search_placeholder": "Search categories...",
+  "tabs": {
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "table": {
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "empty_state": "No categories found.",
+    "create_one": "You can create a new category to get started."
+  },
+  "form": {
+    "add_title": "Add Category",
+    "add_description": "Create a new category to organize your products.",
+    "edit_title": "Edit Category",
+    "edit_description": "Update the details of this category.",
+    "name_label": "Category Name",
+    "name_placeholder": "e.g. Electronics",
+    "name_placeholder_detailed": "Electronics, Clothing, etc.",
+    "name_description": "This is the name that will be displayed for this category.",
+    "slug_placeholder_detailed": "category-slug",
+    "slug_description": "URL-friendly version of the name. Auto-generated but can be customized.",
+    "description_placeholder": "e.g. All kinds of electronic gadgets",
+    "description_placeholder_detailed": "Describe this category...",
+    "description_description": "Provide a brief description of this category.",
+    "parent_category_optional": "Parent Category (Optional)",
+    "select_parent_category": "Select parent category",
+    "parent_category_description": "Select a parent category if this is a subcategory.",
+    "image_label": "Category Image",
+    "upload_button": "Upload Category Image",
+    "image_alt": "{{name}} image",
+    "image_description": "Upload an image representing this category.",
+    "active_description": "Active categories are displayed on your marketplace.",
+    "update_button": "Update Category",
+    "create_button": "Create Category"
+  },
+  "notifications": {
+    "created_successfully": "Category created successfully.",
+    "failed_to_create": "Failed to create category.",
+    "updated_successfully": "Category updated successfully.",
+    "failed_to_update": "Failed to update category.",
+    "deleted_successfully": "Category \"{{name}}\" deleted successfully!",
+    "failed_to_delete": "Failed to delete category."
+  },
+  "delete_dialog": {
+    "title": "Are you sure?",
+    "description": "This action cannot be undone. This will permanently delete the category \"<strong>{{name}}</strong>\"."
+  },
+  "zod": {
+    "name_required": "Name is required",
+    "name_too_short": "Name must be at least 3 characters",
+    "description_too_long": "Description cannot be more than 255 characters"
+  },
+  "page": {
+    "title": "Categories",
+    "description": "Manage your product categories",
+    "add": "Add Category",
+    "edit": "Edit Category",
+    "delete": "Delete Category",
+    "viewDetails": "View Details",
+    "success": {
+      "create": "Category added successfully",
+      "update": "Category updated successfully",
+      "delete": "Category deleted successfully",
+      "activate": "Category activated successfully",
+      "deactivate": "Category deactivated successfully"
+    },
+    "error": {
+      "create": "Failed to add category",
+      "update": "Failed to update category",
+      "delete": "Failed to delete category",
+      "activate": "Failed to activate category",
+      "deactivate": "Failed to deactivate category",
+      "loading": "Failed to load categories. Please try again."
+    },
+    "loading": "Loading categories...",
+    "errorLoading": "Error Loading Categories",
+    "retry": "Retry"
+  },
+  "details_card": {
+    "title": "Category Details",
+    "created_at": "Created On"
+  },
+  "products_card": {
+    "title": "Products",
+    "no_products": "No products found in this category.",
+    "add_product": "Add Product"
+  },
+  "status_card": {
+    "title": "Status & Info",
+    "current_status": "Current Status",
+    "last_updated": "Last Updated",
+    "products_count": "Products in Category"
+  },
+  "actions_card": {
+    "title": "Actions"
+  }
+}

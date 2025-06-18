@@ -11,9 +11,11 @@ interface ImageUploadProps {
   value?: string
   onChange: (url: string) => void
   onFileChange?: (file: File) => void
+  onUploadingChange?: (isUploading: boolean) => void
   previewAlt?: string
   height?: string
   width?: string
+  imgHeight?: string
   buttonText?: string
   className?: string
   readOnly?: boolean
@@ -27,12 +29,20 @@ export function ImageUpload({
   previewAlt = "Image preview",
   height = "h-24",
   width = "w-full",
+  imgHeight = "h-full",
   buttonText = "Upload",
   className = "",
   readOnly = false,
+  onUploadingChange,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(value || null)
   const [isUploading, setIsUploading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (onUploadingChange) {
+      onUploadingChange(isUploading)
+    }
+  }, [isUploading, onUploadingChange])
   const [error, setError] = React.useState<string | null>(null)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,11 +98,11 @@ export function ImageUpload({
   return (
     <div className={`relative ${className}`}>
       {previewUrl ? (
-        <div className="relative aspect-video rounded-md overflow-hidden">
+        <div className={`relative aspect-video rounded-md overflow-hidden ${imgHeight}`}>
           <img
             src={previewUrl}
             alt={previewAlt}
-            className={`object-contain w-full h-full ${error ? 'opacity-60' : ''}`}
+            className={`object-contain w-full ${error ? 'opacity-60' : ''}`}
           />
           {isUploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/30">

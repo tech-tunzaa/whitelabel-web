@@ -1,4 +1,5 @@
-import { Check, Edit, Eye, MoreHorizontal, Power, PowerOff, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Edit, Eye, MoreHorizontal, Power, PowerOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -25,21 +26,29 @@ export function CategoryTable({
   onToggleStatus,
   onViewDetails,
 }: CategoryTableProps) {
+  const { t } = useTranslation(['categories', 'common']);
   return (
     <div className="rounded-md border">
       <table className="w-full">
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="p-4 text-left">Name</th>
-            <th className="p-4 text-left">Description</th>
-            <th className="p-4 text-left">Status</th>
-            <th className="p-4 text-left">Parent</th>
-            <th className="p-4 text-left">Image</th>
-            <th className="p-4 text-right">Actions</th>
+            <th className="p-4 text-left">{t('table.columns.name')}</th>
+            <th className="p-4 text-left">{t('table.columns.description')}</th>
+            <th className="p-4 text-left">{t('table.columns.status')}</th>
+            <th className="p-4 text-left">{t('table.columns.parent')}</th>
+            <th className="p-4 text-left">{t('table.columns.image')}</th>
+            <th className="p-4 text-right">{t('table.columns.actions')}</th>
           </tr>
         </thead>
         <tbody>
-          {categories.map((category) => (
+          {categories.length === 0 ? (
+            <tr className="border-b">
+              <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                {t('table.empty_state')}
+              </td>
+            </tr>
+          ) : (
+            categories.map((category) => (
             <tr key={category.category_id} className="border-b hover:bg-muted/20">
               <td className="p-4 font-medium">{category.name}</td>
               <td className="p-4 max-w-xs truncate">{category.description || "-"}</td>
@@ -48,7 +57,7 @@ export function CategoryTable({
                   variant={category.is_active ? "default" : "destructive"}
                   className={category.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                 >
-                  {category.is_active ? "Active" : "Inactive"}
+                  {category.is_active ? t('status.active') : t('status.inactive')}
                 </Badge>
               </td>
               <td className="p-4">
@@ -85,25 +94,24 @@ export function CategoryTable({
                     {onViewDetails && (
                       <DropdownMenuItem onClick={() => onViewDetails(category)}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View Details
+                        <span>{t('actions.view')}</span>
                       </DropdownMenuItem>
                     )}
-                    {/* View Image action removed as requested */}
                     <DropdownMenuItem onClick={() => onEdit(category)}>
                       <Edit className="mr-2 h-4 w-4" />
-                      Edit
+                      <span>{t('actions.edit')}</span>
                     </DropdownMenuItem>
                     {onToggleStatus && (
                       <DropdownMenuItem onClick={() => onToggleStatus(category, !category.is_active)}>
                         {category.is_active ? (
                           <>
                             <PowerOff className="mr-2 h-4 w-4" />
-                            Deactivate
+                            <span>{t('actions.deactivate')}</span>
                           </>
                         ) : (
                           <>
                             <Power className="mr-2 h-4 w-4" />
-                            Activate
+                            <span>{t('actions.activate')}</span>
                           </>
                         )}
                       </DropdownMenuItem>
@@ -111,13 +119,14 @@ export function CategoryTable({
                     <Separator />
                     <DropdownMenuItem onClick={() => onDelete(category)}>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
+                      <span>{t('actions.delete')}</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </td>
             </tr>
-          ))}
+          ))
+        )}
         </tbody>
       </table>
     </div>

@@ -1,0 +1,45 @@
+{
+  "app_name": "Meneja",
+  "search": "Tafuta...",
+  "actions": {
+    "add": "Ongeza",
+    "edit": "Hariri",
+    "delete": "Futa",
+    "view": "Tazama",
+    "save": "Hifadhi",
+    "cancel": "Ghairi",
+    "confirm": "Thibitisha",
+    "activate": "Wezesha",
+    "deactivate": "Zima",
+    "saving": "Inahifadhi...",
+    "edit_entity": "Hariri {{entity}}",
+    "delete_entity": "Futa {{entity}}"
+  },
+  "status": {
+    "active": "Inayotumika",
+    "inactive": "Isiyotumika",
+    "draft": "Rasimu",
+    "pending": "Inasubiri",
+    "approved": "Imeidhinishwa",
+    "rejected": "Imekataliwa"
+  },
+  "messages": {
+    "success": "Imefanikiwa",
+    "error": "Kosa",
+    "warning": "Tahadhari",
+    "info": "Taarifa",
+    "confirm_action": "Una uhakika?",
+    "cancel_action": "Ghairi kitendo",
+    "confirm_delete": "Thibitisha kufuta",
+    "tenant_id_missing": "Kitambulisho cha mpangaji hakipo. Tafadhali hakikisha umeingia na una ruhusa zinazohitajika.",
+    "tenant_id_missing_for_delete": "Kitambulisho cha mpangaji hakipo. Imeshindwa kufuta."
+  },
+  "form": {
+    "slug": "Slug",
+    "description_optional": "Maelezo (Si lazima)",
+    "none": "Hakuna"
+  },
+  "entity": {
+    "category": "Kikundi"
+  }
+}

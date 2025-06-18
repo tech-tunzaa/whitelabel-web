@@ -4,7 +4,7 @@ import ThemeProvider from './ThemeToggle/theme-provider';
 import { SessionProvider, SessionProviderProps } from 'next-auth/react';
 import { NotificationProvider } from '@/lib/notification-context';
 
-export default function Providers({
+export function Providers({
   session,
   children
 }: {
