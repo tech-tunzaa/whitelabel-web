@@ -38,14 +38,14 @@ export interface CustomUser {
   email: string;
   token: string;
   name: string;
-  role: "super_owner" | "admin" | "sub_admin" | "support";
+  role: "super" | "admin" | "sub_admin" | "support";
   tenant_id: string;
   accessToken: string;
 }
 
 // Role mapping from API roles to application roles
-const ROLE_MAP: Record<string, "super_owner" | "admin" | "sub_admin" | "support"> = {
-  'super': 'super_owner',
+const ROLE_MAP: Record<string, "super" | "admin" | "sub_admin" | "support"> = {
+  'super': 'super',
   'admin': 'admin',
   'staff': 'sub_admin',
   'support': 'support',
@@ -56,7 +56,7 @@ const ROLE_MAP: Record<string, "super_owner" | "admin" | "sub_admin" | "support"
 /**
  * Maps an API role to the application's internal role system
  */
-export function mapApiRole(apiRole: string): "super_owner" | "admin" | "sub_admin" | "support" {
+export function mapApiRole(apiRole: string): "super" | "admin" | "sub_admin" | "support" {
   return ROLE_MAP[apiRole] || 'admin';
 }
 

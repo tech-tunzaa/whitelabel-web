@@ -31,19 +31,19 @@ export const navigationData = {
       title: "Tenants",
       url: "/dashboard/tenants",
       icon: IconChartBar,
-      roles: ["super_owner"],
+      roles: ["super"],
     },
     {
       title: "Categories",
       url: "/dashboard/categories",
       icon: IconCategory,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Loans",
       url: "#",
       icon: IconCreditCard,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
       items: [
         {
           title: "Providers",
@@ -66,31 +66,31 @@ export const navigationData = {
       title: "Vendors",
       url: "/dashboard/vendors",
       icon: IconUsers,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Affiliates (Mawinga)",
       url: "/dashboard/affiliates",
       icon: IconUserCode,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Delivery Partners",
       url: "/dashboard/delivery-partners",
       icon: IconTruck,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Products & Services",
       url: "/dashboard/products",
       icon: IconPackage,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
+      roles: ["super", "admin", "sub_admin", "support"],
     },
     {
       title: "Orders",
       url: "/dashboard/orders",
       icon: IconListDetails,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
+      roles: ["super", "admin", "sub_admin", "support"],
       items: [
         {
           title: "Deliveries",
@@ -113,13 +113,13 @@ export const navigationData = {
       title: "Rewards & Referrals",
       url: "/dashboard/rewards",
       icon: IconGift,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Support Tickets",
       url: "/dashboard/support",
       icon: IconHelp,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
+      roles: ["super", "admin", "sub_admin", "support"],
     },
   ],
   
@@ -134,19 +134,19 @@ export const navigationData = {
       title: "Settings & Configurations",
       url: "/dashboard/settings",
       icon: IconSettings,
-      roles: ["super_owner"],
+      roles: ["super"],
     },
     {
       title: "Users",
       url: "/dashboard/auth/users",
       icon: IconUsers,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "User Roles",
       url: "/dashboard/auth/roles",
       icon: IconUserShield,
-      roles: ["super_owner", "admin", "sub_admin"],
+      roles: ["super", "admin", "sub_admin"],
     },
     {
       title: "Get Help",
@@ -158,7 +158,7 @@ export const navigationData = {
       title: "Search",
       url: "#",
       icon: IconSearch,
-      roles: ["super_owner", "admin", "sub_admin", "support"],
+      roles: ["super", "admin", "sub_admin", "support"],
     },
   ],
 

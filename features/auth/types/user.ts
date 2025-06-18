@@ -56,4 +56,4 @@ export interface User {
   roles?: { role: string; description: string }[];
 }
 
-export type UserRole = 'super_owner' | 'admin' | 'sub_admin' | 'support' | 'vendor' | 'buyer';
+export type UserRole = 'super' | 'admin' | 'sub_admin' | 'support' | 'vendor' | 'buyer';

@@ -23,7 +23,7 @@ export default function MarketplacePage({ params }: MarketplacePageProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super_owner";
+  const isSuperOwner = userRole === "super";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

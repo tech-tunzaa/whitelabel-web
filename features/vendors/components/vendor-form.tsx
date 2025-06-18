@@ -13,7 +13,7 @@ import { Plus, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -39,16 +39,36 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import dynamic from "next/dynamic";
-import { DocumentUpload, DocumentWithMeta, DocumentType } from "@/components/ui/document-upload";
+import {
+  DocumentUpload,
+  DocumentWithMeta,
+  DocumentType,
+} from "@/components/ui/document-upload";
 import { FileUpload } from "@/components/ui/file-upload";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 
 // Dynamically import MapPicker with SSR disabled to prevent window not defined errors
-const MapPicker = dynamic(() => import("@/components/ui/map-picker").then(mod => mod.MapPicker), { ssr: false });
+const MapPicker = dynamic(
+  () => import("@/components/ui/map-picker").then((mod) => mod.MapPicker),
+  { ssr: false }
+);
 
-import { DOCUMENT_TYPES, DocumentTypeOption } from "@/features/settings/data/document-types";
-import { VendorFormValues, VerificationDocument as VendorVerificationDocument, StoreBanner } from "../types";
+import {
+  DOCUMENT_TYPES,
+  DocumentTypeOption,
+} from "@/features/settings/data/document-types";
+import {
+  VendorFormValues,
+  VerificationDocument as VendorVerificationDocument,
+  StoreBanner,
+} from "../types";
 import { Category } from "@/features/categories/types";
 import { Tenant } from "@/features/tenants/types";
 import { useCategoryStore } from "@/features/categories/store";
@@ -76,7 +96,9 @@ type VerificationDocument = {
 };
 
 interface VendorFormProps {
-  onSubmit: (data: VendorFormValues) => Promise<{vendor_id: string} | null | void>;
+  onSubmit: (
+    data: VendorFormValues
+  ) => Promise<{ vendor_id: string } | null | void>;
   onCancel?: () => void;
   initialData?: Partial<VendorFormValues> & { id?: string };
   id?: string;
@@ -91,56 +113,63 @@ export function VendorForm({
   isSubmitting: externalIsSubmitting,
 }: VendorFormProps) {
   // Debug initialData and store data
-  console.log('VendorForm initialData:', initialData);
-  console.log('VendorForm store data:', initialData?.store);
-  
+  console.log("VendorForm initialData:", initialData);
+  console.log("VendorForm store data:", initialData?.store);
+
   const { data: session } = useSession();
   const vendorStore = useVendorStore();
   const tenantId = (session?.user as any)?.tenant_id || "";
   const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super_owner";
-  
+  const isSuperOwner = userRole === "super";
+
   // Tab validation mapping - which fields belong to which tab
   const tabValidationMap = {
     business: [
-      "tenant_id", 
-      "business_name", 
-      "display_name", 
-      "contact_email", 
+      "tenant_id",
+      "business_name",
+      "display_name",
+      "contact_email",
       "contact_phone",
-      "commission_rate"
+      "commission_rate",
     ],
     store: [
-      "store.store_name", 
-      "store.store_slug", 
+      "store.store_name",
+      "store.store_slug",
       "store.description",
-      "store.categories"
+      "store.categories",
     ],
     address: [
-      "address_line1", 
-      "city", 
-      "state_province", 
-      "postal_code", 
-      "country"
+      "address_line1",
+      "city",
+      "state_province",
+      "postal_code",
+      "country",
     ],
     banking: [
-      "bank_account.bank_name", 
-      "bank_account.account_number", 
-      "bank_account.account_name"
+      "bank_account.bank_name",
+      "bank_account.account_number",
+      "bank_account.account_name",
     ],
-    documents: [] // Documents are optional
+    documents: [], // Documents are optional
   };
 
-  const tabFlow = ["business", "store", "address", "banking", "documents", "review"];
+  const tabFlow = [
+    "business",
+    "store",
+    "address",
+    "banking",
+    "documents",
+    "review",
+  ];
 
   // State for component
   const [activeTab, setActiveTab] = useState("business");
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  
+
   // We'll use React Hook Form's built-in state management instead of temporary state
   // This ensures form values are preserved between tab navigations
-  
+
   // Determine if form is submitting from either external or internal state
   const isSubmitting = externalIsSubmitting || internalIsSubmitting;
   const isAddPage = !initialData?.id;
@@ -176,7 +205,7 @@ export function VendorForm({
         account_number: "",
         account_name: "",
         swift_bic: "",
-        branch_code: ""
+        branch_code: "",
       },
       store: {
         store_name: "",
@@ -187,7 +216,7 @@ export function VendorForm({
         categories: [],
         return_policy: "",
         shipping_policy: "",
-        general_policy: ""
+        general_policy: "",
       },
       verification_documents: [],
       user: {
@@ -196,20 +225,24 @@ export function VendorForm({
         email: "",
         phone_number: "",
         password: "",
-        access_token: ""
-      }
-    }
+        access_token: "",
+      },
+    },
   });
-  
+
   // For FormControl types to work with nested fields, we cast to specific type
   const formControl = form.control as Control<VendorFormValues>;
 
   // Set up field array for banners with proper typing
-  const { fields: bannerFields, append: appendBanner, remove: removeBanner } = useFieldArray({
+  const {
+    fields: bannerFields,
+    append: appendBanner,
+    remove: removeBanner,
+  } = useFieldArray({
     control: formControl,
-    name: "store.banners"
+    name: "store.banners",
   });
-  
+
   // Default banner to add when "Add Banner" is clicked
   const defaultBanner = {
     title: "",
@@ -218,7 +251,7 @@ export function VendorForm({
     display_order: bannerFields.length,
     is_active: true,
     start_date: "",
-    end_date: ""
+    end_date: "",
   };
 
   // Fetch tenants and categories on component mount
@@ -229,7 +262,7 @@ export function VendorForm({
       .then(() => {
         console.log("Categories fetched successfully");
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching categories:", error);
       });
   }, [fetchTenants, fetchCategories, tenantId]);
@@ -240,12 +273,19 @@ export function VendorForm({
   }, [categories]);
 
   // Get API functions from store
-  const { createVendor, updateVendor, createStore, fetchStoreByVendor, updateStore } = useVendorStore();
+  const {
+    createVendor,
+    updateVendor,
+    createStore,
+    fetchStoreByVendor,
+    updateStore,
+  } = useVendorStore();
 
   // Navigation functions - simplified with direct form state usage
   const nextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
-    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1) return;
+    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1)
+      return;
 
     // Get fields to validate for the current tab
     const fieldsToValidate =
@@ -323,36 +363,38 @@ export function VendorForm({
 
         // Make a clean copy of form data
         const dataToSubmit = JSON.parse(JSON.stringify(data));
-        
+
         // For non-superOwner users, set tenant_id from session
         if (!isSuperOwner && tenantId) {
           dataToSubmit.tenant_id = tenantId;
         }
-        
+
         // The only processing we do is remove the file object references since they can't be JSON serialized
         if (dataToSubmit.verification_documents) {
-          dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
-            if (doc.file) {
-              // Remove file property but keep everything else unchanged
-              const { file, ...docWithoutFile } = doc;
-              return docWithoutFile;
-            }
-            return doc;
-          });
+          dataToSubmit.verification_documents =
+            dataToSubmit.verification_documents.map((doc: any) => {
+              if (doc.file) {
+                // Remove file property but keep everything else unchanged
+                const { file, ...docWithoutFile } = doc;
+                return docWithoutFile;
+              }
+              return doc;
+            });
         }
 
-        console.log("Submitting vendor data with documents:", dataToSubmit.verification_documents);
-        
+        console.log(
+          "Submitting vendor data with documents:",
+          dataToSubmit.verification_documents
+        );
+
         await onSubmit(dataToSubmit);
-        
+
         // Reset to first tab after successful submission
         setActiveTab("business");
       } catch (error) {
         const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "An unknown error occurred";
-        
+          error instanceof Error ? error.message : "An unknown error occurred";
+
         setFormError(errorMessage);
         console.error("Form submission error:", error);
         toast.error(errorMessage);
@@ -366,7 +408,7 @@ export function VendorForm({
   // Handle form errors by navigating to the tab with the first error
   const handleFormError = useCallback((errors: any) => {
     console.log("Form validation errors:", errors);
-    
+
     // Immediately find which tab has errors
     const tabWithErrors = findTabWithErrors(errors);
 
@@ -378,9 +420,12 @@ export function VendorForm({
 
     // Scroll to the first error field if possible
     setTimeout(() => {
-      const firstErrorElement = document.querySelector('.form-error-field');
+      const firstErrorElement = document.querySelector(".form-error-field");
       if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstErrorElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       }
     }, 100);
   }, []);
@@ -388,22 +433,24 @@ export function VendorForm({
   // Handle business name change
   const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const businessName = e.target.value;
-    
+
     // Only set store name if it's empty or not set yet
-    const currentStoreName = form.getValues('store.store_name');
+    const currentStoreName = form.getValues("store.store_name");
     if (!currentStoreName) {
-      form.setValue('store.store_name', businessName, { shouldValidate: false });
+      form.setValue("store.store_name", businessName, {
+        shouldValidate: false,
+      });
     }
-    
+
     // Only set store slug if it's empty or not set yet
-    const currentStoreSlug = form.getValues('store.store_slug');
+    const currentStoreSlug = form.getValues("store.store_slug");
     if (!currentStoreSlug) {
       // Create a slug from the business name
       const slug = businessName
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-      form.setValue('store.store_slug', slug, { shouldValidate: false });
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      form.setValue("store.store_slug", slug, { shouldValidate: false });
     }
   };
 
@@ -412,12 +459,12 @@ export function VendorForm({
     try {
       setInternalIsSubmitting(true);
       setFormError(null);
-      
+
       // CRITICAL FIX: Get documents directly from form state before any serialization
       // This ensures we preserve all fields that might be lost in the form submission process
       const documentsFromState = form.getValues("verification_documents") || [];
       console.log("Documents from direct form state:", documentsFromState);
-      
+
       // Replace documents in the data with our direct reference
       if (documentsFromState.length > 0) {
         data.verification_documents = documentsFromState;
@@ -425,7 +472,7 @@ export function VendorForm({
 
       // For brand new vendors, we need to create the vendor first, then create store
       const isCreation = !initialData?.id && !initialData?.vendor_id;
-      
+
       // Generate random password if it's a new vendor
       if (!initialData || !initialData.id) {
         data.user = {
@@ -433,7 +480,10 @@ export function VendorForm({
           last_name: data.user?.last_name || "",
           email: data.contact_email,
           phone_number: data.contact_phone,
-          password: Array(12).fill(0).map(() => Math.random().toString(36).charAt(2)).join(''), // Generate a random password for the user
+          password: Array(12)
+            .fill(0)
+            .map(() => Math.random().toString(36).charAt(2))
+            .join(""), // Generate a random password for the user
           access_token: "",
         };
       }
@@ -445,35 +495,43 @@ export function VendorForm({
 
       // Process documents to remove file objects that can't be serialized
       if (data.verification_documents) {
-        data.verification_documents = data.verification_documents.map((doc: any) => {
-          if (doc.file) {
-            // Remove file property but keep everything else unchanged
-            const { file, ...docWithoutFile } = doc;
-            return docWithoutFile;
+        data.verification_documents = data.verification_documents.map(
+          (doc: any) => {
+            if (doc.file) {
+              // Remove file property but keep everything else unchanged
+              const { file, ...docWithoutFile } = doc;
+              return docWithoutFile;
+            }
+            return doc;
           }
-          return doc;
-        });
+        );
       }
 
-      console.log("Submitting vendor data with documents:", data.verification_documents);
+      console.log(
+        "Submitting vendor data with documents:",
+        data.verification_documents
+      );
       // Call the parent's onSubmit to handle the submission
       const vendorResponse = await onSubmit(data);
 
       // For existing vendors, update the store if the vendor update was successful
       if (initialData?.id || initialData?.vendor_id) {
         const vendorId = initialData?.vendor_id || initialData?.id || "";
-        
+
         try {
           // Get tenantId for headers
           const tenantHeaders: Record<string, string> = {};
           if (tenantId) {
             tenantHeaders["X-Tenant-ID"] = tenantId;
           }
-          
+
           // First fetch the existing store by vendor ID
           try {
-            const storeResponse = await fetchStoreByVendor(vendorId, tenantHeaders);
-            
+            const storeResponse = await fetchStoreByVendor(
+              vendorId,
+              tenantHeaders
+            );
+
             // According to the API structure, use the first store from the items array
             if (storeResponse && storeResponse._id) {
               // We found a store to update - use the direct store update endpoint
@@ -493,20 +551,31 @@ export function VendorForm({
                     secondary: "#34A853",
                     accent: "#FBBC05",
                     text: "#333333",
-                    background: "#FFFFFF"
-                  }
-                }
+                    background: "#FFFFFF",
+                  },
+                },
               };
-              
+
               // Use direct store update endpoint: /marketplace/stores/[_id]
-              await updateStore(vendorId, storeResponse._id, storeUpdateData, tenantHeaders);
-              console.log("Store updated successfully with ID:", storeResponse._id);
+              await updateStore(
+                vendorId,
+                storeResponse._id,
+                storeUpdateData,
+                tenantHeaders
+              );
+              console.log(
+                "Store updated successfully with ID:",
+                storeResponse._id
+              );
               toast.success("Store updated successfully");
             }
           } catch (storeError) {
             // No store found, create a new one
-            console.log("No existing store found, creating a new one for vendor ID:", vendorId);
-            
+            console.log(
+              "No existing store found, creating a new one for vendor ID:",
+              vendorId
+            );
+
             const storeData = {
               store_name: data.store.store_name,
               store_slug: data.store.store_slug,
@@ -516,7 +585,7 @@ export function VendorForm({
               return_policy: data.store.return_policy || "",
               shipping_policy: data.store.shipping_policy || "",
               general_policy: data.store.general_policy || "",
-              vendor_id: vendorId,  // Important: include the vendor_id
+              vendor_id: vendorId, // Important: include the vendor_id
               branding: {
                 logo_url: data.store.logo_url || "",
                 colors: {
@@ -524,11 +593,11 @@ export function VendorForm({
                   secondary: "#34A853",
                   accent: "#FBBC05",
                   text: "#333333",
-                  background: "#FFFFFF"
-                }
-              }
+                  background: "#FFFFFF",
+                },
+              },
             };
-            
+
             // Use create store endpoint: /marketplace/vendors/[vendor_id]/stores
             try {
               await createStore(vendorId, storeData, tenantHeaders);
@@ -544,9 +613,9 @@ export function VendorForm({
           toast.error("Vendor was updated but failed to update store data");
         }
       }
-      
+
       // After successful vendor creation, create a store if this is a new vendor
-      if (!initialData?.id && vendorResponse && 'vendor_id' in vendorResponse) {
+      if (!initialData?.id && vendorResponse && "vendor_id" in vendorResponse) {
         try {
           // Create store with the vendor_id from the response
           const vendorId = vendorResponse.vendor_id;
@@ -568,11 +637,11 @@ export function VendorForm({
                 secondary: "#34A853",
                 accent: "#FBBC05",
                 text: "#333333",
-                background: "#FFFFFF"
-              }
-            }
+                background: "#FFFFFF",
+              },
+            },
           };
-          
+
           // Call API to create store using the store function from vendor store
           const tenantHeaders = { "X-Tenant-ID": tenantId };
           await createStore(vendorId, storeData, tenantHeaders);
@@ -585,7 +654,9 @@ export function VendorForm({
 
       return vendorResponse;
     } catch (error: any) {
-      setFormError(error.message || "Failed to submit the form. Please try again.");
+      setFormError(
+        error.message || "Failed to submit the form. Please try again."
+      );
       console.error("Form submission error:", error);
       throw error; // Re-throw to allow caller to handle
     } finally {
@@ -594,120 +665,146 @@ export function VendorForm({
   };
 
   // Handle document changes - improved to fix document persistence between tabs
-  const handleDocumentsChange = useCallback((newDocuments: DocumentWithMeta[] & Record<string, any>[]) => {
-    // Skip if no documents received
-    if (!newDocuments) {
-      console.log("No documents received, skipping update");
-      return;
-    }
-    
-    // Get current documents from form
-    const currentFormDocs = form.getValues("verification_documents") || [];
-    console.log("Current form documents:", currentFormDocs);
-    console.log("Received new documents:", newDocuments);
-    
-    // Create a map of existing documents by ID for quick lookup
-    const existingDocsMap = new Map();
-    currentFormDocs.forEach(doc => {
-      if (doc.document_id) {
-        existingDocsMap.set(doc.document_id, doc);
+  const handleDocumentsChange = useCallback(
+    (newDocuments: DocumentWithMeta[] & Record<string, any>[]) => {
+      // Skip if no documents received
+      if (!newDocuments) {
+        console.log("No documents received, skipping update");
+        return;
       }
-      if (doc.id) {
-        existingDocsMap.set(doc.id, doc);
-      }
-    });
-    
-    // Process new documents while preserving existing document properties
-    const processedDocs = newDocuments.map(doc => {
-      // Skip invalid documents
-      if (!doc.file_name) return null;
-      
-      // Check if this is an existing document we already know about
-      const existingDoc = doc.document_id ? existingDocsMap.get(doc.document_id) : null;
-      
-      // For existing documents, preserve critical properties like document_id
-      if (existingDoc && doc.document_id) {
-        // console.log("Preserving existing document:", doc.document_id);
-        return {
-          ...doc,
-          // Ensure document_id is preserved for existing documents
-          document_id: doc.document_id
-        };
-      }
-      
-      // For new uploads, ensure they have proper structure
-      const docId = doc.id || doc.file_id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      
-      // Create clean document object with all required fields properly named
-      // CRITICAL: Log the exact document_type and expires_at received
-      console.log(`Processing document with type=${doc.document_type}, expires_at=${doc.expires_at}`);
-      
-      const cleanDoc = {
-        id: docId,
-        // New uploads should NOT have document_id
-        document_id: doc.document_id || undefined,
-        // PRESERVE the exact document_type, don't default unless it's missing
-        document_type: doc.document_type || "",
-        // CRITICAL: Keep file_name for display purposes
-        file_name: doc.file_name || "Unknown Document",
-        document_url: doc.document_url || doc.file_url || "", // Ensure document_url is set
-        // CRITICAL FIX: Handle both field names for expiration date
-        expires_at: doc.expires_at || doc.expiry_date || undefined, // Use expires_at (API name)
-        file_id: doc.file_id || docId,
-        // Keep the actual File object for upload
-        file: doc.file,
-        verification_status: doc.verification_status || "pending" as const
-      };
-      
-      console.log("Created document with document_type:", cleanDoc.document_type);
-      console.log("Created document with expires_at:", cleanDoc.expires_at);
-      console.log("Created document with file_name:", cleanDoc.file_name);
-      return cleanDoc;
-    }).filter(Boolean) as VendorVerificationDocument[];
-    
-    console.log("Setting processed documents in form:", processedDocs);
-    
-    // Update form state with processed documents
-    form.setValue("verification_documents", processedDocs, {
-      shouldValidate: false,
-      shouldDirty: true
-    });
-  }, [form]);
+
+      // Get current documents from form
+      const currentFormDocs = form.getValues("verification_documents") || [];
+      console.log("Current form documents:", currentFormDocs);
+      console.log("Received new documents:", newDocuments);
+
+      // Create a map of existing documents by ID for quick lookup
+      const existingDocsMap = new Map();
+      currentFormDocs.forEach((doc) => {
+        if (doc.document_id) {
+          existingDocsMap.set(doc.document_id, doc);
+        }
+        if (doc.id) {
+          existingDocsMap.set(doc.id, doc);
+        }
+      });
+
+      // Process new documents while preserving existing document properties
+      const processedDocs = newDocuments
+        .map((doc) => {
+          // Skip invalid documents
+          if (!doc.file_name) return null;
+
+          // Check if this is an existing document we already know about
+          const existingDoc = doc.document_id
+            ? existingDocsMap.get(doc.document_id)
+            : null;
+
+          // For existing documents, preserve critical properties like document_id
+          if (existingDoc && doc.document_id) {
+            // console.log("Preserving existing document:", doc.document_id);
+            return {
+              ...doc,
+              // Ensure document_id is preserved for existing documents
+              document_id: doc.document_id,
+            };
+          }
+
+          // For new uploads, ensure they have proper structure
+          const docId =
+            doc.id ||
+            doc.file_id ||
+            `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+          // Create clean document object with all required fields properly named
+          // CRITICAL: Log the exact document_type and expires_at received
+          console.log(
+            `Processing document with type=${doc.document_type}, expires_at=${doc.expires_at}`
+          );
+
+          const cleanDoc = {
+            id: docId,
+            // New uploads should NOT have document_id
+            document_id: doc.document_id || undefined,
+            // PRESERVE the exact document_type, don't default unless it's missing
+            document_type: doc.document_type || "",
+            // CRITICAL: Keep file_name for display purposes
+            file_name: doc.file_name || "Unknown Document",
+            document_url: doc.document_url || doc.file_url || "", // Ensure document_url is set
+            // CRITICAL FIX: Handle both field names for expiration date
+            expires_at: doc.expires_at || doc.expiry_date || undefined, // Use expires_at (API name)
+            file_id: doc.file_id || docId,
+            // Keep the actual File object for upload
+            file: doc.file,
+            verification_status:
+              doc.verification_status || ("pending" as const),
+          };
+
+          console.log(
+            "Created document with document_type:",
+            cleanDoc.document_type
+          );
+          console.log("Created document with expires_at:", cleanDoc.expires_at);
+          console.log("Created document with file_name:", cleanDoc.file_name);
+          return cleanDoc;
+        })
+        .filter(Boolean) as VendorVerificationDocument[];
+
+      console.log("Setting processed documents in form:", processedDocs);
+
+      // Update form state with processed documents
+      form.setValue("verification_documents", processedDocs, {
+        shouldValidate: false,
+        shouldDirty: true,
+      });
+    },
+    [form]
+  );
 
   // Handle removing documents - improved to ensure proper state updates
-  const handleRemoveExistingDocument = useCallback((docId: string) => {
-    console.log(`Removing document with ID: ${docId}`);
-    
-    // Get current documents from form
-    const currentDocs = form.getValues("verification_documents") || [];
-    console.log("Current documents before removal:", currentDocs);
-    
-    // Find the document to be removed
-    const docToRemove = currentDocs.find(doc => 
-      doc.id === docId || doc.document_id === docId || doc.file_id === docId
-    );
-    
-    if (docToRemove) {
-      console.log("Found document to remove:", docToRemove);
-      
-      // Filter out the document from the current documents
-      const filteredDocs = currentDocs.filter(doc => 
-        doc.id !== docId && 
-        doc.document_id !== docId && 
-        doc.file_id !== docId
+  const handleRemoveExistingDocument = useCallback(
+    (docId: string) => {
+      console.log(`Removing document with ID: ${docId}`);
+
+      // Get current documents from form
+      const currentDocs = form.getValues("verification_documents") || [];
+      console.log("Current documents before removal:", currentDocs);
+
+      // Find the document to be removed
+      const docToRemove = currentDocs.find(
+        (doc) =>
+          doc.id === docId || doc.document_id === docId || doc.file_id === docId
       );
-      
-      console.log(`Documents after removal: ${filteredDocs.length}`, filteredDocs);
-      
-      // Update the form state with the filtered documents
-      form.setValue("verification_documents", filteredDocs, {
-        shouldValidate: false,
-        shouldDirty: true
-      });
-    } else {
-      console.warn(`Document with ID ${docId} not found in current documents`);
-    }
-  }, [form]);
+
+      if (docToRemove) {
+        console.log("Found document to remove:", docToRemove);
+
+        // Filter out the document from the current documents
+        const filteredDocs = currentDocs.filter(
+          (doc) =>
+            doc.id !== docId &&
+            doc.document_id !== docId &&
+            doc.file_id !== docId
+        );
+
+        console.log(
+          `Documents after removal: ${filteredDocs.length}`,
+          filteredDocs
+        );
+
+        // Update the form state with the filtered documents
+        form.setValue("verification_documents", filteredDocs, {
+          shouldValidate: false,
+          shouldDirty: true,
+        });
+      } else {
+        console.warn(
+          `Document with ID ${docId} not found in current documents`
+        );
+      }
+    },
+    [form]
+  );
 
   return (
     <div className="space-y-6">
@@ -717,11 +814,14 @@ export function VendorForm({
           <AlertDescription>{formError}</AlertDescription>
         </Alert>
       )}
-      
+
       <Card className="w-full">
         <CardContent className="p-6">
           <Form {...form}>
-            <form id={id || "marketplace-vendor-form"} onSubmit={form.handleSubmit(handleSubmit, handleFormError)}>
+            <form
+              id={id || "marketplace-vendor-form"}
+              onSubmit={form.handleSubmit(handleSubmit, handleFormError)}
+            >
               {/* Save isEditable in a local variable to fix reference issues throughout the form */}
               <fieldset disabled={isSubmitting} className="space-y-6">
                 {/* Tenant selector (superowner only) */}
@@ -745,7 +845,9 @@ export function VendorForm({
                           </FormControl>
                           <SelectContent>
                             {tenants
-                              .filter(tenant => tenant.id && tenant.id.trim() !== '')
+                              .filter(
+                                (tenant) => tenant.id && tenant.id.trim() !== ""
+                              )
                               .map((tenant) => (
                                 <SelectItem
                                   key={tenant.id || `tenant-${Math.random()}`}
@@ -766,16 +868,33 @@ export function VendorForm({
                 )}
 
                 {/* Tabs for form sections */}
-                <Tabs defaultValue="business" value={activeTab} className="mt-2" onValueChange={value => setActiveTab(value)}>
+                <Tabs
+                  defaultValue="business"
+                  value={activeTab}
+                  className="mt-2"
+                  onValueChange={(value) => setActiveTab(value)}
+                >
                   <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
-                    <TabsTrigger value="business" className="text-center">Business</TabsTrigger>
-                    <TabsTrigger value="store" className="text-center">Store</TabsTrigger>
-                    <TabsTrigger value="address" className="text-center">Address</TabsTrigger>
-                    <TabsTrigger value="banking" className="text-center">Banking</TabsTrigger>
-                    <TabsTrigger value="documents" className="text-center">Documents</TabsTrigger>
-                    <TabsTrigger value="review" className="text-center">Review</TabsTrigger>
+                    <TabsTrigger value="business" className="text-center">
+                      Business
+                    </TabsTrigger>
+                    <TabsTrigger value="store" className="text-center">
+                      Store
+                    </TabsTrigger>
+                    <TabsTrigger value="address" className="text-center">
+                      Address
+                    </TabsTrigger>
+                    <TabsTrigger value="banking" className="text-center">
+                      Banking
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="text-center">
+                      Documents
+                    </TabsTrigger>
+                    <TabsTrigger value="review" className="text-center">
+                      Review
+                    </TabsTrigger>
                   </TabsList>
-                  
+
                   <div className="mt-6">
                     <BusinessTab />
                     <StoreTab />
@@ -783,7 +902,7 @@ export function VendorForm({
                     <BankingTab />
                     <DocumentsTab />
                     <ReviewTab />
-                  </div> 
+                  </div>
                 </Tabs>
 
                 {/* Navigation Buttons - moved to the right */}
@@ -800,7 +919,7 @@ export function VendorForm({
                         Cancel
                       </Button>
                     )}
-                    
+
                     {/* Previous button */}
                     {activeTab !== tabFlow[0] && (
                       <Button
@@ -812,7 +931,7 @@ export function VendorForm({
                         Previous
                       </Button>
                     )}
-                    
+
                     {/* Next button - show except on last tab */}
                     {activeTab !== tabFlow[tabFlow.length - 1] && (
                       <Button
@@ -823,13 +942,10 @@ export function VendorForm({
                         Next
                       </Button>
                     )}
-                    
+
                     {/* Save button - only on last tab */}
                     {activeTab === tabFlow[tabFlow.length - 1] && (
-                      <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                      >
+                      <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (
                           <>
                             <Spinner size="sm" color="white" />
@@ -1019,7 +1135,7 @@ export function VendorForm({
                       onChange={(e) => {
                         // Only allow numeric input with up to 2 decimal places
                         const value = e.target.value;
-                        if (value === '' || /^\d*(\.\d{0,2})?$/.test(value)) {
+                        if (value === "" || /^\d*(\.\d{0,2})?$/.test(value)) {
                           field.onChange(value);
                         }
                       }}
@@ -1038,27 +1154,31 @@ export function VendorForm({
   // Store Tab Component
   function StoreTab() {
     // Handle business name changes through form field change
-    const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleBusinessNameChange = (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
       const businessName = e.target.value;
-      
+
       // Only set store name if it's empty or not set yet
-      const currentStoreName = form.getValues('store.store_name');
+      const currentStoreName = form.getValues("store.store_name");
       if (!currentStoreName) {
-        form.setValue('store.store_name', businessName, { shouldValidate: false });
+        form.setValue("store.store_name", businessName, {
+          shouldValidate: false,
+        });
       }
-      
+
       // Only set store slug if it's empty or not set yet
-      const currentStoreSlug = form.getValues('store.store_slug');
+      const currentStoreSlug = form.getValues("store.store_slug");
       if (!currentStoreSlug) {
         // Create a slug from the business name
         const slug = businessName
           .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '');
-        form.setValue('store.store_slug', slug, { shouldValidate: false });
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        form.setValue("store.store_slug", slug, { shouldValidate: false });
       }
     };
-    
+
     return (
       <TabsContent value="store" className="space-y-6 pt-4">
         <div className="space-y-4">
@@ -1067,7 +1187,7 @@ export function VendorForm({
             Provide details about your online store.
           </p>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -1092,7 +1212,7 @@ export function VendorForm({
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="store.store_slug"
@@ -1110,7 +1230,8 @@ export function VendorForm({
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
-                  The URL for your store: https://example.com/<strong>{field.value || 'your-store'}</strong>
+                  The URL for your store: https://example.com/
+                  <strong>{field.value || "your-store"}</strong>
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1136,23 +1257,22 @@ export function VendorForm({
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Provide a description of your store to help customers understand what you offer.
+                  Provide a description of your store to help customers
+                  understand what you offer.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-        
+
         <div className="space-y-4">
           <FormField
             control={form.control}
             name="store.logo_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  Store Logo
-                </FormLabel>
+                <FormLabel>Store Logo</FormLabel>
                 <FormControl>
                   <ImageUpload
                     id="store-logo-upload"
@@ -1171,7 +1291,7 @@ export function VendorForm({
             )}
           />
         </div>
-        
+
         {/* Store Categories Field - Moved from business tab */}
         <div className="space-y-4">
           <FormField
@@ -1179,16 +1299,17 @@ export function VendorForm({
             name="store.categories"
             render={({ field }) => {
               // Create safe values for the MultiSelect component
-              const categoryOptions = categories?.map((category) => ({
-                value: String(category?.category_id || ""), // Use category_id instead of id
-                label: String(category?.name || ""),
-              })) || [];
-              
+              const categoryOptions =
+                categories?.map((category) => ({
+                  value: String(category?.category_id || ""), // Use category_id instead of id
+                  label: String(category?.name || ""),
+                })) || [];
+
               // Ensure field.value is an array of strings
-              const selected: string[] = Array.isArray(field.value) ? 
-                field.value.map(id => String(id || "")) : 
-                [];
-              
+              const selected: string[] = Array.isArray(field.value)
+                ? field.value.map((id) => String(id || ""))
+                : [];
+
               return (
                 <FormItem>
                   <FormLabel>
@@ -1238,7 +1359,7 @@ export function VendorForm({
                 </FormItem>
               )}
             />
-            
+
             {/* Shipping Policy */}
             <FormField
               control={form.control}
@@ -1265,7 +1386,7 @@ export function VendorForm({
               )}
             />
           </div>
-          
+
           {/* General Policy */}
           <FormField
             control={form.control}
@@ -1292,28 +1413,30 @@ export function VendorForm({
             )}
           />
         </div>
-        
+
         {/* Store Banners using StoreBannerEditor Component */}
         <div className="space-y-4 border-t pt-5 mt-5">
           <div className="flex items-center justify-between">
             <h4 className="text-md font-medium">Store Banners</h4>
           </div>
-          
+
           <FormField
             control={form.control}
             name="store.banners"
             render={({ field }) => {
               // Make sure we have proper banner data type for the StoreBannerEditor
               const banners = field.value || [];
-              const vendorId = initialData?.id || '';
-              const storeId = initialData?.store?.id || '';
-              
+              const vendorId = initialData?.id || "";
+              const storeId = initialData?.store?.id || "";
+
               return (
                 <FormItem>
                   <FormControl>
                     <BannerEditor
                       banners={banners}
-                      onChange={(updatedBanners) => field.onChange(updatedBanners)}
+                      onChange={(updatedBanners) =>
+                        field.onChange(updatedBanners)
+                      }
                       resourceId={storeId}
                       entityId={vendorId}
                       onDeleteBanner={vendorStore.deleteStoreBanner}
@@ -1321,7 +1444,8 @@ export function VendorForm({
                     />
                   </FormControl>
                   <FormDescription className="text-sm text-muted-foreground mt-2">
-                    Add promotional banners for your store. These will appear on your store page.
+                    Add promotional banners for your store. These will appear on
+                    your store page.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -1329,9 +1453,8 @@ export function VendorForm({
             }}
           />
         </div>
-
       </TabsContent>
-    )
+    );
   }
 
   // Address Tab Component
@@ -1346,26 +1469,32 @@ export function VendorForm({
     }) => {
       // Update form fields with the geocoded address data
       if (addressData.address_line1) {
-        form.setValue('address_line1', addressData.address_line1, { shouldValidate: true });
+        form.setValue("address_line1", addressData.address_line1, {
+          shouldValidate: true,
+        });
       }
-      
+
       if (addressData.city) {
-        form.setValue('city', addressData.city, { shouldValidate: true });
+        form.setValue("city", addressData.city, { shouldValidate: true });
       }
-      
+
       if (addressData.state_province) {
-        form.setValue('state_province', addressData.state_province, { shouldValidate: true });
+        form.setValue("state_province", addressData.state_province, {
+          shouldValidate: true,
+        });
       }
-      
+
       if (addressData.postal_code) {
-        form.setValue('postal_code', addressData.postal_code, { shouldValidate: true });
+        form.setValue("postal_code", addressData.postal_code, {
+          shouldValidate: true,
+        });
       }
-      
+
       if (addressData.country) {
-        form.setValue('country', addressData.country, { shouldValidate: true });
+        form.setValue("country", addressData.country, { shouldValidate: true });
       }
     };
-    
+
     return (
       <TabsContent value="address" className="space-y-6 pt-4">
         <div className="space-y-4">
@@ -1374,7 +1503,7 @@ export function VendorForm({
             Provide your business address details.
           </p>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -1395,15 +1524,13 @@ export function VendorForm({
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="address_line2"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  Address Line 2
-                </FormLabel>
+                <FormLabel>Address Line 2</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -1427,17 +1554,13 @@ export function VendorForm({
                   City <RequiredField />
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="City"
-                  />
+                  <Input {...field} className="mt-2" placeholder="City" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="state_province"
@@ -1479,7 +1602,7 @@ export function VendorForm({
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="country"
@@ -1529,7 +1652,8 @@ export function VendorForm({
                   />
                 </FormControl>
                 <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Click on the map to set your business location or use the "Use Current Location" button.
+                  Click on the map to set your business location or use the "Use
+                  Current Location" button.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1537,7 +1661,7 @@ export function VendorForm({
           />
         </div>
       </TabsContent>
-    )
+    );
   }
 
   // Banking Tab Component
@@ -1563,16 +1687,13 @@ export function VendorForm({
                     Bank Name <RequiredField />
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="CRDB Bank"
-                    />
+                    <Input {...field} placeholder="CRDB Bank" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={formControl}
               name="bank_account.account_name"
@@ -1592,7 +1713,7 @@ export function VendorForm({
               )}
             />
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
               control={formControl}
@@ -1603,50 +1724,37 @@ export function VendorForm({
                     Account Number <RequiredField />
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="12345678901"
-                    />
+                    <Input {...field} placeholder="12345678901" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={formControl}
               name="bank_account.branch_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    Branch Code
-                  </FormLabel>
+                  <FormLabel>Branch Code</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="123"
-                    />
+                    <Input {...field} placeholder="123" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
               control={formControl}
               name="bank_account.swift_bic"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    SWIFT/BIC Code
-                  </FormLabel>
+                  <FormLabel>SWIFT/BIC Code</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="EXAMPLECODE"
-                    />
+                    <Input {...field} placeholder="EXAMPLECODE" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1657,71 +1765,82 @@ export function VendorForm({
       </TabsContent>
     );
   }
-  
+
   // Documents Tab Component - Simplified with new DocumentUpload component
   function DocumentsTab() {
     // Generate a unique ID for this instance
     const uploadId = useMemo(() => `vendor-docs-${Date.now()}`, []);
-    
+
     // Get the current documents from form state when tab is active
     const formDocuments = useWatch({
       control: form.control,
       name: "verification_documents",
-      defaultValue: []
+      defaultValue: [],
     });
-    
+
     // Map DOCUMENT_TYPES to the format expected by DocumentUpload
     const mappedDocumentTypes = useMemo(() => {
-      return DOCUMENT_TYPES.map(docType => ({
+      return DOCUMENT_TYPES.map((docType) => ({
         id: docType.id,
         name: docType.label,
         description: docType.description,
-        required: false
+        required: false,
       }));
     }, []);
-    
+
     // Log when documents change in form state
     useEffect(() => {
       if (activeTab === "documents") {
         console.log("Current documents in form state:", formDocuments);
       }
     }, [formDocuments, activeTab]);
-    
+
     // Ultra simple document handling - pass through exactly as is
-    const handleDocumentsChange = useCallback((documents: DocumentWithMeta[]) => {
-      console.log("Documents received from upload component:", documents);
-      
-      // Make sure all fields are preserved in the form state
-      console.log("Document fields being set in form:", documents.map(doc => Object.keys(doc)));
-      
-      // IMPORTANT: Log document_type fields to ensure they're present
-      documents.forEach((doc, i) => {
-        console.log(`Document ${i} type=${doc.document_type}, expires_at=${doc.expires_at}`);
-      });
-      
-      // Use documents exactly as provided with zero transformation
-      form.setValue("verification_documents", documents, {
-        shouldValidate: false,
-        shouldDirty: true
-      });
-    }, [form]);
-    
+    const handleDocumentsChange = useCallback(
+      (documents: DocumentWithMeta[]) => {
+        console.log("Documents received from upload component:", documents);
+
+        // Make sure all fields are preserved in the form state
+        console.log(
+          "Document fields being set in form:",
+          documents.map((doc) => Object.keys(doc))
+        );
+
+        // IMPORTANT: Log document_type fields to ensure they're present
+        documents.forEach((doc, i) => {
+          console.log(
+            `Document ${i} type=${doc.document_type}, expires_at=${doc.expires_at}`
+          );
+        });
+
+        // Use documents exactly as provided with zero transformation
+        form.setValue("verification_documents", documents, {
+          shouldValidate: false,
+          shouldDirty: true,
+        });
+      },
+      [form]
+    );
+
     // Handle policy document changes
-    const handlePolicyChange = useCallback((fileUrl: string, file?: File) => {
-      form.setValue("policy", fileUrl, { 
-        shouldValidate: false,
-        shouldDirty: true
-      });
-    }, [form]);
-    
+    const handlePolicyChange = useCallback(
+      (fileUrl: string, file?: File) => {
+        form.setValue("policy", fileUrl, {
+          shouldValidate: false,
+          shouldDirty: true,
+        });
+      },
+      [form]
+    );
+
     // Handle policy document removal
     const handlePolicyRemove = useCallback(() => {
-      form.setValue("policy", "", { 
+      form.setValue("policy", "", {
         shouldValidate: false,
-        shouldDirty: true
+        shouldDirty: true,
       });
     }, [form]);
-    
+
     return (
       <TabsContent value="documents" className="space-y-6 mt-4">
         {/* Policy Document Upload */}
@@ -1730,7 +1849,7 @@ export function VendorForm({
           <p className="text-sm text-muted-foreground">
             Upload your business policy document in PDF format
           </p>
-          
+
           <div className="mt-2">
             <Label htmlFor="policy-document">Policy Document (PDF only)</Label>
             <FileUpload
@@ -1745,16 +1864,17 @@ export function VendorForm({
             />
           </div>
         </div>
-        
+
         <div className="border-t my-6"></div>
-        
+
         {/* Business Verification Documents - Using the new clean component */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Document Verification</h3>
           <p className="text-sm text-muted-foreground">
-            Upload verification documents to prove your identity and business ownership
+            Upload verification documents to prove your identity and business
+            ownership
           </p>
-          
+
           {/* New Document Upload Component */}
           <DocumentUpload
             id={uploadId}
@@ -1772,20 +1892,21 @@ export function VendorForm({
   function ReviewTab() {
     // Only get values when the tab is opened
     const [reviewValues, setReviewValues] = useState(() => form.getValues());
-    
+
     // Update values when tab becomes active
     useEffect(() => {
-      if (activeTab === 'review') {
+      if (activeTab === "review") {
         setReviewValues(form.getValues());
       }
     }, [activeTab]);
-    
+
     return (
       <TabsContent value="review" className="space-y-6 pt-4">
         <div className="space-y-4">
           <h3 className="text-xl font-medium">Review Vendor Information</h3>
           <p className="text-sm text-muted-foreground">
-            Review all information before submission. Make sure all required fields are complete.
+            Review all information before submission. Make sure all required
+            fields are complete.
           </p>
         </div>
 
@@ -1794,30 +1915,44 @@ export function VendorForm({
             <div className="space-y-6">
               {/* Business Info Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Business Information</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Business Information
+                </h4>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-muted-foreground">Business Name</dt>
-                    <dd>{reviewValues.business_name || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Business Name
+                    </dt>
+                    <dd>{reviewValues.business_name || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Display Name</dt>
-                    <dd>{reviewValues.display_name || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Display Name
+                    </dt>
+                    <dd>{reviewValues.display_name || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Contact Email</dt>
-                    <dd>{reviewValues.contact_email || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Contact Email
+                    </dt>
+                    <dd>{reviewValues.contact_email || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Contact Phone</dt>
-                    <dd>{reviewValues.contact_phone || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Contact Phone
+                    </dt>
+                    <dd>{reviewValues.contact_phone || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Website</dt>
+                    <dt className="font-medium text-muted-foreground">
+                      Website
+                    </dt>
                     <dd>{reviewValues.website || "Not provided"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Tax ID</dt>
+                    <dt className="font-medium text-muted-foreground">
+                      Tax ID
+                    </dt>
                     <dd>{reviewValues.tax_id || "Not provided"}</dd>
                   </div>
                 </dl>
@@ -1825,15 +1960,28 @@ export function VendorForm({
 
               {/* Address Info Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Address Information</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Address Information
+                </h4>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-muted-foreground">Address</dt>
+                    <dt className="font-medium text-muted-foreground">
+                      Address
+                    </dt>
                     <dd>
-                      {reviewValues.address_line1 || '-'}<br />
-                      {reviewValues.address_line2 && <>{reviewValues.address_line2}<br /></>}
-                      {reviewValues.city && reviewValues.state_province ? `${reviewValues.city}, ${reviewValues.state_province} ${reviewValues.postal_code}` : '-'}<br />
-                      {reviewValues.country || '-'}
+                      {reviewValues.address_line1 || "-"}
+                      <br />
+                      {reviewValues.address_line2 && (
+                        <>
+                          {reviewValues.address_line2}
+                          <br />
+                        </>
+                      )}
+                      {reviewValues.city && reviewValues.state_province
+                        ? `${reviewValues.city}, ${reviewValues.state_province} ${reviewValues.postal_code}`
+                        : "-"}
+                      <br />
+                      {reviewValues.country || "-"}
                     </dd>
                   </div>
                 </dl>
@@ -1841,56 +1989,89 @@ export function VendorForm({
 
               {/* Banking Info Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Banking Information</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Banking Information
+                </h4>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-muted-foreground">Bank Name</dt>
-                    <dd>{reviewValues.bank_account?.bank_name || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Bank Name
+                    </dt>
+                    <dd>{reviewValues.bank_account?.bank_name || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Account Name</dt>
-                    <dd>{reviewValues.bank_account?.account_name || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Account Name
+                    </dt>
+                    <dd>{reviewValues.bank_account?.account_name || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Account Number</dt>
-                    <dd>{reviewValues.bank_account?.account_number || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Account Number
+                    </dt>
+                    <dd>{reviewValues.bank_account?.account_number || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Branch Code</dt>
-                    <dd>{reviewValues.bank_account?.branch_code || "Not provided"}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Branch Code
+                    </dt>
+                    <dd>
+                      {reviewValues.bank_account?.branch_code || "Not provided"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">SWIFT/BIC</dt>
-                    <dd>{reviewValues.bank_account?.swift_bic || "Not provided"}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      SWIFT/BIC
+                    </dt>
+                    <dd>
+                      {reviewValues.bank_account?.swift_bic || "Not provided"}
+                    </dd>
                   </div>
                 </dl>
               </div>
-              
+
               {/* Store Info Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Store Information</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Store Information
+                </h4>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-muted-foreground">Store Name</dt>
-                    <dd>{reviewValues.store?.store_name || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Store Name
+                    </dt>
+                    <dd>{reviewValues.store?.store_name || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Store URL</dt>
-                    <dd>{reviewValues.store?.store_slug || '-'}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Store URL
+                    </dt>
+                    <dd>{reviewValues.store?.store_slug || "-"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Description</dt>
+                    <dt className="font-medium text-muted-foreground">
+                      Description
+                    </dt>
                     <dd>{reviewValues.store?.description || "Not provided"}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">Logo</dt>
-                    <dd>{reviewValues.store?.logo_url ? "Uploaded" : "Not uploaded"}</dd>
+                    <dd>
+                      {reviewValues.store?.logo_url
+                        ? "Uploaded"
+                        : "Not uploaded"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Categories</dt>
+                    <dt className="font-medium text-muted-foreground">
+                      Categories
+                    </dt>
                     <dd>
-                      {reviewValues.store?.categories && reviewValues.store.categories.length > 0
-                        ? reviewValues.store.categories.map((cat: any) => cat.label || cat.name).join(", ")
+                      {reviewValues.store?.categories &&
+                      reviewValues.store.categories.length > 0
+                        ? reviewValues.store.categories
+                            .map((cat: any) => cat.label || cat.name)
+                            .join(", ")
                         : "None selected"}
                     </dd>
                   </div>
@@ -1899,38 +2080,69 @@ export function VendorForm({
 
               {/* Store Policies Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Store Policies</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Store Policies
+                </h4>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-muted-foreground">Return Policy</dt>
-                    <dd>{reviewValues.store?.return_policy ? "Uploaded" : "Not uploaded"}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Return Policy
+                    </dt>
+                    <dd>
+                      {reviewValues.store?.return_policy
+                        ? "Uploaded"
+                        : "Not uploaded"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Shipping Policy</dt>
-                    <dd>{reviewValues.store?.shipping_policy ? "Uploaded" : "Not uploaded"}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Shipping Policy
+                    </dt>
+                    <dd>
+                      {reviewValues.store?.shipping_policy
+                        ? "Uploaded"
+                        : "Not uploaded"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-muted-foreground">Terms & Conditions</dt>
-                    <dd>{reviewValues.store?.general_policy ? "Uploaded" : "Not uploaded"}</dd>
+                    <dt className="font-medium text-muted-foreground">
+                      Terms & Conditions
+                    </dt>
+                    <dd>
+                      {reviewValues.store?.general_policy
+                        ? "Uploaded"
+                        : "Not uploaded"}
+                    </dd>
                   </div>
                 </dl>
               </div>
 
               {/* Documents Review */}
               <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">Documents Uploaded</h4>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Documents Uploaded
+                </h4>
                 <div className="text-sm">
-                  {reviewValues.verification_documents && reviewValues.verification_documents.length > 0 ? (
+                  {reviewValues.verification_documents &&
+                  reviewValues.verification_documents.length > 0 ? (
                     <ul className="list-disc pl-5">
-                      {reviewValues.verification_documents.map((doc: any, index: number) => (
-                        <li key={index}>
-                          {doc.document_type}: {doc.file_name}
-                          {doc.expiry_date && <span className="ml-2 text-muted-foreground">Expires: {doc.expiry_date}</span>}
-                        </li>
-                      ))}
+                      {reviewValues.verification_documents.map(
+                        (doc: any, index: number) => (
+                          <li key={index}>
+                            {doc.document_type}: {doc.file_name}
+                            {doc.expiry_date && (
+                              <span className="ml-2 text-muted-foreground">
+                                Expires: {doc.expiry_date}
+                              </span>
+                            )}
+                          </li>
+                        )
+                      )}
                     </ul>
                   ) : (
-                    <p className="text-muted-foreground">No documents uploaded</p>
+                    <p className="text-muted-foreground">
+                      No documents uploaded
+                    </p>
                   )}
                 </div>
               </div>

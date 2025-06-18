@@ -6,7 +6,7 @@ export const mockUsers: User[] = [
     name: 'Super Owner',
     email: 'superowner@meneja.inc',
     phone: '+255 123 456 789',
-    role: 'super_owner',
+    role: 'super',
     status: 'active',
     avatar: 'https://ui-avatars.com/api/?name=Super+Owner&background=4F46E5&color=fff',
     lastLogin: '2025-05-06T14:22:00Z',

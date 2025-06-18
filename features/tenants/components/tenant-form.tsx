@@ -135,7 +135,7 @@ export function TenantForm({
 }: TenantFormProps) {
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super_owner";
+  const isSuperOwner = userRole === "super";
   const isAddPage = !initialData?.id;
 
   // Initialize module state from initialData if available
@@ -202,7 +202,13 @@ export function TenantForm({
     modules: ["modules"],
   };
 
-  const tabFlow = ["details", "branding", "banners", "configuration", "modules"];
+  const tabFlow = [
+    "details",
+    "branding",
+    "banners",
+    "configuration",
+    "modules",
+  ];
 
   const nextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
@@ -290,7 +296,7 @@ export function TenantForm({
           // Log what we're actually submitting for debugging
           console.debug("Submitting tenant data (filtered):", dataToSubmit);
         } else {
-          console.debug("Submitting tenant data (super_owner):", dataToSubmit);
+          console.debug("Submitting tenant data (super):", dataToSubmit);
         }
 
         await onSubmit(dataToSubmit);
@@ -319,7 +325,9 @@ export function TenantForm({
           // This is a placeholder for the actual API call.
           // We optimistically remove the banner from the form state.
           const currentBanners = form.getValues("banners") || [];
-          const updatedBanners = currentBanners.filter((b) => b.id !== bannerId);
+          const updatedBanners = currentBanners.filter(
+            (b) => b.id !== bannerId
+          );
           form.setValue("banners", updatedBanners, { shouldDirty: true });
           resolve();
         } catch (error) {
@@ -770,142 +778,150 @@ export function TenantForm({
           <div className="space-y-2">
             <h4 className="text-md font-medium">Logo Variants</h4>
             <div className="grid gap-8 md:grid-cols-4">
-                <FormField
-                  control={form.control}
-                  name="branding.theme.logo.primary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Primary Logo</FormLabel>
-                      <FormControl>
-                        <ImageUpload
-                          id="primary-logo-upload"
-                          value={field.value}
-                          onChange={field.onChange}
-                          previewAlt="Primary Logo Preview"
-                          onFileChange={(file) => handleFileUpload(file, "primaryLogo")}
-                          height="h-32"
-                          buttonText="Primary Logo"
-                          readOnly={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="branding.theme.logo.secondary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Secondary Logo</FormLabel>
-                      <FormControl>
-                        <ImageUpload
-                          id="secondary-logo-upload"
-                          value={field.value}
-                          onChange={field.onChange}
-                          previewAlt="Secondary Logo Preview"
-                          onFileChange={(file) => handleFileUpload(file, "secondaryLogo")}
-                          height="h-32"
-                          buttonText="Secondary Logo"
-                          readOnly={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="branding.theme.logo.icon"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Icon Logo</FormLabel>
-                      <FormControl>
-                        <ImageUpload
-                          id="icon-logo-upload"
-                          value={field.value}
-                          onChange={field.onChange}
-                          previewAlt="Icon Logo Preview"
-                          onFileChange={(file) => handleFileUpload(file, "iconLogo")}
-                          height="h-32"
-                          buttonText="Icon Logo"
-                          readOnly={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="primary-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Primary Logo Preview"
+                        onFileChange={(file) =>
+                          handleFileUpload(file, "primaryLogo")
+                        }
+                        height="h-32"
+                        buttonText="Primary Logo"
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="secondary-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Secondary Logo Preview"
+                        onFileChange={(file) =>
+                          handleFileUpload(file, "secondaryLogo")
+                        }
+                        height="h-32"
+                        buttonText="Secondary Logo"
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.logo.icon"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Icon Logo</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        id="icon-logo-upload"
+                        value={field.value}
+                        onChange={field.onChange}
+                        previewAlt="Icon Logo Preview"
+                        onFileChange={(file) =>
+                          handleFileUpload(file, "iconLogo")
+                        }
+                        height="h-32"
+                        buttonText="Icon Logo"
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+          </div>
 
-            <Separator className="mt-12" />
-            <div className="space-y-2">
-              <h4 className="text-md font-medium">Brand Colors</h4>
-              <div className="grid gap-6 md:grid-cols-3">
-                <FormField
-                  control={form.control}
-                  name="branding.theme.colors.primary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Primary Color <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <ColorPicker
-                          color={field.value}
-                          onChange={field.onChange}
-                          disabled={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="branding.theme.colors.secondary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Secondary Color <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <ColorPicker
-                          color={field.value}
-                          onChange={field.onChange}
-                          disabled={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="branding.theme.colors.accent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Accent Color <RequiredField />
-                      </FormLabel>
-                      <FormControl>
-                        <ColorPicker
-                          color={field.value}
-                          onChange={field.onChange}
-                          disabled={!isEditable}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+          <Separator className="mt-12" />
+          <div className="space-y-2">
+            <h4 className="text-md font-medium">Brand Colors</h4>
+            <div className="grid gap-6 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.primary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Primary Color <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <ColorPicker
+                        color={field.value}
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.secondary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Secondary Color <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <ColorPicker
+                        color={field.value}
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.theme.colors.accent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Accent Color <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <ColorPicker
+                        color={field.value}
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+          </div>
 
-            <Separator className="mt-12" />
-            <div className="space-y-2">
-            <h4 className="text-md font-medium">Text, Background & Border Colors</h4>
+          <Separator className="mt-12" />
+          <div className="space-y-2">
+            <h4 className="text-md font-medium">
+              Text, Background & Border Colors
+            </h4>
             <div className="grid gap-6 md:grid-cols-5">
               <FormField
                 control={form.control}
@@ -987,23 +1003,23 @@ export function TenantForm({
                 control={form.control}
                 name="branding.theme.colors.border"
                 render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Border Color <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <ColorPicker
-                      color={field.value}
-                    onChange={field.onChange}
-                    disabled={!isEditable}
-                  />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                  <FormItem>
+                    <FormLabel>
+                      Border Color <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <ColorPicker
+                        color={field.value}
+                        onChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
-              </div>
             </div>
+          </div>
 
           <Separator className="mt-14" />
           <FormField

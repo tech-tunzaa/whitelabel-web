@@ -17,7 +17,7 @@ export default function MarketplacePage() {
   const router = useRouter();
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super_owner";
+  const isSuperOwner = userRole === "super";
   const tenantId = session?.user?.tenant_id;
 
   const [isSubmitting, setIsSubmitting] = useState(false);

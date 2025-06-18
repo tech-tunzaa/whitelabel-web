@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 const DashboardComponents = {
-  super_owner: SuperOwnerDashboard,
+  super: SuperOwnerDashboard,
   admin: AdminDashboard,
   sub_admin: SubAdminDashboard,
   support: SupportDashboard,
