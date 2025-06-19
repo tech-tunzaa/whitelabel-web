@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
-import { Vendor, VendorFormValues } from "@/features/vendors/types";
+import { VendorFormValues } from "@/features/vendors/types";
 
 export default function VendorAddPage() {
   const router = useRouter();
@@ -21,85 +21,35 @@ export default function VendorAddPage() {
     setIsSubmitting(true);
     try {
       const tenantId = (session?.user as any)?.tenant_id;
-      const headers: Record<string, string> = {};
-      if (tenantId) {
-        headers["X-Tenant-ID"] = tenantId;
+      if (!tenantId) {
+        toast.error("Tenant ID is missing. Cannot create vendor.");
+        setIsSubmitting(false);
+        return;
       }
-      
-      // Restructure the form data to ensure branding is set correctly
-      const vendorData = {
+
+      const headers = { "X-Tenant-ID": tenantId };
+
+      // The form data is now in the unified format, including the 'stores' array.
+      // We just pass it directly to the store's create method.
+      const payload: VendorFormValues = {
         ...data,
-        store: {
-          ...data.store,
-          branding: {
-            logo_url: data.store.logo_url || "",
-            colors: {
-              primary: "#4285F4",
-              secondary: "#34A853",
-              accent: "#FBBC05",
-              text: "#333333",
-              background: "#FFFFFF"
-            }
-          }
-        }
+        tenant_id: tenantId,
       };
-      
-      console.log("Creating vendor with restructured data:", vendorData);
-      
-      // Create the vendor with the restructured data
-      const newVendor = await vendorStore.createVendor(vendorData, headers);
-      
-      // If we have a new vendor, create the store
-      if (newVendor && newVendor.vendor_id) {
-        const vendorId = newVendor.vendor_id;
-        
-        // Prepare store data ensuring branding is included
-        const storeData = {
-          store_name: data.store.store_name,
-          store_slug: data.store.store_slug,
-          description: data.store.description,
-          banners: Array.isArray(data.store.banners) ? data.store.banners : [],
-          categories: Array.isArray(data.store.categories) ? data.store.categories : [],
-          return_policy: data.store.return_policy || "",
-          shipping_policy: data.store.shipping_policy || "",
-          general_policy: data.store.general_policy || "",
-          vendor_id: vendorId,
-          branding: {
-            logo_url: data.store.logo_url || "",
-            colors: {
-              primary: "#4285F4",
-              secondary: "#34A853",
-              accent: "#FBBC05",
-              text: "#333333",
-              background: "#FFFFFF"
-            }
-          }
-        };
-        
-        try {
-          console.log("Creating store for vendor ID:", vendorId, "with data:", storeData);
-          
-          // Create the store with the vendor ID
-          const newStore = await vendorStore.createStore(vendorId, storeData, headers);
-          console.log("Store created successfully:", newStore);
-          
-          toast.success("Vendor and store created successfully");
-          router.push(`/dashboard/vendors/${vendorId}`);
-        } catch (storeError) {
-          console.error("Error creating store:", storeError);
-          toast.error("Vendor created, but failed to create store. Please try again from the vendor details page.");
-          router.push(`/dashboard/vendors/${vendorId}`);
-        }
+
+      console.log("Creating vendor with unified payload:", payload);
+
+      const newVendor = await vendorStore.createVendor(payload, headers);
+
+      if (newVendor?.vendor_id) {
+        toast.success("Vendor created successfully!");
+        router.push(`/dashboard/vendors/${newVendor.vendor_id}`);
       } else {
-        router.push("/dashboard/vendors");
-        toast.success("Vendor created successfully");
+        toast.error("Failed to create vendor. Please try again.");
       }
-      
-      return newVendor;
     } catch (error) {
       console.error("Error creating vendor:", error);
-      toast.error("Failed to create vendor. Please try again.");
-      return undefined;
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      toast.error(`Failed to create vendor: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }

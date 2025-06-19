@@ -219,34 +219,22 @@ export const useVendorStore = create<VendorStore>()(
     },
 
     updateVendor: async (id: string, data: Partial<Vendor>, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError, setVendor, vendor } = get();
+      const { setActiveAction, setLoading, setStoreError, setVendor } = get();
       try {
         setActiveAction('update');
         setLoading(true);
 
-        // Extract store data if it exists
-        const storeData = data.store;
-        const vendorData = { ...data };
-        delete vendorData.store;
-
-        // Update vendor data
-        const response = await apiClient.put<ApiResponse<Vendor>>(`/marketplace/vendors/${id}`, vendorData, headers);
+        // The API now accepts a unified payload, so we send the data directly.
+        const response = await apiClient.put<ApiResponse<Vendor>>(`/marketplace/vendors/${id}`, data, headers);
+        
         if (response.data && response.data.data) {
-          const vendorResponse: Vendor = response.data.data as Vendor;
-
-          // Check if we have a store in the update data, if so, ensure it's updated in the response
-          if (storeData && !vendorResponse.store) {
-            if (vendor && vendor.store) {
-              // Add store from current vendor state if missing in response
-              vendorResponse.store = vendor.store;
-            }
-          }
-
-          setVendor(vendorResponse);
+          const updatedVendor = response.data.data as Vendor;
+          setVendor(updatedVendor);
           setLoading(false);
-          return vendorResponse;
+          return updatedVendor;
         }
-        throw new Error('Failed to update vendor');
+        
+        throw new Error('Failed to update vendor: Invalid API response');
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to update vendor';
         const errorStatus = (error as any)?.response?.status;

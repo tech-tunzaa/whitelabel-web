@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray, useWatch, Control } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Control, FieldPath } from "react-hook-form";
 import { Spinner } from "@/components/ui/spinner";
 
 import { Button } from "@/components/ui/button";
@@ -69,56 +69,56 @@ const defaultValues: Partial<VendorFormValues> = {
     bank_name: "",
     account_number: "",
     account_name: "",
-    swift_bic: "",
+    swift_code: "",
     branch_code: "",
   },
-  store: {
+  stores: [{
     store_name: "",
     store_slug: "",
     description: "",
-    logo_url: "",
+    branding: {
+      logo_url: "",
+      colors: {
+        primary: "#4285F4",
+        secondary: "#34A853",
+        accent: "#FBBC05",
+        text: "#333333",
+        background: "#FFFFFF"
+      }
+    },
     banners: [],
     categories: [],
     return_policy: "",
     shipping_policy: "",
     general_policy: "",
-    location: { lat: -6.7924, lng: 39.2083 }, // Default to Dar es Salaam
-  },
-  verification_documents: [],
+  }],
   user: {
     first_name: "",
     last_name: "",
     email: "",
     phone_number: "",
-    password: "",
   },
 };
 
 interface VendorFormProps {
-  onSubmit: (data: VendorFormValues) => Promise<any>;
-  onCancel?: () => void;
-  initialData?: Partial<VendorFormValues> & { id?: string };
+  onSubmit: (data: VendorFormValues) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  initialData?: VendorFormValues | null;
   id?: string;
-  isSubmitting?: boolean;
 }
 
-export function VendorForm({
-  onSubmit,
-  onCancel,
-  initialData,
-  id,
-  isSubmitting: externalIsSubmitting,
-}: VendorFormProps) {
+export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, onCancel, isSubmitting, initialData, id }) => {
   const { data: session } = useSession();
   const tenantId = useMemo(() => (session?.user as any)?.tenant_id || "", [session]);
   const isSuperOwner = useMemo(() => session?.user?.role === "super", [session]);
-  const isAddPage = !initialData?.id;
+  const isAddPage = !initialData?.vendor_id;
 
   const [activeTab, setActiveTab] = useState<Tab>("business");
-  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
-  const isSubmitting = externalIsSubmitting || internalIsSubmitting;
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Removed direct store calls, as parent component now handles submission
+  const { loading: isUpdatingStatus } = useVendorStore();
   const fetchTenants = useTenantStore((state) => state.fetchTenants);
   const tenants = useTenantStore((state) => state.tenants);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
@@ -127,13 +127,21 @@ export function VendorForm({
   const form = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: initialData
-      ? { ...defaultValues, ...initialData, tenant_id: initialData.tenant_id || (isSuperOwner ? "" : tenantId), verification_documents: initialData.verification_documents || [] }
+      ? {
+          ...defaultValues,
+          ...initialData,
+          user: {
+            ...defaultValues.user,
+            ...initialData.user,
+            email: initialData.user?.email || initialData.contact_email || "",
+            phone_number: initialData.user?.phone_number || initialData.contact_phone || "",
+          },
+        }
       : { ...defaultValues, tenant_id: isSuperOwner ? "" : tenantId },
     mode: "onBlur",
   });
 
   const watchedTenantId = form.watch("tenant_id");
-
   useEffect(() => {
     if (isSuperOwner) {
       fetchTenants();
@@ -156,7 +164,7 @@ export function VendorForm({
   ] as const;
   type Tab = typeof tabFlow[number];
 
-  const tabFields: Partial<Record<Tab, (keyof VendorFormValues)[]>> = {
+    const tabFields: Partial<Record<Tab, FieldPath<VendorFormValues>[]>> = {
     business: [
       "tenant_id",
       "business_name",
@@ -168,10 +176,10 @@ export function VendorForm({
       "commission_rate",
     ],
     store: [
-      "store.store_name",
-      "store.store_slug",
-      "store.description",
-      "store.categories",
+      "stores.0.store_name",
+      "stores.0.store_slug",
+      "stores.0.description",
+      "stores.0.categories",
     ],
     address: [
       "address_line1",
@@ -218,43 +226,96 @@ export function VendorForm({
     }
   };
 
-  const handleSubmit = useCallback(
-    async (data: VendorFormValues) => {
-      try {
-        setFormError(null);
-        setInternalIsSubmitting(true);
-        const dataToSubmit = JSON.parse(JSON.stringify(data));
-        if (!isSuperOwner) {
-          dataToSubmit.tenant_id = tenantId;
-        }
-        if (dataToSubmit.verification_documents) {
-          dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
-            const { file, ...docWithoutFile } = doc;
-            return docWithoutFile;
-          });
-        }
-        
-        await onSubmit(dataToSubmit);
-        setActiveTab("business");
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-        setFormError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setInternalIsSubmitting(false);
-      }
-    },
-    [onSubmit, isSuperOwner, tenantId]
-  );
+  const handleDeleteDocument = async (index: number) => {
+    const documentToDelete = documentFields[index];
+    const documentId = (documentToDelete as VendorVerificationDocument).id;
 
-  const handleFormError = (errors: any) => {
+    if (documentId && initialData?.vendor_id) {
+      try {
+        await deleteDocument(initialData.vendor_id, documentId);
+        removeDocument(index);
+        toast.success("Document deleted successfully.");
+      } catch (error) {
+        toast.error("Failed to delete document from server.");
+        console.error("Error deleting document:", error);
+      }
+    } else {
+      removeDocument(index);
+      toast.info("Document removed from list. Save changes to make it permanent.");
+    }
+  };
+
+  const handleUploadComplete = (doc: DocumentWithMeta) => {
+    if (!doc.document_url) {
+      toast.error("Upload failed: document URL is missing.");
+      console.error("Upload complete callback missing document_url", doc);
+      return;
+    }
+    const newDocument: VendorVerificationDocument = {
+      document_type: doc.document_type,
+      document_url: doc.document_url,
+      file_name: doc.file_name,
+      expires_at: doc.expires_at,
+      file_id: doc.file_id,
+      verification_status: 'pending',
+    };
+    appendDocument(newDocument as any);
+  };
+
+  const handleDeleteBanner = async (resourceId: string, bannerId: string) => {
+    if (!initialData?.store?.id) return;
+    try {
+      await deleteBanner(resourceId, initialData.store.id, bannerId);
+      toast.success("Banner deleted successfully.");
+    } catch (error) {
+      toast.error("Failed to delete banner.");
+      console.error("Error deleting banner:", error);
+    }
+  };
+
+  const handleUpdateStore = async (vendorId: string, storeId: string, data: any) => {
+    try {
+      await updateStore(vendorId, storeId, data);
+      toast.success("Store updated successfully.");
+    } catch (error) {
+      toast.error("Failed to update store.");
+      console.error("Error updating store:", error);
+    }
+  };
+
+  const onSubmit = (data: VendorFormValues) => {
+    setFormError(null);
+    // Clean up data before submitting to the parent
+    const dataToSubmit = JSON.parse(JSON.stringify(data));
+    
+    // Ensure tenant_id is set if not super owner
+    if (!isSuperOwner) {
+      dataToSubmit.tenant_id = tenantId;
+    }
+
+    // Remove local 'file' objects from documents before submission
+    if (dataToSubmit.verification_documents) {
+      dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
+        const { file, ...docWithoutFile } = doc;
+        return docWithoutFile;
+      });
+    }
+
+    // Pass the cleaned data to the parent component's submit handler
+    onFormSubmit(dataToSubmit);
+  };
+
+
+    const handleFormError = (errors: any) => {
+    
+    
     const firstErrorField = Object.keys(errors)[0];
     if (firstErrorField) {
       const fieldRoot = firstErrorField.split('.')[0];
       for (const tabName in tabFields) {
-        if (tabFields[tabName].some(field => field === firstErrorField || field === fieldRoot)) {
+        if (tabFields[tabName as Tab]?.some(field => field === firstErrorField || field === fieldRoot)) {
           if (activeTab !== tabName) {
-            setActiveTab(tabName);
+            setActiveTab(tabName as Tab);
           }
           break;
         }
@@ -265,7 +326,12 @@ export function VendorForm({
 
   const { fields: bannerFields, append: appendBanner, remove: removeBanner } = useFieldArray({
     control: form.control,
-    name: "store.banners",
+    name: "stores.0.banners",
+  });
+
+  const { fields: documentFields, append: appendDocument, remove: removeDocument } = useFieldArray({
+    control: form.control,
+    name: "verification_documents",
   });
 
 
@@ -273,18 +339,18 @@ export function VendorForm({
     const businessName = e.target.value;
     form.setValue("business_name", businessName, { shouldValidate: true });
 
-    const currentStoreName = form.getValues("store.store_name");
+    const currentStoreName = form.getValues("stores.0.store_name");
     if (!currentStoreName) {
-      form.setValue("store.store_name", businessName, { shouldValidate: false });
+      form.setValue("stores.0.store_name", businessName, { shouldValidate: false });
     }
 
-    const currentStoreSlug = form.getValues("store.store_slug");
+    const currentStoreSlug = form.getValues("stores.0.store_slug");
     if (!currentStoreSlug) {
       const slug = businessName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
-      form.setValue("store.store_slug", slug, { shouldValidate: false });
+      form.setValue("stores.0.store_slug", slug, { shouldValidate: false });
     }
   };
 
@@ -304,7 +370,7 @@ export function VendorForm({
           <Form {...form}>
             <form
               id={id || "marketplace-vendor-form"}
-              onSubmit={form.handleSubmit(handleSubmit, handleFormError)}
+              onSubmit={form.handleSubmit(onSubmit, handleFormError)}
             >
               {/* Save isEditable in a local variable to fix reference issues throughout the form */}
               <fieldset disabled={isSubmitting} className="space-y-6">
@@ -392,18 +458,6 @@ export function VendorForm({
                 {/* Navigation Buttons - moved to the right */}
                 <div className="flex justify-end mt-6">
                   <div className="flex gap-2">
-                    {/* Cancel button */}
-                    {onCancel && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onCancel}
-                        disabled={isSubmitting}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-
                     {/* Previous button */}
                     {activeTab !== tabFlow[0] && (
                       <Button
@@ -541,7 +595,15 @@ export function VendorForm({
                     Contact Email <RequiredField />
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} type="email" value={field.value || ""} />
+                    <Input
+                      {...field}
+                      type="email"
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        form.setValue("user.email", e.target.value, { shouldValidate: true });
+                      }}
+                    />
                   </FormControl>
                   <FormDescription>
                     Used for account login and notifications
@@ -561,7 +623,16 @@ export function VendorForm({
                     Contact Phone <RequiredField />
                   </FormLabel>
                   <FormControl>
-                    <PhoneInput {...field} value={field.value || ""} />
+                    <PhoneInput
+                      {...field}
+                      value={field.value || ""}
+                      onChange={(value) => {
+                        
+                        const phoneValue = value || "";
+                        field.onChange(phoneValue);
+                        form.setValue("user.phone_number", phoneValue, { shouldValidate: true });
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -644,22 +715,22 @@ export function VendorForm({
       const businessName = e.target.value;
 
       // Only set store name if it's empty or not set yet
-      const currentStoreName = form.getValues("store.store_name");
+      const currentStoreName = form.getValues("stores.0.store_name");
       if (!currentStoreName) {
-        form.setValue("store.store_name", businessName, {
+        form.setValue("stores.0.store_name", businessName, {
           shouldValidate: false,
         });
       }
 
       // Only set store slug if it's empty or not set yet
-      const currentStoreSlug = form.getValues("store.store_slug");
+      const currentStoreSlug = form.getValues("stores.0.store_slug");
       if (!currentStoreSlug) {
         // Create a slug from the business name
         const slug = businessName
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "");
-        form.setValue("store.store_slug", slug, { shouldValidate: false });
+        form.setValue("stores.0.store_slug", slug, { shouldValidate: false });
       }
     };
 
@@ -675,7 +746,7 @@ export function VendorForm({
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
-            name="store.store_name"
+            name="stores.0.store_name"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
@@ -699,7 +770,7 @@ export function VendorForm({
 
           <FormField
             control={form.control}
-            name="store.store_slug"
+            name="stores.0.store_slug"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
@@ -726,7 +797,7 @@ export function VendorForm({
         <div className="space-y-4">
           <FormField
             control={form.control}
-            name="store.description"
+            name="stores.0.description"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
@@ -753,7 +824,7 @@ export function VendorForm({
         <div className="space-y-4">
           <FormField
             control={form.control}
-            name="store.logo_url"
+            name="stores.0.branding.logo_url"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Store Logo</FormLabel>
@@ -763,6 +834,7 @@ export function VendorForm({
                     value={field.value as string}
                     onChange={field.onChange}
                     className="mt-2"
+                    imgHeight="h-70"
                     previewAlt="Store Logo"
                     buttonText="Upload Logo"
                   />
@@ -780,7 +852,7 @@ export function VendorForm({
         <div className="space-y-4">
           <FormField
             control={form.control}
-            name="store.categories"
+            name="stores.0.categories"
             render={({ field }) => {
               const categoryOptions =
                 categories?.map((category) => ({
@@ -819,7 +891,7 @@ export function VendorForm({
             {/* Return Policy */}
             <FormField
               control={form.control}
-              name="store.return_policy"
+              name="stores.0.return_policy"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Return Policy</FormLabel>
@@ -845,7 +917,7 @@ export function VendorForm({
             {/* Shipping Policy */}
             <FormField
               control={form.control}
-              name="store.shipping_policy"
+              name="stores.0.shipping_policy"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Shipping Policy</FormLabel>
@@ -872,7 +944,7 @@ export function VendorForm({
           {/* General Policy */}
           <FormField
             control={form.control}
-            name="store.general_policy"
+            name="stores.0.general_policy"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>General Terms & Conditions</FormLabel>
@@ -898,20 +970,21 @@ export function VendorForm({
 
         {/* Store Banners using StoreBannerEditor Component */}
         <div className="space-y-4 border-t pt-5 mt-5">
-          <div className="flex items-center justify-between">
-            <h4 className="text-md font-medium">Store Banners</h4>
-          </div>
+          <h4 className="text-md font-medium">Store Banners</h4>  
           <FormField
             control={form.control}
-            name="store.banners"
+            name="stores.0.banners"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Store Banners</FormLabel>
                 <FormControl>
                   <BannerEditor
-                    tenantId={watchedTenantId}
-                    value={field.value}
+                    banners={field.value ?? []}
                     onChange={field.onChange}
+                    readOnly={false}
+                    resourceId={id || initialData?.id || ""}
+                    entityId={initialData?.store?.id || ""}
+                    onDeleteBanner={handleDeleteBanner}
+                    onUpdateResource={handleUpdateStore}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1232,15 +1305,123 @@ export function VendorForm({
     );
   }
 
-  // Documents Tab Component - Temporarily simplified for debugging
+  // Documents Tab Component - Simplified with new DocumentUpload component
   function DocumentsTab() {
+    // Generate a unique ID for this instance
+    const uploadId = useMemo(() => `vendor-docs-${Date.now()}`, []);
+
+    // Get the current documents from form state when tab is active
+    const formDocuments = useWatch({
+      control: form.control,
+      name: "verification_documents",
+      defaultValue: [],
+    });
+
+    // Map DOCUMENT_TYPES to the format expected by DocumentUpload
+    const mappedDocumentTypes = useMemo(() => {
+      return DOCUMENT_TYPES.map((docType) => ({
+        id: docType.id,
+        name: docType.label,
+        description: docType.description,
+        required: false,
+      }));
+    }, []);
+
+    // Log when documents change in form state
+    useEffect(() => {
+      if (activeTab === "documents") {
+        console.log("Current documents in form state:", formDocuments);
+      }
+    }, [formDocuments, activeTab]);
+
+    // Ultra simple document handling - pass through exactly as is
+    const handleDocumentsChange = useCallback(
+      (documents: DocumentWithMeta[]) => {
+        console.log("Documents received from upload component:", documents);
+
+        // Make sure all fields are preserved in the form state
+        console.log(
+          "Document fields being set in form:",
+          documents.map((doc) => Object.keys(doc))
+        );
+
+        // IMPORTANT: Log document_type fields to ensure they're present
+        documents.forEach((doc, i) => {
+          console.log(
+            `Document ${i} type=${doc.document_type}, expires_at=${doc.expires_at}`
+          );
+        });
+
+        // Use documents exactly as provided with zero transformation
+        form.setValue("verification_documents", documents, {
+          shouldValidate: false,
+          shouldDirty: true,
+        });
+      },
+      [form]
+    );
+
+    // Handle policy document changes
+    const handlePolicyChange = useCallback(
+      (fileUrl: string, file?: File) => {
+        form.setValue("policy", fileUrl, {
+          shouldValidate: false,
+          shouldDirty: true,
+        });
+      },
+      [form]
+    );
+
+    // Handle policy document removal
+    const handlePolicyRemove = useCallback(() => {
+      form.setValue("policy", "", {
+        shouldValidate: false,
+        shouldDirty: true,
+      });
+    }, [form]);
+
     return (
       <TabsContent value="documents" className="space-y-6 mt-4">
-        <div className="p-4 border-2 border-dashed border-yellow-400 bg-yellow-50 rounded-md">
-          <h3 className="text-lg font-medium text-yellow-800">Under Investigation</h3>
-          <p className="text-sm text-yellow-700">
-            This section is temporarily disabled while we resolve a technical issue.
+        {/* Policy Document Upload */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Policy Document</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload your business policy document in PDF format
           </p>
+
+          <div className="mt-2">
+            <Label htmlFor="policy-document">Policy Document (PDF only)</Label>
+            <FileUpload
+              label=""
+              description="Upload your business policy document (PDF only, max 10MB)"
+              value={form.getValues("policy") || ""}
+              onChange={handlePolicyChange}
+              onRemove={handlePolicyRemove}
+              accept=".pdf"
+              maxSizeMB={10}
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+
+        <div className="border-t my-6"></div>
+
+        {/* Business Verification Documents - Using the new clean component */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Document Verification</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload verification documents to prove your identity and business
+            ownership
+          </p>
+          <DocumentUpload
+            documents={documentFields as DocumentWithMeta[]}
+            documentTypes={mappedDocumentTypes}
+            onUploadComplete={handleUploadComplete}
+            onDelete={handleDeleteDocument}
+            disabled={isSubmitting}
+            label="Vendor Documents"
+            description="Manage business registration, tax documents, etc."
+          />
         </div>
       </TabsContent>
     );

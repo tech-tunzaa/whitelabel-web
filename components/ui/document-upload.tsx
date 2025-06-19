@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useRef } from "react"
-import { useFieldArray, Control } from "react-hook-form"
+
 import { Upload, Loader, File, Calendar, Plus, Trash, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,79 +37,76 @@ export interface DocumentWithMeta {
 }
 
 export interface DocumentUploadProps {
-  control: Control<any>
-  name: string
-  documentTypes: DocumentType[]
-  label?: string
-  description?: string
-  className?: string
-  disabled?: boolean
+  documents?: DocumentWithMeta[];
+  documentTypes: DocumentType[];
+  onUploadComplete?: (document: DocumentWithMeta) => void;
+  onDelete?: (index: number) => void;
+  label?: string;
+  description?: string;
+  className?: string;
+  disabled?: boolean;
 }
 
 export function DocumentUpload({
-  control,
-  name,
+  documents = [],
   documentTypes,
+  onUploadComplete,
+  onDelete,
   label = "Upload Documents",
   description,
   className = "",
   disabled = false,
 }: DocumentUploadProps) {
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name,
-  })
-
-  const [isUploading, setIsUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isAddingDocument, setIsAddingDocument] = useState(false)
-  const [selectedDocumentType, setSelectedDocumentType] = useState<string>("")
-  const [expires_at, setExpires_at] = useState<string>("")
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [previewFile, setPreviewFile] = useState<{ src: string; alt: string } | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAddingDocument, setIsAddingDocument] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>("");
+  const [expires_at, setExpires_at] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewFile, setPreviewFile] = useState<{ src: string; alt: string } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const handlePreviewDocument = (url?: string, name?: string) => {
-    if (!url) return
-    setPreviewFile({ src: url, alt: name || "Document" })
-    setIsPreviewOpen(true)
-  }
+    if (!url) return;
+    setPreviewFile({ src: url, alt: name || "Document" });
+    setIsPreviewOpen(true);
+  };
 
   const closePreview = () => {
-    setIsPreviewOpen(false)
-    setPreviewFile(null)
-  }
+    setIsPreviewOpen(false);
+    setPreviewFile(null);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (!file) {
-      setError(null)
-      return
+      setError(null);
+      return;
     }
 
-    const maxSizeMB = 10
+    const maxSizeMB = 10;
     if (file.size > maxSizeMB * 1024 * 1024) {
-      setError(`File is too large. Maximum size is ${maxSizeMB}MB.`)
+      setError(`File is too large. Maximum size is ${maxSizeMB}MB.`);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
-      return
+      return;
     }
-    setError(null)
-  }
+    setError(null);
+  };
 
   const handleUploadDocument = async () => {
-    const file = fileInputRef.current?.files?.[0]
+    const file = fileInputRef.current?.files?.[0];
     if (!file || !selectedDocumentType) {
-      setError(!file ? "Please select a file" : "Please select a document type")
-      return
+      setError(!file ? "Please select a file" : "Please select a document type");
+      return;
     }
 
     try {
-      setIsUploading(true)
-      setError(null)
+      setIsUploading(true);
+      setError(null);
 
-      const uploadResponse = await uploadFile(file, true)
+      const uploadResponse = await uploadFile(file, true);
 
       const newDocument: DocumentWithMeta = {
         document_type: selectedDocumentType,
@@ -118,28 +115,28 @@ export function DocumentUpload({
         expires_at: expires_at || undefined,
         file_id: uploadResponse.filePath,
         verification_status: 'pending',
-      }
+      };
 
-      append(newDocument)
+      onUploadComplete?.(newDocument);
 
       // Reset dialog state
-      setSelectedDocumentType("")
-      setExpires_at("")
+      setSelectedDocumentType("");
+      setExpires_at("");
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
-      setIsAddingDocument(false)
+      setIsAddingDocument(false);
     } catch (error) {
-      console.error("Error uploading document:", error)
-      setError("Failed to upload document. Please try again.")
+      console.error("Error uploading document:", error);
+      setError("Failed to upload document. Please try again.");
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
-  }
+  };
 
   const handleRemoveDocument = (index: number) => {
-    remove(index)
-  }
+    onDelete?.(index);
+  };
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -232,11 +229,11 @@ export function DocumentUpload({
         </Dialog>
       </div>
 
-      {fields.length > 0 ? (
+      {documents.length > 0 ? (
         <div className="space-y-2">
           <ScrollArea className="max-h-[400px] overflow-y-auto">
             <div className="space-y-2">
-              {fields.map((field, index) => {
+              {documents.map((field, index) => {
                 const doc = field as DocumentWithMeta & { id: string };
                 return (
                   <div

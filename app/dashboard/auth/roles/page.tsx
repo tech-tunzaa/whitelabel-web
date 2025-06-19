@@ -61,7 +61,7 @@ export default function RolesPage() {
   // Handle role deletion
   const handleDeleteRole = async (id: string) => {
     // Don't allow deletion of the Super Owner role
-    if (id === '1' || id === 'super_owner') {
+    if (id === '1' || id === 'super') {
       toast.error("Cannot delete the Super Owner role")
       return
     }
