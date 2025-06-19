@@ -62,7 +62,7 @@ function SortableBannerItem({
   isDeleting,
   onRemove,
   onUpdate,
-  onImageUpload,
+  onUploadingChange,
 }: {
   banner: Banner;
   index: number;
@@ -71,7 +71,7 @@ function SortableBannerItem({
   isDeleting: string | null;
   onRemove: (index: number, bannerId?: string) => void;
   onUpdate: (index: number, field: string, value: any) => void;
-  onImageUpload: (index: number, file: File) => void;
+  onUploadingChange: (isUploading: boolean) => void;
 }) {
   const {
     attributes,
@@ -142,8 +142,7 @@ function SortableBannerItem({
                 id={`banner-image-${index}`}
                 value={banner.image_url}
                 onChange={(url) => onUpdate(index, "image_url", url)}
-                onFileChange={(file) => onImageUpload(index, file)}
-                readOnly={readOnly || isUploading}
+                onUploadingChange={onUploadingChange}
                 height="h-40"
                 width="w-full"
                 imgHeight="h-70"
@@ -268,8 +267,8 @@ export function BannerEditor({
   onUpdateResource,
   disableDragAndDrop = false,
 }: BannerEditorProps) {
-  const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Configure sensors for drag and drop with vertical movement constraint
   const sensors = useSensors(
@@ -360,6 +359,10 @@ export function BannerEditor({
 
   // Update a banner field by index
   const updateBanner = (index: number, field: string, value: any) => {
+    // Prevent saving temporary blob URLs from ImageUpload preview
+    if (field === 'image_url' && typeof value === 'string' && value.startsWith('blob:')) {
+      return;
+    }
     const updatedBanners = [...banners];
     
     // Special handling for display_order changes
@@ -408,52 +411,6 @@ export function BannerEditor({
     
     // Log for debugging
     console.log(`Updated banner ${index}, field: ${field}, value:`, value);
-  };
-
-  // Handle image upload for a banner
-  const handleImageUpload = async (index: number, file: File) => {
-    if (!file) return;
-    
-    setIsUploading(true);
-    
-    try {
-      // Upload the image and get the URL
-      // This would be replaced with an actual API call to upload the image
-      // For now, we'll just use a placeholder URL
-      const imageUrl = URL.createObjectURL(file);
-      
-      // If we have resourceId and entityId and this is an existing banner, update it through API
-      if (resourceId && entityId && banners[index].id && onUpdateResource) {
-        try {
-          // Call the API to update the banner
-          await onUpdateResource(
-            resourceId,
-            entityId,
-            {
-              banners: [
-                {
-                  ...banners[index],
-                  image_url: imageUrl,
-                }
-              ]
-            }
-          );
-          toast.success("Banner image updated successfully");
-        } catch (error) {
-          console.error("Error updating banner via API:", error);
-          toast.error("Failed to update banner via API");
-          throw error; // Re-throw to be caught by outer catch
-        }
-      }
-      
-      // Update the banner in the local state
-      updateBanner(index, "image_url", imageUrl);
-    } catch (error) {
-      console.error("Error uploading banner image:", error);
-      toast.error("Failed to upload banner image");
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   // Handle drag end event for reordering
@@ -533,7 +490,7 @@ export function BannerEditor({
               isDeleting={isDeleting}
               onRemove={removeBanner}
               onUpdate={updateBanner}
-              onImageUpload={handleImageUpload}
+              onUploadingChange={setIsUploading}
             />
           ))
         ) : (
@@ -554,11 +511,11 @@ export function BannerEditor({
                     banner={banner}
                     index={index}
                     readOnly={readOnly}
-                    isUploading={isUploading}
+                    isUploading={false} // Since ImageUpload handles its own state
                     isDeleting={isDeleting}
                     onRemove={removeBanner}
                     onUpdate={updateBanner}
-                    onImageUpload={handleImageUpload}
+                    onUploadingChange={setIsUploading}
                   />
                   {index < banners.length - 1 && (
                     <div className="w-full h-[2px] bg-gray-100 mt-3"></div>
