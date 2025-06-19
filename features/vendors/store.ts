@@ -14,19 +14,11 @@ interface VendorStore {
   setVendor: (vendor: Vendor | null) => void;
   setVendors: (vendors: VendorApiResponse) => void;
   fetchVendor: (id: string, headers?: Record<string, string>) => Promise<Vendor>;
-  fetchVendorByUser: (userId: string, headers?: Record<string, string>) => Promise<Vendor>;
   fetchVendors: (filter?: VendorFilter, headers?: Record<string, string>) => Promise<VendorListResponse>;
   createVendor: (data: Partial<Vendor>, headers?: Record<string, string>) => Promise<Vendor>;
   updateVendor: (id: string, data: Partial<Vendor>, headers?: Record<string, string>) => Promise<Vendor>;
   updateVendorStatus: (id: string, status: string, headers?: Record<string, string>, rejection_reason?: string) => Promise<void>;
-  uploadKycDocuments: (id: string, documents: VerificationDocument[], headers?: Record<string, string>) => Promise<void>;
   // Store related actions
-  fetchStore: (id: string, headers?: Record<string, string>) => Promise<Store>;
-  createStore: (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
-  updateStoreBranding: (storeId: string, data: Partial<StoreBranding>, headers?: Record<string, string>) => Promise<Store>;
-  addStoreBanner: (storeId: string, data: Partial<StoreBanner>, headers?: Record<string, string>) => Promise<void>;
-  deleteStoreBanner: (storeId: string, bannerId: string, headers?: Record<string, string>) => Promise<void>;
-  updateStore: (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>) => Promise<Store>;
   fetchStoreByVendor: (vendorId: string, headers?: Record<string, string>, limit?: number) => Promise<Store[]>;
 }
 
@@ -94,35 +86,6 @@ export const useVendorStore = create<VendorStore>()(
         setLoading(false);
         throw error;
       } finally {
-        setActiveAction(null);
-      }
-    },
-
-    fetchVendorByUser: async (userId: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError, setVendor } = get();
-      try {
-        setActiveAction('fetchByUser');
-        setLoading(true);
-        // The API might have a different endpoint for fetching by user ID
-        // Adjust this endpoint according to the actual API
-        const response = await apiClient.get<ApiResponse<Vendor>>(`/marketplace/vendors?user_id=${userId}`, undefined, headers);
-        if (response.data && response.data.data) {
-          // Use type assertion to convert API response to Vendor
-          const vendorData = (response.data.data as unknown) as Vendor;
-          setVendor(vendorData);
-          return vendorData;
-        }
-        throw new Error('Vendor not found');
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch vendor';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        throw error;
-      } finally {
-        setLoading(false);
         setActiveAction(null);
       }
     },
@@ -294,190 +257,7 @@ export const useVendorStore = create<VendorStore>()(
       }
     },
 
-    uploadKycDocuments: async (id: string, documents: VerificationDocument[], headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('uploadDocuments');
-        setLoading(true);
-        await apiClient.post(`/marketplace/vendors/${id}/documents`, { documents }, headers);
-        setLoading(false);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to upload documents';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
     // Store related methods
-    fetchStore: async (id: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('fetchOne');
-        setLoading(true);
-
-        const response = await apiClient.get<ApiResponse<Store>>(`/marketplace/stores/${id}`, undefined, headers);
-
-        let storeData: Store;
-        
-        if (response.data && response.data.data) {
-          storeData = response.data.data as Store;
-        } else if (response.data) {
-          // Handle case where API returns data directly without nesting
-          storeData = response.data as unknown as Store;
-        } else {
-          throw new Error('No store data found in response');
-        }
-
-        setLoading(false);
-        return storeData;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch store';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    updateStoreBranding: async (storeId: string, data: Partial<StoreBranding>, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('updateStoreBranding');
-        setLoading(true);
-        const response = await apiClient.put<ApiResponse<Store>>(`/marketplace/stores/${storeId}/branding`, data, headers);
-        setLoading(false);
-        let storeData: Store;
-        
-        if (response.data && response.data.data) {
-          storeData = response.data.data as Store;
-        } else {
-          storeData = response.data as unknown as Store;
-        }
-        
-        return storeData;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update store branding';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    addStoreBanner: async (storeId: string, data: Partial<StoreBanner>, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('addStoreBanner');
-        setLoading(true);
-        await apiClient.post(`/marketplace/stores/${storeId}/banners`, data, headers);
-        setLoading(false);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to add store banner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    deleteStoreBanner: async (storeId: string, bannerId: string, headers?: Record<string, string>) => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('deleteStoreBanner');
-        setLoading(true);
-        await apiClient.delete(`/marketplace/stores/${storeId}/banners/${bannerId}`, undefined, headers);
-        setLoading(false);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete store banner';
-        const errorStatus = (error as any)?.response?.status;
-        setStoreError({
-          message: errorMessage,
-          status: errorStatus,
-        });
-        setLoading(false);
-        throw error;
-      } finally {
-        setActiveAction(null);
-      }
-    },
-
-    updateStore: async (vendorId: string, storeId: string, storeData: Partial<Store>, headers?: Record<string, string>): Promise<Store> => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('updateStore');
-        setLoading(true);
-        
-        console.log('Updating store with ID:', storeId, 'for vendor:', vendorId);
-        console.log('Store update payload:', storeData);
-        
-        // Use direct store update endpoint
-        const response = await apiClient.put<ApiResponse<Store>>(`/marketplace/stores/${storeId}`, storeData, headers);
-        
-        console.log('Store update response:', response);
-        
-        // Try to extract updated store data
-        let updatedStore: Store | null = null;
-        
-        if (response.data && response.data.data) {
-          updatedStore = response.data.data as Store;
-        } else if (response.data) {
-          updatedStore = response.data as unknown as Store;
-        }
-        
-        if (updatedStore && typeof updatedStore === 'object') {
-          // Ensure we have an id property for consistency
-          if (!updatedStore.id && updatedStore._id) {
-            updatedStore.id = updatedStore._id;
-          }
-          
-          // Ensure arrays exist to prevent errors
-          if (!Array.isArray(updatedStore.banners)) {
-            updatedStore.banners = [];
-          }
-          
-          if (!Array.isArray(updatedStore.categories)) {
-            updatedStore.categories = [];
-          }
-          
-          return updatedStore;
-        }
-        
-        throw new Error('Could not extract valid store data from update response');
-      } catch (error: any) {
-        console.error('Error updating store:', error);
-        setStoreError({
-          message: error.message || 'Failed to update store',
-          status: error.response?.status
-        });
-        throw error;
-      } finally {
-        setLoading(false);
-        setActiveAction(null);
-      }
-    },
-    
     fetchStoreByVendor: async (vendorId: string, headers?: Record<string, string>, limit?: number): Promise<Store[]> => {
       const { setActiveAction, setLoading, setStoreError } = get();
       try {
@@ -547,66 +327,6 @@ export const useVendorStore = create<VendorStore>()(
         console.error('Error fetching store by vendor:', error);
         setStoreError({
           message: error.message || 'Failed to fetch store by vendor ID',
-          status: error.response?.status
-        });
-        throw error;
-      } finally {
-        setLoading(false);
-        setActiveAction(null);
-      }
-    },
-    
-    // Create a new store for a vendor
-    createStore: async (vendorId: string, storeData: Partial<Store>, headers?: Record<string, string>): Promise<Store> => {
-      const { setActiveAction, setLoading, setStoreError } = get();
-      try {
-        setActiveAction('createStore');
-        setLoading(true);
-        
-        console.log('Creating new store for vendor ID:', vendorId);
-        console.log('Store creation payload:', storeData);
-        
-        // Use vendor-scoped store creation endpoint
-        const response = await apiClient.post<ApiResponse<Store>>(
-          `/marketplace/vendors/${vendorId}/stores`, 
-          storeData, 
-          headers
-        );
-        
-        console.log('Store creation response:', response);
-        
-        // Extract created store data
-        let createdStore: Store | null = null;
-        
-        if (response.data && response.data.data) {
-          createdStore = response.data.data as Store;
-        } else if (response.data) {
-          createdStore = response.data as unknown as Store;
-        }
-        
-        if (createdStore && typeof createdStore === 'object') {
-          // Ensure we have an id property for consistency
-          if (!createdStore.id && createdStore._id) {
-            createdStore.id = createdStore._id;
-          }
-          
-          // Ensure arrays exist to prevent errors
-          if (!Array.isArray(createdStore.banners)) {
-            createdStore.banners = [];
-          }
-          
-          if (!Array.isArray(createdStore.categories)) {
-            createdStore.categories = [];
-          }
-          
-          return createdStore;
-        }
-        
-        throw new Error('Could not extract valid store data from creation response');
-      } catch (error: any) {
-        console.error('Error creating store:', error);
-        setStoreError({
-          message: error.message || 'Failed to create store',
           status: error.response?.status
         });
         throw error;

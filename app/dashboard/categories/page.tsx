@@ -16,7 +16,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCategoryStore } from "@/features/categories/store";
 import { CategoryFilter } from "@/features/categories/types";
 import { CategoryTable } from "@/features/categories/components/category-table";
-import { CategoryFormDialog } from "@/features/categories/components/category-form-dialog";
 import { DeleteCategoryDialog } from "@/features/categories/components/delete-category-dialog";
 
 import { Category } from "@/features/categories/types";
@@ -93,13 +92,11 @@ export default function CategoriesPage() {
   }, [fetchCategories, activeTab, currentPage, searchQuery, tenantId]);
 
   const handleAddCategory = () => {
-    setCategory(null); // For create mode, category is null
-    setActiveAction("form");
+    router.push("/dashboard/categories/add");
   };
 
   const handleEditCategory = (category: Category) => {
-    setCategory(category);
-    setActiveAction("form");
+    router.push(`/dashboard/categories/${category.category_id}/edit`);
   };
 
   const handleViewDetails = (category: Category) => {
@@ -222,7 +219,7 @@ export default function CategoriesPage() {
               <CategoryTable
                 categories={categories}
                 onEdit={handleEditCategory}
-                  onViewDetails={handleViewDetails}
+                onViewDetails={handleViewDetails}
                 onDelete={handleDeleteCategory}
                 onToggleStatus={handleToggleStatus}
               />
@@ -237,13 +234,6 @@ export default function CategoriesPage() {
         </Tabs>
       </div>
 
-      {activeAction === "form" && (
-        <CategoryFormDialog 
-          category={category} 
-          tenantId={tenantId} 
-          onClose={onDialogClose} 
-        />
-      )}
       {activeAction === "delete" && category && (
         <DeleteCategoryDialog category={category} tenantId={tenantId} onClose={onDialogClose} />
       )}

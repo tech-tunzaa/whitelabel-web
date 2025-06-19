@@ -14,12 +14,10 @@ interface TenantStore {
   setTenant: (tenant: Tenant) => void;
   setTenants: (tenants: Tenant[]) => void;
   fetchTenant: (id: string) => Promise<Tenant>;
-  fetchTenantByUser: (userId: string) => Promise<Tenant>;
   fetchTenants: (filter?: TenantFilter) => Promise<TenantListResponse>;
   createTenant: (data: Partial<Tenant>) => Promise<Tenant>;
   updateTenant: (id: string, data: Partial<Tenant>) => Promise<Tenant>;
   deactivateTenant: (id: string) => Promise<void>;
-  toggleModule: (tenantId: string, moduleName: string, enabled: boolean) => Promise<void>;
 }
 
 export const useTenantStore = create<TenantStore>()(
@@ -57,28 +55,6 @@ export const useTenantStore = create<TenantStore>()(
           setLoading(false);
           throw error;
         } finally {
-          setActiveAction(null);
-        }
-      },
-
-      fetchTenantByUser: async (userId: string) => {
-        const { setActiveAction, setLoading, setStoreError, setTenant } = get();
-        try {
-          setActiveAction('fetchByUser');
-          setLoading(true);
-          const response = await apiClient.get<Tenant>(`/tenants/user/${userId}`);
-          if (response.data) {
-            setTenant(response.data);
-            return response.data;
-          }
-          throw new Error('Tenant not found');
-        } catch (error) {
-          setStoreError({
-            message: error instanceof Error ? error.message : 'Failed to fetch tenant',
-          });
-          throw error;
-        } finally {
-          setLoading(false);
           setActiveAction(null);
         }
       },
@@ -164,25 +140,6 @@ export const useTenantStore = create<TenantStore>()(
         } catch (error) {
           setStoreError({
             message: error instanceof Error ? error.message : 'Failed to deactivate tenant',
-          });
-          throw error;
-        } finally {
-          setLoading(false);
-          setActiveAction(null);
-        }
-      },
-
-      toggleModule: async (tenantId: string, moduleName: string, enabled: boolean) => {
-        const { setActiveAction, setLoading, setStoreError } = get();
-        try {
-          setActiveAction('toggleModule');
-          setLoading(true);
-          await apiClient.post(`/tenants/${tenantId}/modules/${moduleName}/toggle`, {
-            enabled,
-          });
-        } catch (error) {
-          setStoreError({
-            message: error instanceof Error ? error.message : 'Failed to toggle module',
           });
           throw error;
         } finally {

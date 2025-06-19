@@ -41,7 +41,6 @@ import { useCategoryStore } from "@/features/categories/store";
 import { Category } from "@/features/categories/types";
 import { Product } from "@/features/products/types";
 import { ProductTable } from "@/features/products/components/product-table";
-import { CategoryFormDialog } from "@/features/categories/components/category-form-dialog";
 
 interface CategoryPageProps {
   params: {
@@ -57,8 +56,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const [category, setCategory] = useState<Category | null>(null);
   const [parentCategory, setParentCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [categoryLoading, setCategoryLoading] = useState<boolean>(true);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [productsLoading, setProductsLoading] = useState<boolean>(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<"edit" | "delete" | null>(null);
   const { fetchCategory, deleteCategory, toggleCategoryStatus } = useCategoryStore();
   const { fetchProducts } = useProductStore();
@@ -71,11 +72,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
   useEffect(() => {
     if (!tenantId) return;
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
 
+    const loadCategoryData = async () => {
+      try {
+        setCategoryLoading(true);
         const categoryData = await fetchCategory(id, tenantHeaders);
         setCategory(categoryData);
 
@@ -83,23 +83,34 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           try {
             const parentData = await fetchCategory(categoryData.parent_id, tenantHeaders);
             setParentCategory(parentData);
-          } catch (error) {
-            console.error("Error fetching parent category:", error);
+          } catch (parentError) {
+            console.error("Error fetching parent category:", parentError);
           }
         }
+      } catch (err) {
+        console.error("Error fetching category:", err);
+        setCategoryError(t('page.errorLoading'));
+      } finally {
+        setCategoryLoading(false);
+      }
+    };
 
+    const loadProducts = async () => {
+      try {
+        setProductsLoading(true);
         const filter = { categoryId: id };
         const productsResponse = await fetchProducts(filter, tenantHeaders);
         setProducts(productsResponse.items || []);
       } catch (err) {
-        console.error("Error fetching category:", err);
-        setError(t('page.errorLoading'));
+        console.error("Error fetching products:", err);
+        setProductsError(t('products_card.error_fetching', 'Could not load products.'));
       } finally {
-        setLoading(false);
+        setProductsLoading(false);
       }
     };
 
-    loadData();
+    loadCategoryData();
+    loadProducts();
   }, [id, tenantId, fetchCategory, fetchProducts, t]);
 
   const getStatusBadge = (status: boolean | undefined) => {
@@ -138,15 +149,15 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     }
   };
 
-  if (loading) {
+  if (categoryLoading) {
     return <div className="flex items-center justify-center h-full"><Spinner /></div>;
   }
 
-  if (error || !category) {
+  if (categoryError || !category) {
     return (
       <ErrorCard
         title={t('page.errorLoading')}
-        error={{ message: error || t('page.categoryNotFound') }}
+        error={{ message: categoryError || t('page.categoryNotFound') }}
         buttonText={t('common:actions.back_to_list')}
         buttonAction={() => router.push("/dashboard/categories")}
         buttonIcon={ArrowLeft}
@@ -156,16 +167,6 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {activeAction === "edit" && (
-        <CategoryFormDialog
-          category={category}
-          tenantId={tenantId}
-          onClose={() => {
-            setActiveAction(null);
-            fetchCategory(id, tenantHeaders).then(setCategory); // Refetch on close
-          }}
-        />
-      )}
       {activeAction === "delete" && (
         <Dialog open onOpenChange={() => setActiveAction(null)}>
           <DialogContent>
@@ -210,7 +211,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{t('details_card.title')}</CardTitle>
-              <Button variant="outline" size="icon" onClick={() => setActiveAction("edit")} title={t('common:actions.edit')}>
+              <Button variant="outline" size="icon" onClick={() => router.push(`/dashboard/categories/${id}/edit`)} title={t('common:actions.edit')}>
                 <Pencil className="h-4 w-4" />
               </Button>
             </CardHeader>
@@ -268,7 +269,15 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {products.length > 0 ? (
+              {productsLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Spinner />
+                </div>
+              ) : productsError ? (
+                <div className="text-center py-8 text-destructive">
+                  <p>{productsError}</p>
+                </div>
+              ) : products.length > 0 ? (
                 <ProductTable
                   products={products}
                   onEdit={(product) => router.push(`/dashboard/products/${product.product_id}`)}
@@ -326,7 +335,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <CardTitle>{t('actions_card.title', 'Actions')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col space-y-2">
-              <Button variant="outline" onClick={() => setActiveAction("edit")}>
+              <Button variant="outline" onClick={() => router.push(`/dashboard/categories/${category.category_id}/edit`)}>
                 <Pencil className="h-4 w-4 mr-2" />
                 {t('common:actions.edit_entity', { entity: t('common:entity.category') })}
               </Button>

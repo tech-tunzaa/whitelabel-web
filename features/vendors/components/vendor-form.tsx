@@ -396,12 +396,12 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                           <SelectContent>
                             {tenants
                               .filter(
-                                (tenant) => tenant.id && tenant.id.trim() !== ""
+                                (tenant) => tenant.tenant_id && tenant.tenant_id.trim() !== ""
                               )
                               .map((tenant) => (
                                 <SelectItem
-                                  key={tenant.id || `tenant-${Math.random()}`}
-                                  value={tenant.id}
+                                  key={tenant.tenant_id || `tenant-${Math.random()}`}
+                                  value={tenant.tenant_id}
                                 >
                                   {tenant.name}
                                 </SelectItem>
