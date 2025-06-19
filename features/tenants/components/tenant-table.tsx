@@ -52,9 +52,16 @@ export function TenantTable({
   }
 
   // Format dates consistently to prevent hydration errors
-  const formatDate = (dateString: string) => {
-    // Using a simple and consistent date format without locale dependency
-    return format(new Date(dateString), "MM/dd/yyyy");
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) {
+      return "N/A";
+    }
+    try {
+      return format(new Date(dateString), "MM/dd/yyyy");
+    } catch (error) {
+      console.error("Invalid date format:", dateString);
+      return "Invalid Date";
+    }
   };
 
   const getStatusBadge = (status: boolean) => {
@@ -111,9 +118,9 @@ export function TenantTable({
             ) : (
               tenants.map((tenant) => (
                 <TableRow 
-                  key={tenant.id} 
+                  key={tenant.tenant_id} 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleRowClick(tenant.id)}
+                  onClick={() => handleRowClick(tenant.tenant_id)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -162,7 +169,7 @@ export function TenantTable({
                   </TableCell>
                   <TableCell>{getStatusBadge(tenant.is_active)}</TableCell>
                   <TableCell>
-                    {formatDate(tenant.createdAt)}
+                    {formatDate(tenant.created_at)}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -180,7 +187,7 @@ export function TenantTable({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/dashboard/tenants/${tenant.id}`);
+                            router.push(`/dashboard/tenants/${tenant.tenant_id}`);
                           }}
                         >
                           View Details
@@ -188,7 +195,7 @@ export function TenantTable({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/dashboard/tenants/${tenant.id}/edit`);
+                            router.push(`/dashboard/tenants/${tenant.tenant_id}/edit`);
                           }}
                         >
                           Marketplace Settings

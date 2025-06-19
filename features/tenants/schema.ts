@@ -84,7 +84,7 @@ export const tenantFormSchema = z.object({
   vehicle_types: z.array(z.string()).min(1, {
     message: "At least one vehicle type is required.",
   }),
-  fee: z.number().optional().or(z.literal("")),
+  fee: z.string().optional().or(z.literal("")),
   trial_ends_at: z.string().optional().or(z.literal("")),
   is_active: z.boolean().optional(),
   modules: modulesSchema,

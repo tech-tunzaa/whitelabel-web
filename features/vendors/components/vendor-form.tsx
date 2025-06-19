@@ -1,14 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import cloneDeep from "lodash/cloneDeep";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray, useWatch, Control } from "react-hook-form";
 import { Spinner } from "@/components/ui/spinner";
-import { Plus, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,28 +35,13 @@ import { RequiredField } from "@/components/ui/required-field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import dynamic from "next/dynamic";
+import { MapPicker } from "@/components/ui/map-picker"
 import {
   DocumentUpload,
   DocumentWithMeta,
   DocumentType,
 } from "@/components/ui/document-upload";
 import { FileUpload } from "@/components/ui/file-upload";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-
-// Dynamically import MapPicker with SSR disabled to prevent window not defined errors
-const MapPicker = dynamic(
-  () => import("@/components/ui/map-picker").then((mod) => mod.MapPicker),
-  { ssr: false }
-);
-
 import {
   DOCUMENT_TYPES,
   DocumentTypeOption,
@@ -78,27 +60,42 @@ import { BannerEditor } from "@/components/ui/banner-editor";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
 
-// Define local type for documents that includes ALL necessary fields
-// This ensures proper TypeScript compatibility throughout the form
-type VerificationDocument = {
-  id?: string;
-  document_id?: string;
-  document_type: string;
-  document_url: string;
-  file_name: string;
-  file_url?: string;
-  expires_at?: string;
-  expiry_date?: string;
-  verification_status?: "pending" | "approved" | "rejected";
-  rejection_reason?: string;
-  file?: File;
-  file_id?: string;
+// Default values for the form, providing a clean slate for new vendors.
+const defaultValues: Partial<VendorFormValues> = {
+  verification_documents: [],
+  country: "Tanzania",
+  commission_rate: "0",
+  bank_account: {
+    bank_name: "",
+    account_number: "",
+    account_name: "",
+    swift_bic: "",
+    branch_code: "",
+  },
+  store: {
+    store_name: "",
+    store_slug: "",
+    description: "",
+    logo_url: "",
+    banners: [],
+    categories: [],
+    return_policy: "",
+    shipping_policy: "",
+    general_policy: "",
+    location: { lat: -6.7924, lng: 39.2083 }, // Default to Dar es Salaam
+  },
+  verification_documents: [],
+  user: {
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone_number: "",
+    password: "",
+  },
 };
 
 interface VendorFormProps {
-  onSubmit: (
-    data: VendorFormValues
-  ) => Promise<{ vendor_id: string } | null | void>;
+  onSubmit: (data: VendorFormValues) => Promise<any>;
   onCancel?: () => void;
   initialData?: Partial<VendorFormValues> & { id?: string };
   id?: string;
@@ -112,22 +109,60 @@ export function VendorForm({
   id,
   isSubmitting: externalIsSubmitting,
 }: VendorFormProps) {
-  // Debug initialData and store data
-  console.log("VendorForm initialData:", initialData);
-  console.log("VendorForm store data:", initialData?.store);
-
   const { data: session } = useSession();
-  const vendorStore = useVendorStore();
-  const tenantId = (session?.user as any)?.tenant_id || "";
-  const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super";
+  const tenantId = useMemo(() => (session?.user as any)?.tenant_id || "", [session]);
+  const isSuperOwner = useMemo(() => session?.user?.role === "super", [session]);
+  const isAddPage = !initialData?.id;
 
-  // Tab validation mapping - which fields belong to which tab
-  const tabValidationMap = {
+  const [activeTab, setActiveTab] = useState<Tab>("business");
+  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
+  const isSubmitting = externalIsSubmitting || internalIsSubmitting;
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const fetchTenants = useTenantStore((state) => state.fetchTenants);
+  const tenants = useTenantStore((state) => state.tenants);
+  const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+  const categories = useCategoryStore((state) => state.categories);
+
+  const form = useForm<VendorFormValues>({
+    resolver: zodResolver(vendorFormSchema),
+    defaultValues: initialData
+      ? { ...defaultValues, ...initialData, tenant_id: initialData.tenant_id || (isSuperOwner ? "" : tenantId), verification_documents: initialData.verification_documents || [] }
+      : { ...defaultValues, tenant_id: isSuperOwner ? "" : tenantId },
+    mode: "onBlur",
+  });
+
+  const watchedTenantId = form.watch("tenant_id");
+
+  useEffect(() => {
+    if (isSuperOwner) {
+      fetchTenants();
+    }
+  }, [isSuperOwner, fetchTenants]);
+
+  useEffect(() => {
+    if (watchedTenantId) {
+      fetchCategories(undefined, { 'X-Tenant-ID': watchedTenantId });
+    }
+  }, [watchedTenantId, fetchCategories]);
+
+  const tabFlow = [
+    "business",
+    "store",
+    "address",
+    "banking",
+    "documents",
+    "review",
+  ] as const;
+  type Tab = typeof tabFlow[number];
+
+  const tabFields: Partial<Record<Tab, (keyof VendorFormValues)[]>> = {
     business: [
       "tenant_id",
       "business_name",
       "display_name",
+      "user.first_name",
+      "user.last_name",
       "contact_email",
       "contact_phone",
       "commission_rate",
@@ -147,256 +182,63 @@ export function VendorForm({
     ],
     banking: [
       "bank_account.bank_name",
-      "bank_account.account_number",
       "bank_account.account_name",
+      "bank_account.account_number",
     ],
-    documents: [], // Documents are optional
   };
 
-  const tabFlow = [
-    "business",
-    "store",
-    "address",
-    "banking",
-    "documents",
-    "review",
-  ];
+  const nextTab = async () => {
+    const fieldsToValidate = tabFields[activeTab];
 
-  // State for component
-  const [activeTab, setActiveTab] = useState("business");
-  const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  // We'll use React Hook Form's built-in state management instead of temporary state
-  // This ensures form values are preserved between tab navigations
-
-  // Determine if form is submitting from either external or internal state
-  const isSubmitting = externalIsSubmitting || internalIsSubmitting;
-  const isAddPage = !initialData?.id;
-
-  // Get tenants and categories
-  const { fetchTenants } = useTenantStore();
-  const { fetchCategories } = useCategoryStore();
-  const tenants = useTenantStore((state) => state.tenants);
-  const categories = useCategoryStore((state) => state.categories);
-
-  // Initialize React Hook Form with explicit type to fix TypeScript errors
-  const form = useForm<VendorFormValues>({
-    resolver: zodResolver(vendorFormSchema) as any,
-    mode: "onSubmit",
-    defaultValues: initialData || {
-      tenant_id: tenantId || "",
-      business_name: "",
-      display_name: "",
-      contact_email: "",
-      contact_phone: "",
-      website: "",
-      address_line1: "",
-      address_line2: "",
-      city: "",
-      state_province: "",
-      postal_code: "",
-      country: "Tanzania",
-      tax_id: "",
-      categories: [],
-      commission_rate: "0",
-      bank_account: {
-        bank_name: "",
-        account_number: "",
-        account_name: "",
-        swift_bic: "",
-        branch_code: "",
-      },
-      store: {
-        store_name: "",
-        store_slug: "",
-        description: "",
-        logo_url: "",
-        banners: [],
-        categories: [],
-        return_policy: "",
-        shipping_policy: "",
-        general_policy: "",
-      },
-      verification_documents: [],
-      user: {
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone_number: "",
-        password: "",
-        access_token: "",
-      },
-    },
-  });
-
-  // For FormControl types to work with nested fields, we cast to specific type
-  const formControl = form.control as Control<VendorFormValues>;
-
-  // Set up field array for banners with proper typing
-  const {
-    fields: bannerFields,
-    append: appendBanner,
-    remove: removeBanner,
-  } = useFieldArray({
-    control: formControl,
-    name: "store.banners",
-  });
-
-  // Default banner to add when "Add Banner" is clicked
-  const defaultBanner = {
-    title: "",
-    image_url: "",
-    alt_text: "",
-    display_order: bannerFields.length,
-    is_active: true,
-    start_date: "",
-    end_date: "",
-  };
-
-  // Fetch tenants and categories on component mount
-  useEffect(() => {
-    fetchTenants();
-    // Fetch categories for the correct tenant
-    fetchCategories(undefined, { "X-Tenant-ID": tenantId })
-      .then(() => {
-        console.log("Categories fetched successfully");
-      })
-      .catch((error) => {
-        console.error("Error fetching categories:", error);
-      });
-  }, [fetchTenants, fetchCategories, tenantId]);
-
-  // Log categories for debugging
-  useEffect(() => {
-    console.log("Categories in state:", categories);
-  }, [categories]);
-
-  // Get API functions from store
-  const {
-    createVendor,
-    updateVendor,
-    createStore,
-    fetchStoreByVendor,
-    updateStore,
-  } = useVendorStore();
-
-  // Navigation functions - simplified with direct form state usage
-  const nextTab = () => {
-    const currentTabIndex = tabFlow.indexOf(activeTab);
-    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1)
-      return;
-
-    // Get fields to validate for the current tab
-    const fieldsToValidate =
-      tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
-
-    // Validate only if we're going to the next tab via the Next button
-    if (fieldsToValidate.length > 0) {
-      // Trigger validation for all required fields in the current tab
-      const result = fieldsToValidate.every((field) =>
-        form.trigger(field as any)
-      );
-
-      if (result) {
-        // If validation passes, go to next tab
+    // If the current tab has no fields to validate (e.g., review tab), just proceed
+    if (!fieldsToValidate) {
+      const currentTabIndex = tabFlow.indexOf(activeTab);
+      if (currentTabIndex < tabFlow.length - 1) {
         setActiveTab(tabFlow[currentTabIndex + 1]);
-      } else {
-        toast.error("Please complete all required fields before proceeding.");
+      }
+      return;
+    }
+
+    const isValid = await form.trigger(fieldsToValidate as any);
+
+    if (isValid) {
+      const currentTabIndex = tabFlow.indexOf(activeTab);
+      if (currentTabIndex < tabFlow.length - 1) {
+        setActiveTab(tabFlow[currentTabIndex + 1]);
       }
     } else {
-      // If there are no fields to validate, just go to the next tab
-      setActiveTab(tabFlow[currentTabIndex + 1]);
+      toast.error("Please correct the errors on this tab before proceeding.");
     }
   };
 
   const prevTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex > 0) {
-      // Going back doesn't trigger validation
       setActiveTab(tabFlow[currentTabIndex - 1]);
     }
   };
 
-  // Handle file upload for form submission
-  const handleFileUpload = useCallback((file: File, fieldName: string) => {
-    console.log(`Uploading file for ${fieldName}:`, file);
-  }, []);
-
-  // Function to find which tab contains field errors - exactly matching tenant form implementation
-  const findTabWithErrors = (errors: any): string => {
-    // Check each field against our tab mapping to find which tab has errors
-    for (const [tabName, fields] of Object.entries(tabValidationMap)) {
-      for (const field of fields) {
-        // Handle nested fields (with dots)
-        if (field.includes(".")) {
-          const parts = field.split(".");
-          let currentObj = errors;
-          let hasError = true;
-
-          // Navigate through the nested error object
-          for (const part of parts) {
-            if (!currentObj || !currentObj[part]) {
-              hasError = false;
-              break;
-            }
-            currentObj = currentObj[part];
-          }
-
-          if (hasError) return tabName;
-        } else if (errors[field]) {
-          return tabName;
-        }
-      }
-    }
-
-    // If no tab with errors is found, stay on the current tab
-    return activeTab;
-  };
-
-  // Handle form submission with minimal data processing
-  const handleFormSubmit = useCallback(
-    async (data: VendorFormValues, e?: React.BaseSyntheticEvent) => {
+  const handleSubmit = useCallback(
+    async (data: VendorFormValues) => {
       try {
         setFormError(null);
         setInternalIsSubmitting(true);
-
-        // Make a clean copy of form data
         const dataToSubmit = JSON.parse(JSON.stringify(data));
-
-        // For non-superOwner users, set tenant_id from session
-        if (!isSuperOwner && tenantId) {
+        if (!isSuperOwner) {
           dataToSubmit.tenant_id = tenantId;
         }
-
-        // The only processing we do is remove the file object references since they can't be JSON serialized
         if (dataToSubmit.verification_documents) {
-          dataToSubmit.verification_documents =
-            dataToSubmit.verification_documents.map((doc: any) => {
-              if (doc.file) {
-                // Remove file property but keep everything else unchanged
-                const { file, ...docWithoutFile } = doc;
-                return docWithoutFile;
-              }
-              return doc;
-            });
+          dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
+            const { file, ...docWithoutFile } = doc;
+            return docWithoutFile;
+          });
         }
-
-        console.log(
-          "Submitting vendor data with documents:",
-          dataToSubmit.verification_documents
-        );
-
+        
         await onSubmit(dataToSubmit);
-
-        // Reset to first tab after successful submission
         setActiveTab("business");
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "An unknown error occurred";
-
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
         setFormError(errorMessage);
-        console.error("Form submission error:", error);
         toast.error(errorMessage);
       } finally {
         setInternalIsSubmitting(false);
@@ -405,47 +247,39 @@ export function VendorForm({
     [onSubmit, isSuperOwner, tenantId]
   );
 
-  // Handle form errors by navigating to the tab with the first error
-  const handleFormError = useCallback((errors: any) => {
-    console.log("Form validation errors:", errors);
-
-    // Immediately find which tab has errors
-    const tabWithErrors = findTabWithErrors(errors);
-
-    // Always switch to the tab containing errors
-    setActiveTab(tabWithErrors);
-
-    // Show a toast message to guide the user
-    toast.error("Please fix the validation errors before submitting");
-
-    // Scroll to the first error field if possible
-    setTimeout(() => {
-      const firstErrorElement = document.querySelector(".form-error-field");
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+  const handleFormError = (errors: any) => {
+    const firstErrorField = Object.keys(errors)[0];
+    if (firstErrorField) {
+      const fieldRoot = firstErrorField.split('.')[0];
+      for (const tabName in tabFields) {
+        if (tabFields[tabName].some(field => field === firstErrorField || field === fieldRoot)) {
+          if (activeTab !== tabName) {
+            setActiveTab(tabName);
+          }
+          break;
+        }
       }
-    }, 100);
-  }, []);
+    }
+    toast.error("Please fix the validation errors before submitting.");
+  };
 
-  // Handle business name change
+  const { fields: bannerFields, append: appendBanner, remove: removeBanner } = useFieldArray({
+    control: form.control,
+    name: "store.banners",
+  });
+
+
   const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const businessName = e.target.value;
+    form.setValue("business_name", businessName, { shouldValidate: true });
 
-    // Only set store name if it's empty or not set yet
     const currentStoreName = form.getValues("store.store_name");
     if (!currentStoreName) {
-      form.setValue("store.store_name", businessName, {
-        shouldValidate: false,
-      });
+      form.setValue("store.store_name", businessName, { shouldValidate: false });
     }
 
-    // Only set store slug if it's empty or not set yet
     const currentStoreSlug = form.getValues("store.store_slug");
     if (!currentStoreSlug) {
-      // Create a slug from the business name
       const slug = businessName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -454,357 +288,7 @@ export function VendorForm({
     }
   };
 
-  // Handle form submission with user data and store creation
-  const handleSubmit = async (data: VendorFormValues) => {
-    try {
-      setInternalIsSubmitting(true);
-      setFormError(null);
 
-      // CRITICAL FIX: Get documents directly from form state before any serialization
-      // This ensures we preserve all fields that might be lost in the form submission process
-      const documentsFromState = form.getValues("verification_documents") || [];
-      console.log("Documents from direct form state:", documentsFromState);
-
-      // Replace documents in the data with our direct reference
-      if (documentsFromState.length > 0) {
-        data.verification_documents = documentsFromState;
-      }
-
-      // For brand new vendors, we need to create the vendor first, then create store
-      const isCreation = !initialData?.id && !initialData?.vendor_id;
-
-      // Generate random password if it's a new vendor
-      if (!initialData || !initialData.id) {
-        data.user = {
-          first_name: data.user?.first_name || "",
-          last_name: data.user?.last_name || "",
-          email: data.contact_email,
-          phone_number: data.contact_phone,
-          password: Array(12)
-            .fill(0)
-            .map(() => Math.random().toString(36).charAt(2))
-            .join(""), // Generate a random password for the user
-          access_token: "",
-        };
-      }
-
-      // For non-superOwner users, set tenant_id from session
-      if (!isSuperOwner && tenantId) {
-        data.tenant_id = tenantId;
-      }
-
-      // Process documents to remove file objects that can't be serialized
-      if (data.verification_documents) {
-        data.verification_documents = data.verification_documents.map(
-          (doc: any) => {
-            if (doc.file) {
-              // Remove file property but keep everything else unchanged
-              const { file, ...docWithoutFile } = doc;
-              return docWithoutFile;
-            }
-            return doc;
-          }
-        );
-      }
-
-      console.log(
-        "Submitting vendor data with documents:",
-        data.verification_documents
-      );
-      // Call the parent's onSubmit to handle the submission
-      const vendorResponse = await onSubmit(data);
-
-      // For existing vendors, update the store if the vendor update was successful
-      if (initialData?.id || initialData?.vendor_id) {
-        const vendorId = initialData?.vendor_id || initialData?.id || "";
-
-        try {
-          // Get tenantId for headers
-          const tenantHeaders: Record<string, string> = {};
-          if (tenantId) {
-            tenantHeaders["X-Tenant-ID"] = tenantId;
-          }
-
-          // First fetch the existing store by vendor ID
-          try {
-            const storeResponse = await fetchStoreByVendor(
-              vendorId,
-              tenantHeaders
-            );
-
-            // According to the API structure, use the first store from the items array
-            if (storeResponse && storeResponse._id) {
-              // We found a store to update - use the direct store update endpoint
-              const storeUpdateData = {
-                store_name: data.store.store_name,
-                store_slug: data.store.store_slug,
-                description: data.store.description,
-                banners: data.store.banners || [],
-                categories: data.store.categories || [],
-                return_policy: data.store.return_policy || "",
-                shipping_policy: data.store.shipping_policy || "",
-                general_policy: data.store.general_policy || "",
-                branding: {
-                  logo_url: data.store.logo_url || "",
-                  colors: {
-                    primary: "#4285F4",
-                    secondary: "#34A853",
-                    accent: "#FBBC05",
-                    text: "#333333",
-                    background: "#FFFFFF",
-                  },
-                },
-              };
-
-              // Use direct store update endpoint: /marketplace/stores/[_id]
-              await updateStore(
-                vendorId,
-                storeResponse._id,
-                storeUpdateData,
-                tenantHeaders
-              );
-              console.log(
-                "Store updated successfully with ID:",
-                storeResponse._id
-              );
-              toast.success("Store updated successfully");
-            }
-          } catch (storeError) {
-            // No store found, create a new one
-            console.log(
-              "No existing store found, creating a new one for vendor ID:",
-              vendorId
-            );
-
-            const storeData = {
-              store_name: data.store.store_name,
-              store_slug: data.store.store_slug,
-              description: data.store.description,
-              banners: data.store.banners || [],
-              categories: data.store.categories || [],
-              return_policy: data.store.return_policy || "",
-              shipping_policy: data.store.shipping_policy || "",
-              general_policy: data.store.general_policy || "",
-              vendor_id: vendorId, // Important: include the vendor_id
-              branding: {
-                logo_url: data.store.logo_url || "",
-                colors: {
-                  primary: "#4285F4",
-                  secondary: "#34A853",
-                  accent: "#FBBC05",
-                  text: "#333333",
-                  background: "#FFFFFF",
-                },
-              },
-            };
-
-            // Use create store endpoint: /marketplace/vendors/[vendor_id]/stores
-            try {
-              await createStore(vendorId, storeData, tenantHeaders);
-              console.log("Created new store for existing vendor");
-              toast.success("New store created successfully");
-            } catch (createError) {
-              console.error("Error creating new store:", createError);
-              toast.error("Failed to create store. Please try again.");
-            }
-          }
-        } catch (error) {
-          console.error("Error handling store operations:", error);
-          toast.error("Vendor was updated but failed to update store data");
-        }
-      }
-
-      // After successful vendor creation, create a store if this is a new vendor
-      if (!initialData?.id && vendorResponse && "vendor_id" in vendorResponse) {
-        try {
-          // Create store with the vendor_id from the response
-          const vendorId = vendorResponse.vendor_id;
-          // Categories are already moved to store by this point
-
-          const storeData = {
-            store_name: data.store.store_name,
-            store_slug: data.store.store_slug,
-            description: data.store.description,
-            banners: data.store.banners,
-            categories: data.store.categories || [],
-            return_policy: data.store.return_policy || "",
-            shipping_policy: data.store.shipping_policy || "",
-            general_policy: data.store.general_policy || "",
-            branding: {
-              logo_url: data.store.logo_url || "",
-              colors: {
-                primary: "#4285F4",
-                secondary: "#34A853",
-                accent: "#FBBC05",
-                text: "#333333",
-                background: "#FFFFFF",
-              },
-            },
-          };
-
-          // Call API to create store using the store function from vendor store
-          const tenantHeaders = { "X-Tenant-ID": tenantId };
-          await createStore(vendorId, storeData, tenantHeaders);
-          toast.success("Vendor and store created successfully");
-        } catch (error) {
-          console.error("Failed to create store:", error);
-          toast.error("Vendor was created but failed to create store");
-        }
-      }
-
-      return vendorResponse;
-    } catch (error: any) {
-      setFormError(
-        error.message || "Failed to submit the form. Please try again."
-      );
-      console.error("Form submission error:", error);
-      throw error; // Re-throw to allow caller to handle
-    } finally {
-      setInternalIsSubmitting(false);
-    }
-  };
-
-  // Handle document changes - improved to fix document persistence between tabs
-  const handleDocumentsChange = useCallback(
-    (newDocuments: DocumentWithMeta[] & Record<string, any>[]) => {
-      // Skip if no documents received
-      if (!newDocuments) {
-        console.log("No documents received, skipping update");
-        return;
-      }
-
-      // Get current documents from form
-      const currentFormDocs = form.getValues("verification_documents") || [];
-      console.log("Current form documents:", currentFormDocs);
-      console.log("Received new documents:", newDocuments);
-
-      // Create a map of existing documents by ID for quick lookup
-      const existingDocsMap = new Map();
-      currentFormDocs.forEach((doc) => {
-        if (doc.document_id) {
-          existingDocsMap.set(doc.document_id, doc);
-        }
-        if (doc.id) {
-          existingDocsMap.set(doc.id, doc);
-        }
-      });
-
-      // Process new documents while preserving existing document properties
-      const processedDocs = newDocuments
-        .map((doc) => {
-          // Skip invalid documents
-          if (!doc.file_name) return null;
-
-          // Check if this is an existing document we already know about
-          const existingDoc = doc.document_id
-            ? existingDocsMap.get(doc.document_id)
-            : null;
-
-          // For existing documents, preserve critical properties like document_id
-          if (existingDoc && doc.document_id) {
-            // console.log("Preserving existing document:", doc.document_id);
-            return {
-              ...doc,
-              // Ensure document_id is preserved for existing documents
-              document_id: doc.document_id,
-            };
-          }
-
-          // For new uploads, ensure they have proper structure
-          const docId =
-            doc.id ||
-            doc.file_id ||
-            `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-          // Create clean document object with all required fields properly named
-          // CRITICAL: Log the exact document_type and expires_at received
-          console.log(
-            `Processing document with type=${doc.document_type}, expires_at=${doc.expires_at}`
-          );
-
-          const cleanDoc = {
-            id: docId,
-            // New uploads should NOT have document_id
-            document_id: doc.document_id || undefined,
-            // PRESERVE the exact document_type, don't default unless it's missing
-            document_type: doc.document_type || "",
-            // CRITICAL: Keep file_name for display purposes
-            file_name: doc.file_name || "Unknown Document",
-            document_url: doc.document_url || doc.file_url || "", // Ensure document_url is set
-            // CRITICAL FIX: Handle both field names for expiration date
-            expires_at: doc.expires_at || doc.expiry_date || undefined, // Use expires_at (API name)
-            file_id: doc.file_id || docId,
-            // Keep the actual File object for upload
-            file: doc.file,
-            verification_status:
-              doc.verification_status || ("pending" as const),
-          };
-
-          console.log(
-            "Created document with document_type:",
-            cleanDoc.document_type
-          );
-          console.log("Created document with expires_at:", cleanDoc.expires_at);
-          console.log("Created document with file_name:", cleanDoc.file_name);
-          return cleanDoc;
-        })
-        .filter(Boolean) as VendorVerificationDocument[];
-
-      console.log("Setting processed documents in form:", processedDocs);
-
-      // Update form state with processed documents
-      form.setValue("verification_documents", processedDocs, {
-        shouldValidate: false,
-        shouldDirty: true,
-      });
-    },
-    [form]
-  );
-
-  // Handle removing documents - improved to ensure proper state updates
-  const handleRemoveExistingDocument = useCallback(
-    (docId: string) => {
-      console.log(`Removing document with ID: ${docId}`);
-
-      // Get current documents from form
-      const currentDocs = form.getValues("verification_documents") || [];
-      console.log("Current documents before removal:", currentDocs);
-
-      // Find the document to be removed
-      const docToRemove = currentDocs.find(
-        (doc) =>
-          doc.id === docId || doc.document_id === docId || doc.file_id === docId
-      );
-
-      if (docToRemove) {
-        console.log("Found document to remove:", docToRemove);
-
-        // Filter out the document from the current documents
-        const filteredDocs = currentDocs.filter(
-          (doc) =>
-            doc.id !== docId &&
-            doc.document_id !== docId &&
-            doc.file_id !== docId
-        );
-
-        console.log(
-          `Documents after removal: ${filteredDocs.length}`,
-          filteredDocs
-        );
-
-        // Update the form state with the filtered documents
-        form.setValue("verification_documents", filteredDocs, {
-          shouldValidate: false,
-          shouldDirty: true,
-        });
-      } else {
-        console.warn(
-          `Document with ID ${docId} not found in current documents`
-        );
-      }
-    },
-    [form]
-  );
 
   return (
     <div className="space-y-6">
@@ -827,7 +311,7 @@ export function VendorForm({
                 {/* Tenant selector (superowner only) */}
                 {isSuperOwner && (
                   <FormField
-                    control={formControl}
+                    control={form.control}
                     name="tenant_id"
                     render={({ field }) => (
                       <FormItem className="w-full">
@@ -974,7 +458,7 @@ export function VendorForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Business Name Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="business_name"
               render={({ field }) => (
                 <FormItem>
@@ -998,7 +482,7 @@ export function VendorForm({
 
             {/* Display Name Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="display_name"
               render={({ field }) => (
                 <FormItem>
@@ -1015,7 +499,7 @@ export function VendorForm({
 
             {/* First Name Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="user.first_name"
               render={({ field }) => (
                 <FormItem>
@@ -1032,7 +516,7 @@ export function VendorForm({
 
             {/* Last Name Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="user.last_name"
               render={({ field }) => (
                 <FormItem>
@@ -1049,7 +533,7 @@ export function VendorForm({
 
             {/* Contact Email Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="contact_email"
               render={({ field }) => (
                 <FormItem>
@@ -1069,7 +553,7 @@ export function VendorForm({
 
             {/* Contact Phone Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="contact_phone"
               render={({ field }) => (
                 <FormItem>
@@ -1086,7 +570,7 @@ export function VendorForm({
 
             {/* Website Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="website"
               render={({ field }) => (
                 <FormItem>
@@ -1101,7 +585,7 @@ export function VendorForm({
 
             {/* Tax ID Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="tax_id"
               render={({ field }) => (
                 <FormItem>
@@ -1118,7 +602,7 @@ export function VendorForm({
 
             {/* Commission Rate Field */}
             <FormField
-              control={formControl}
+              control={form.control}
               name="commission_rate"
               render={({ field }) => (
                 <FormItem>
@@ -1292,20 +776,18 @@ export function VendorForm({
           />
         </div>
 
-        {/* Store Categories Field - Moved from business tab */}
+        {/* Store Categories Field */}
         <div className="space-y-4">
           <FormField
             control={form.control}
             name="store.categories"
             render={({ field }) => {
-              // Create safe values for the MultiSelect component
               const categoryOptions =
                 categories?.map((category) => ({
-                  value: String(category?.category_id || ""), // Use category_id instead of id
+                  value: String(category?.category_id || ""),
                   label: String(category?.name || ""),
                 })) || [];
 
-              // Ensure field.value is an array of strings
               const selected: string[] = Array.isArray(field.value)
                 ? field.value.map((id) => String(id || ""))
                 : [];
@@ -1419,38 +901,22 @@ export function VendorForm({
           <div className="flex items-center justify-between">
             <h4 className="text-md font-medium">Store Banners</h4>
           </div>
-
           <FormField
             control={form.control}
             name="store.banners"
-            render={({ field }) => {
-              // Make sure we have proper banner data type for the StoreBannerEditor
-              const banners = field.value || [];
-              const vendorId = initialData?.id || "";
-              const storeId = initialData?.store?.id || "";
-
-              return (
-                <FormItem>
-                  <FormControl>
-                    <BannerEditor
-                      banners={banners}
-                      onChange={(updatedBanners) =>
-                        field.onChange(updatedBanners)
-                      }
-                      resourceId={storeId}
-                      entityId={vendorId}
-                      onDeleteBanner={vendorStore.deleteStoreBanner}
-                      onUpdateResource={vendorStore.updateStore}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-sm text-muted-foreground mt-2">
-                    Add promotional banners for your store. These will appear on
-                    your store page.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Store Banners</FormLabel>
+                <FormControl>
+                  <BannerEditor
+                    tenantId={watchedTenantId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
       </TabsContent>
@@ -1679,7 +1145,7 @@ export function VendorForm({
           {/* Bank Information */}
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
-              control={formControl}
+              control={form.control}
               name="bank_account.bank_name"
               render={({ field }) => (
                 <FormItem>
@@ -1695,7 +1161,7 @@ export function VendorForm({
             />
 
             <FormField
-              control={formControl}
+              control={form.control}
               name="bank_account.account_name"
               render={({ field }) => (
                 <FormItem>
@@ -1716,7 +1182,7 @@ export function VendorForm({
 
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
-              control={formControl}
+              control={form.control}
               name="bank_account.account_number"
               render={({ field }) => (
                 <FormItem>
@@ -1732,7 +1198,7 @@ export function VendorForm({
             />
 
             <FormField
-              control={formControl}
+              control={form.control}
               name="bank_account.branch_code"
               render={({ field }) => (
                 <FormItem>
@@ -1748,7 +1214,7 @@ export function VendorForm({
 
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
-              control={formControl}
+              control={form.control}
               name="bank_account.swift_bic"
               render={({ field }) => (
                 <FormItem>
@@ -1766,123 +1232,15 @@ export function VendorForm({
     );
   }
 
-  // Documents Tab Component - Simplified with new DocumentUpload component
+  // Documents Tab Component - Temporarily simplified for debugging
   function DocumentsTab() {
-    // Generate a unique ID for this instance
-    const uploadId = useMemo(() => `vendor-docs-${Date.now()}`, []);
-
-    // Get the current documents from form state when tab is active
-    const formDocuments = useWatch({
-      control: form.control,
-      name: "verification_documents",
-      defaultValue: [],
-    });
-
-    // Map DOCUMENT_TYPES to the format expected by DocumentUpload
-    const mappedDocumentTypes = useMemo(() => {
-      return DOCUMENT_TYPES.map((docType) => ({
-        id: docType.id,
-        name: docType.label,
-        description: docType.description,
-        required: false,
-      }));
-    }, []);
-
-    // Log when documents change in form state
-    useEffect(() => {
-      if (activeTab === "documents") {
-        console.log("Current documents in form state:", formDocuments);
-      }
-    }, [formDocuments, activeTab]);
-
-    // Ultra simple document handling - pass through exactly as is
-    const handleDocumentsChange = useCallback(
-      (documents: DocumentWithMeta[]) => {
-        console.log("Documents received from upload component:", documents);
-
-        // Make sure all fields are preserved in the form state
-        console.log(
-          "Document fields being set in form:",
-          documents.map((doc) => Object.keys(doc))
-        );
-
-        // IMPORTANT: Log document_type fields to ensure they're present
-        documents.forEach((doc, i) => {
-          console.log(
-            `Document ${i} type=${doc.document_type}, expires_at=${doc.expires_at}`
-          );
-        });
-
-        // Use documents exactly as provided with zero transformation
-        form.setValue("verification_documents", documents, {
-          shouldValidate: false,
-          shouldDirty: true,
-        });
-      },
-      [form]
-    );
-
-    // Handle policy document changes
-    const handlePolicyChange = useCallback(
-      (fileUrl: string, file?: File) => {
-        form.setValue("policy", fileUrl, {
-          shouldValidate: false,
-          shouldDirty: true,
-        });
-      },
-      [form]
-    );
-
-    // Handle policy document removal
-    const handlePolicyRemove = useCallback(() => {
-      form.setValue("policy", "", {
-        shouldValidate: false,
-        shouldDirty: true,
-      });
-    }, [form]);
-
     return (
       <TabsContent value="documents" className="space-y-6 mt-4">
-        {/* Policy Document Upload */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Policy Document</h3>
-          <p className="text-sm text-muted-foreground">
-            Upload your business policy document in PDF format
+        <div className="p-4 border-2 border-dashed border-yellow-400 bg-yellow-50 rounded-md">
+          <h3 className="text-lg font-medium text-yellow-800">Under Investigation</h3>
+          <p className="text-sm text-yellow-700">
+            This section is temporarily disabled while we resolve a technical issue.
           </p>
-
-          <div className="mt-2">
-            <Label htmlFor="policy-document">Policy Document (PDF only)</Label>
-            <FileUpload
-              label=""
-              description="Upload your business policy document (PDF only, max 10MB)"
-              value={form.getValues("policy") || ""}
-              onChange={handlePolicyChange}
-              onRemove={handlePolicyRemove}
-              accept=".pdf"
-              maxSizeMB={10}
-              className="mt-1.5"
-            />
-          </div>
-        </div>
-
-        <div className="border-t my-6"></div>
-
-        {/* Business Verification Documents - Using the new clean component */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Document Verification</h3>
-          <p className="text-sm text-muted-foreground">
-            Upload verification documents to prove your identity and business
-            ownership
-          </p>
-
-          {/* New Document Upload Component */}
-          <DocumentUpload
-            id={uploadId}
-            existingDocuments={formDocuments}
-            onDocumentsChange={handleDocumentsChange}
-            documentTypes={mappedDocumentTypes}
-            description="Provide documentation to verify your business identity, such as registration certificates, licenses, or other relevant documents."
-          />
         </div>
       </TabsContent>
     );
@@ -2030,22 +1388,22 @@ export function VendorForm({
                 </dl>
               </div>
 
-              {/* Store Info Review */}
-              <div>
-                <h4 className="font-medium text-md border-b pb-2 mb-2">
-                  Store Information
-                </h4>
-                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <dt className="font-medium text-muted-foreground">
-                      Store Name
-                    </dt>
+            {/* Store Info Review */}
+            <div>
+              <h4 className="font-medium text-md border-b pb-2 mb-2">
+                Store Information
+              </h4>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    Store Name
+                  </dt>
                     <dd>{reviewValues.store?.store_name || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-medium text-muted-foreground">
-                      Store URL
-                    </dt>
+                </div>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    Store Slug
+                  </dt>
                     <dd>{reviewValues.store?.store_slug || "-"}</dd>
                   </div>
                   <div>
@@ -2074,9 +1432,9 @@ export function VendorForm({
                             .join(", ")
                         : "None selected"}
                     </dd>
-                  </div>
-                </dl>
-              </div>
+                </div>
+              </dl>
+            </div>
 
               {/* Store Policies Review */}
               <div>
@@ -2093,7 +1451,7 @@ export function VendorForm({
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-                  </div>
+          </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Shipping Policy
@@ -2103,7 +1461,7 @@ export function VendorForm({
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-                  </div>
+        </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Terms & Conditions
@@ -2113,7 +1471,7 @@ export function VendorForm({
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-                  </div>
+      </div>
                 </dl>
               </div>
 
@@ -2144,8 +1502,8 @@ export function VendorForm({
                       No documents uploaded
                     </p>
                   )}
-                </div>
-              </div>
+          </div>
+          </div>
             </div>
           </div>
         </div>

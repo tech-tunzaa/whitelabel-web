@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 import { getCurrentLanguage, setCurrentLanguage } from "@/src/i18n";
+import packageJson from "../package.json";
 
 export function SiteHeader() {
   const { theme, setTheme } = useTheme();
@@ -52,7 +53,10 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">{t('common:app_name')}</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-base font-medium">{t('common:app_name')}</h1>
+          <span className="text-xs text-muted-foreground">v{packageJson.version}</span>
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

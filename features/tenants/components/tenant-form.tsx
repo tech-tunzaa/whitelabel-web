@@ -2,15 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Upload,
-  X,
-  CreditCard,
   FileText,
-  BarChart3,
-  Check,
-  Truck,
-  Badge,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -58,38 +50,21 @@ import {
   vehicleTypes,
 } from "@/features/settings/data/localization";
 import { platformModules } from "@/features/settings/data/modules";
-import { mockBillingHistory } from "../data/billing";
 import { tenantFormSchema } from "../schema";
-import { TenantFormValues, BillingHistoryItem } from "../types";
+import { TenantFormValues } from "../types";
 
-// Default tenant values that match the API structure
+// Default values for the form, providing a good starting point.
 const defaultValues: Partial<TenantFormValues> = {
-  first_name: "",
-  last_name: "",
-  name: "",
-  domain: "",
-  admin_email: "",
-  admin_phone: "",
-  banners: [],
   plan: "monthly",
-  fee: "",
   country_code: "TZ",
   currency: "TZS",
   languages: ["en-US", "sw"],
   document_types: ["id_card", "passport"],
   vehicle_types: ["motorcycle", "car"],
-  // IMPORTANT: Remove modules completely from React Hook Form
-  // We'll handle this separately to avoid infinite loops
-  is_active: false,
-  trial_ends_at: "",
+  is_active: true,
+  banners: [],
   branding: {
-    logoUrl: "",
     theme: {
-      logo: {
-        primary: null,
-        secondary: null,
-        icon: null,
-      },
       colors: {
         primary: "#3182CE",
         secondary: "#E2E8F0",
@@ -106,6 +81,10 @@ const defaultValues: Partial<TenantFormValues> = {
       },
     },
   },
+  modules: platformModules.reduce((acc, module) => {
+    acc[module.name] = false; // Initialize all modules to false
+    return acc;
+  }, {} as Record<string, boolean>),
 };
 
 interface TenantFormProps {
@@ -116,14 +95,6 @@ interface TenantFormProps {
   id?: string;
   isSubmitting?: boolean;
 }
-
-// Global module state management - outside component to avoid re-renders
-let moduleState: Record<string, boolean> = {};
-
-// Initialize module state with all modules set to false
-platformModules.forEach((module) => {
-  moduleState[module.name] = false;
-});
 
 export function TenantForm({
   onSubmit,
@@ -138,16 +109,6 @@ export function TenantForm({
   const isSuperOwner = userRole === "super";
   const isAddPage = !initialData?.id;
 
-  // Initialize module state from initialData if available
-  useEffect(() => {
-    if (initialData?.modules) {
-      platformModules.forEach((module) => {
-        moduleState[module.name] = !!initialData.modules?.[module.name];
-      });
-    }
-  }, [initialData]);
-
-  // Form state management
   const [activeTab, setActiveTab] = useState("details");
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
   const isSubmitting =
@@ -156,92 +117,59 @@ export function TenantForm({
       : internalIsSubmitting;
   const [formError, setFormError] = useState<string | null>(null);
 
-  // File upload state management
-  const [primaryLogoFile, setPrimaryLogoFile] = useState<File | null>(null);
-  const [secondaryLogoFile, setSecondaryLogoFile] = useState<File | null>(null);
-  const [iconFile, setIconFile] = useState<File | null>(null);
-
-  // Data display state
-  const [showMoreHistory, setShowMoreHistory] = useState(false);
-  const [billingHistory] = useState<BillingHistoryItem[]>(mockBillingHistory);
-
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
-    defaultValues: initialData || defaultValues,
+    defaultValues: initialData
+      ? { ...defaultValues, ...initialData }
+      : defaultValues,
+    mode: "onBlur",
   });
-
-  // Tab navigation with field validation
-  const tabValidationMap = {
-    details: [
-      "first_name",
-      "last_name",
-      "name",
-      "domain",
-      "admin_email",
-      "admin_phone",
-      ...(isSuperOwner ? ["plan", "fee"] : []),
-    ],
-    branding: [
-      "branding.logoUrl",
-      "branding.theme.colors.primary",
-      "branding.theme.colors.secondary",
-      "branding.theme.colors.accent",
-      "branding.theme.colors.text.primary",
-      "branding.theme.colors.text.secondary",
-      "branding.theme.colors.background.primary",
-      "branding.theme.colors.background.secondary",
-      "branding.theme.colors.border",
-    ],
-    configuration: [
-      "country_code",
-      "currency",
-      "languages",
-      "document_types",
-      "vehicle_types",
-    ],
-    modules: ["modules"],
-  };
 
   const tabFlow = [
     "details",
     "branding",
-    "banners",
     "configuration",
     "modules",
+    "billing-history",
+    "revenue",
   ];
 
-  const nextTab = () => {
+  const handleNextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
-    if (currentTabIndex === -1 || currentTabIndex === tabFlow.length - 1)
-      return;
-
-    // Get fields to validate for the current tab
-    const fieldsToValidate =
-      tabValidationMap[activeTab as keyof typeof tabValidationMap] || [];
-
-    // Validate all required fields in the current tab
-    const result = fieldsToValidate.every((field) =>
-      form.trigger(field as any)
-    );
-
-    if (result) {
-      setActiveTab(tabFlow[currentTabIndex + 1]);
-    } else {
-      toast.error("Please complete all required fields before proceeding.");
+    if (currentTabIndex < tabFlow.length - 1) {
+      const nextAvailableTab = tabFlow
+        .slice(currentTabIndex + 1)
+        .find(tab => {
+          if (tab === 'billing-history' && isAddPage) return false;
+          if (tab === 'revenue' && (isAddPage || !isSuperOwner)) return false;
+          return true;
+        });
+      if(nextAvailableTab) setActiveTab(nextAvailableTab);
     }
   };
 
-  const prevTab = () => {
+  const handlePrevTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex > 0) {
-      setActiveTab(tabFlow[currentTabIndex - 1]);
+       const prevAvailableTab = tabFlow
+        .slice(0, currentTabIndex)
+        .reverse()
+        .find(tab => {
+          if (tab === 'billing-history' && isAddPage) return false;
+          if (tab === 'revenue' && (isAddPage || !isSuperOwner)) return false;
+          return true;
+        });
+      if(prevAvailableTab) setActiveTab(prevAvailableTab);
     }
   };
-
-  // Handle file upload for form submission
+  
   const handleFileUpload = useCallback((file: File, fieldName: string) => {
     console.log(`Uploading file for ${fieldName}:`, file);
+    // This is a placeholder. In a real app, you'd upload the file
+    // and call form.setValue(fieldName, uploadedUrl)
   }, []);
+
+
 
   // Handle form submission with error handling and validation navigation
   const handleFormSubmit = useCallback(
@@ -265,14 +193,12 @@ export function TenantForm({
         delete dataToSubmit.first_name;
         delete dataToSubmit.last_name;
 
-        // Manually add modules from our global state
+        // Modules are already part of the form data, so no manual handling is needed.
         if (isSuperOwner) {
-          dataToSubmit.modules = {};
-          // Copy module values from our global state
-          platformModules.forEach((module) => {
-            dataToSubmit.modules[module.name] = !!moduleState[module.name];
-          });
           console.debug("Submitting with modules:", dataToSubmit.modules);
+        } else {
+          // Ensure modules are not sent if user is not a super owner
+          delete dataToSubmit.modules;
         }
 
         // Remove restricted fields for non-superOwner users
@@ -296,7 +222,7 @@ export function TenantForm({
           // Log what we're actually submitting for debugging
           console.debug("Submitting tenant data (filtered):", dataToSubmit);
         } else {
-          console.debug("Submitting tenant data (super):", dataToSubmit);
+          console.debug("Submitting tenant data (super_owner):", dataToSubmit);
         }
 
         await onSubmit(dataToSubmit);
@@ -359,47 +285,35 @@ export function TenantForm({
   };
 
   // Handle form errors by navigating to the tab with the first error
-  const handleFormError = useCallback((errors: any) => {
-    // Immediately find which tab has errors
-    const tabWithErrors = findTabWithErrors(errors);
+  const handleFormError = (errors: any) => {
+    const fieldToTabMap: Record<string, string> = {
+      first_name: "details",
+      last_name: "details",
+      name: "details",
+      domain: "details",
+      admin_email: "details",
+      admin_phone: "details",
+      plan: "details",
+      fee: "details",
+      branding: "branding",
+      banners: "banners",
+      country_code: "configuration",
+      currency: "configuration",
+      languages: "configuration",
+      document_types: "configuration",
+      vehicle_types: "configuration",
+      modules: "modules",
+    };
 
-    // Always switch to the tab containing errors
-    setActiveTab(tabWithErrors);
-    toast.error("Please fix the validation errors before submitting");
-
-    // Log validation errors for debugging
-    console.error("Form validation errors:", errors);
-  }, []);
-
-  // Function to find which tab contains field errors
-  const findTabWithErrors = (errors: any): string => {
-    // Check each field against our tab mapping to find which tab has errors
-    for (const [tabName, fields] of Object.entries(tabValidationMap)) {
-      for (const field of fields) {
-        // Handle nested fields (with dots)
-        if (field.includes(".")) {
-          const parts = field.split(".");
-          let currentObj = errors;
-          let hasError = true;
-
-          // Navigate through the nested error object
-          for (const part of parts) {
-            if (!currentObj || !currentObj[part]) {
-              hasError = false;
-              break;
-            }
-            currentObj = currentObj[part];
-          }
-
-          if (hasError) return tabName;
-        } else if (errors[field]) {
-          return tabName;
-        }
+    const firstErrorField = Object.keys(errors)[0];
+    if (firstErrorField) {
+      const tab = fieldToTabMap[firstErrorField.split('.')[0]];
+      if (tab) {
+        setActiveTab(tab);
       }
     }
-
-    // If no tab with errors is found, stay on the current tab
-    return activeTab;
+    toast.error("Please fix the validation errors before submitting");
+    console.error("Form validation errors:", errors);
   };
 
   // If there's a form error and we're not in the loading state, show error card
@@ -463,7 +377,7 @@ export function TenantForm({
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={prevTab}
+                            onClick={handlePrevTab}
                           >
                             Previous
                           </Button>
@@ -472,10 +386,7 @@ export function TenantForm({
                         {activeTab !== "modules" ? (
                           <Button
                             type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              nextTab();
-                            }}
+                            onClick={handleNextTab}
                           >
                             Next
                           </Button>
@@ -722,7 +633,7 @@ export function TenantForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        Trial End Date <RequiredField />
+                        Trial End Date
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -1199,15 +1110,6 @@ export function TenantForm({
   }
 
   function ModulesTab() {
-    // Force re-render when module state changes
-    const [_, forceUpdate] = useState({});
-
-    // Update module state and force component to re-render
-    const updateModuleState = (moduleName: string, value: boolean) => {
-      moduleState[moduleName] = value;
-      forceUpdate({});
-    };
-
     return (
       <TabsContent value="modules" className="space-y-4 mt-4">
         <div className="space-y-4">
@@ -1226,30 +1128,34 @@ export function TenantForm({
               </p>
             </>
           )}
-
-          <div className="space-y-4">
-            {platformModules.map((module) => (
-              <div
-                key={module.name}
-                className="flex flex-row items-center justify-between rounded-lg border p-4"
-              >
-                <div className="space-y-0.5">
-                  <p className="text-base font-medium">{module.label}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {module.description}
-                  </p>
-                </div>
-                <Switch
-                  checked={moduleState[module.name] || false}
-                  onCheckedChange={(checked) => {
-                    updateModuleState(module.name, checked);
-                  }}
-                  disabled={!isSuperOwner || !isEditable}
-                  className="disabled:opacity-80"
-                />
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="space-y-4">
+          {platformModules.map((module) => (
+            <FormField
+              key={module.name}
+              control={form.control}
+              name={`modules.${module.name}`}
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base font-medium">
+                      {module.label}
+                    </FormLabel>
+                    <FormDescription>
+                      {module.description}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!isSuperOwner || !isEditable}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          ))}
         </div>
       </TabsContent>
     );
@@ -1264,65 +1170,11 @@ export function TenantForm({
             Recent payment activities and transaction history
           </p>
 
-          {billingHistory.length === 0 ? (
-            <div className="text-center py-8 border rounded-md">
-              <p className="text-muted-foreground">
-                No billing history available
-              </p>
-            </div>
-          ) : (
-            <div className="border rounded-md overflow-hidden">
-              <div className="min-w-full divide-y divide-gray-200">
-                <div className="bg-gray-50">
-                  <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div>Date</div>
-                    <div>Description</div>
-                    <div>Amount</div>
-                    <div>Status</div>
-                  </div>
-                </div>
-                <div className="bg-white divide-y divide-gray-200">
-                  {billingHistory
-                    .slice(0, showMoreHistory ? 10 : 5)
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-4 px-6 py-4 text-sm"
-                      >
-                        <div className="text-gray-900">
-                          {new Date(item.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </div>
-                        <div className="text-gray-900">{item.description}</div>
-                        <div className="text-gray-900 font-medium">
-                          {item.amount}
-                        </div>
-                        <div>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {item.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {billingHistory.length > 5 && (
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowMoreHistory(!showMoreHistory)}
-              >
-                {showMoreHistory ? "Show Less" : "Show More"}
-              </Button>
-            </div>
-          )}
+          <div className="text-center py-8 border rounded-md">
+            <p className="text-muted-foreground">
+              No billing history available
+            </p>
+          </div>
         </div>
       </TabsContent>
     );
@@ -1337,88 +1189,11 @@ export function TenantForm({
             Revenue and commission information for this tenant
           </p>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card className="p-4 flex flex-col gap-2">
-              <div className="text-sm font-medium text-muted-foreground">
-                Total Revenue
-              </div>
-              <div className="text-2xl font-bold">TZS 12,896,540</div>
-              <div className="text-xs text-muted-foreground">
-                Since tenant inception
-              </div>
-            </Card>
 
-            <Card className="p-4 flex flex-col gap-2">
-              <div className="text-sm font-medium text-muted-foreground">
-                Commission Earned
-              </div>
-              <div className="text-2xl font-bold">TZS 1,289,654</div>
-              <div className="text-xs text-muted-foreground">
-                Based on current rate
-              </div>
-            </Card>
-
-            <Card className="p-4 flex flex-col gap-2">
-              <div className="text-sm font-medium text-muted-foreground">
-                Monthly Average
-              </div>
-              <div className="text-2xl font-bold">TZS 1,074,711</div>
-              <div className="text-xs text-muted-foreground">
-                Last 12 months
-              </div>
-            </Card>
-          </div>
-
-          <Separator className="my-6" />
-
-          <div className="space-y-4">
-            <h4 className="text-md font-medium">Revenue Breakdown</h4>
-
-            <div className="border rounded-md overflow-hidden">
-              <div className="min-w-full divide-y divide-gray-200">
-                <div className="bg-gray-50">
-                  <div className="grid grid-cols-4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div>Month</div>
-                    <div>Revenue</div>
-                    <div>Commission</div>
-                    <div>Growth</div>
-                  </div>
-                </div>
-                <div className="bg-white divide-y divide-gray-200">
-                  {[...Array(6)].map((_, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-4 px-6 py-4 text-sm"
-                    >
-                      <div className="text-gray-900">
-                        {new Date(2024, 4 - index, 1).toLocaleDateString(
-                          "en-US",
-                          { year: "numeric", month: "short" }
-                        )}
-                      </div>
-                      <div className="text-gray-900">
-                        TZS {(1200000 - index * 50000).toLocaleString()}
-                      </div>
-                      <div className="text-gray-900 font-medium">
-                        TZS {(120000 - index * 5000).toLocaleString()}
-                      </div>
-                      <div>
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            index % 3 === 0
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {index % 3 === 0 ? "+" : ""}
-                          {6 - index}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="text-center py-8 border rounded-md">
+            <p className="text-muted-foreground">
+              No revenue information available
+            </p>
           </div>
         </div>
       </TabsContent>

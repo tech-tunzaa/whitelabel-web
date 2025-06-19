@@ -27,7 +27,6 @@ import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
 import navigationData from "./sidebar-data";
-import packageJson from "../package.json";
 
 type ExtendedUser = {
   role: string;
@@ -170,11 +169,7 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
-        <div className="px-2 py-1">
-          <p className="text-xs text-muted-foreground text-center">
-            v{packageJson.version}
-          </p>
-        </div>
+
       </SidebarFooter>
     </Sidebar>
   );

@@ -68,8 +68,8 @@ export type Tenant = {
   branding: TenantBranding | null;
   banners: Banner[] | null;
   metadata: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   billing_history: Array<{
     id: string;
     description: string;

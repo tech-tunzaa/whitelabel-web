@@ -197,7 +197,7 @@ export default function TenantPage({ params }: TenantPageProps) {
                     <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                       <Calendar className="h-4 w-4" /> Created On
                     </p>
-                    <p className="text-sm">{formatDate(tenant.createdAt)}</p>
+                    <p className="text-sm">{formatDate(tenant.created_at)}</p>
                   </div>
                 </div>
               </CardContent>
