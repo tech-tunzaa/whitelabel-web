@@ -66,8 +66,8 @@ export const productFormSchema = z.object({
     }),
     store_id: z.string(), // Assuming this is always present
     images: z.array(productImageSchema).optional().default([]),
-    has_variants: z.boolean().default(false),
-    variants: z.array(variantSchema).optional().default([]),
+    // has_variants: z.boolean().default(false),
+    // variants: z.array(variantSchema).optional().default([]),
     weight: z.coerce.number().min(0).optional(),
     dimensions: dimensionsSchema.optional(),
     requires_shipping: z.boolean().default(true),

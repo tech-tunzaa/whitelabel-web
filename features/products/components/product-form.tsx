@@ -96,7 +96,7 @@ const defaultValues: Partial<ProductFormValues> = {
   is_active: true,
   is_featured: false,
   promotion: null,
-  store_id: "93e8a0a-3c2f-42c1-8ef0-b05ba15956fb",
+  store_id: "b93e8a0a-3c2f-42c1-8ef0-b05ba15956fb",
 };
 
 interface ProductFormProps {
