@@ -30,7 +30,7 @@ export default function EditProductPage() {
   useEffect(() => {
     const loadProduct = async () => {
       if (!tenantId) return;
-      
+
       try {
         setLoading(true);
         setError(null);
@@ -53,19 +53,20 @@ export default function EditProductPage() {
 
   const handleSubmit = async (data: ProductFormValues) => {
     if (!product) return;
-    
+
     try {
       setIsSubmitting(true);
       setError(null);
-      
+
       // Ensure tenant ID is included
       if (!tenantId) {
         throw new Error("Missing tenant ID");
       }
-      
+
       // Add headers for the API request
       const headers = { "X-Tenant-ID": tenantId };
-      
+      data.tenant_id = tenantId;
+
       // Update the product - using the product_id from the loaded product
       await updateProduct(product.product_id, data, headers);
       toast.success("Product updated successfully");
@@ -97,7 +98,7 @@ export default function EditProductPage() {
         title="Error Loading Product"
         error={{
           status: "error",
-          message: error || "Product not found"
+          message: error || "Product not found",
         }}
         buttonText="Back to Products"
         buttonAction={() => router.push("/dashboard/products")}
@@ -118,4 +119,4 @@ export default function EditProductPage() {
       />
     </div>
   );
-} 
+}
