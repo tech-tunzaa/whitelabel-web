@@ -96,7 +96,7 @@ const defaultValues: Partial<ProductFormValues> = {
   is_active: true,
   is_featured: false,
   promotion: null,
-  store_id: "6960bda2-4a94-4cfd-a6dc-1e2e4b3acbfc",
+  store_id: "93e8a0a-3c2f-42c1-8ef0-b05ba15956fb",
 };
 
 interface ProductFormProps {
@@ -239,7 +239,7 @@ export function ProductForm({
     setCurrentVariantData({
       name: "",
       value: "",
-      price_adjust: 0,
+      price: 0,
       stock: 0,
       sku: "",
       image_url: "",
@@ -300,14 +300,18 @@ export function ProductForm({
 
   // Handle form submission
   const handleFormSubmit = async (data: ProductFormValues) => {
+    console.log('Form submission started');
+    console.log('Raw form data:', data);
+    
     try {
       setFormError(null);
       setInternalIsSubmitting(true);
 
       // Generate slug from name if not provided
       const slug = data.slug || generateSlug(data.name);
+      console.log('Generated slug:', slug);
 
-      // Ensure images don't have File objects when sending to API
+      // Ensure images don't have File objects when sending to API and format variants
       const cleanedData = {
         ...data,
         slug,
@@ -316,29 +320,46 @@ export function ProductForm({
           alt: img.alt || "",
           is_primary: img.is_primary || false,
         })),
+        variants: data.variants?.map(variant => ({
+          ...variant,
+          price: Number(variant.price), // Ensure price is a number
+          stock: Number(variant.stock), // Ensure stock is a number
+          sku: variant.sku || '', // Ensure SKU is a string
+          image_url: variant.image_url || '', // Ensure image_url is a string
+        })) || [],
       };
+      
+      // Set has_variants flag based on variants array
+      cleanedData.has_variants = cleanedData.variants.length > 0;
+      console.log('Cleaned data before submission:', cleanedData);
 
       await onSubmit(cleanedData);
+      console.log('Form submission completed successfully');
       // Success is handled by the calling component
     } catch (error) {
-      console.error("Form submission error:", error);
+      console.log("Form submission error:", error);
+      console.log("Error type:", typeof error);
+      console.log("Error message:", error instanceof Error ? error.message : error);
       setFormError(
         error instanceof Error ? error.message : "Failed to save product"
       );
     } finally {
+      console.log('Form submission ended');
       setInternalIsSubmitting(false);
     }
   };
 
   // Handle form errors
   const handleFormError = (errors: any) => {
-    console.error("Form validation errors:", errors);
+    console.log('Form validation errors detected');
+    console.log('Error details:', errors);
 
     // Find which tab has errors
     for (const [tabName, fieldNames] of Object.entries(tabValidationMap)) {
       for (const fieldName of fieldNames) {
         const fieldHasError = errors[fieldName as keyof ProductFormValues];
         if (fieldHasError) {
+          console.log('Validation error in tab:', tabName, 'for field:', fieldName);
           setActiveTab(tabName);
           return; // Exit after setting the first tab with errors
         }
@@ -474,7 +495,7 @@ export function ProductForm({
                       <TabsTrigger value="pricing">Pricing</TabsTrigger>
                       <TabsTrigger value="details">Details</TabsTrigger>
                       <TabsTrigger value="variants">Variants</TabsTrigger>
-                      <TabsTrigger value="images">Images</TabsTrigger>
+                      <TabsTrigger value="publishing">Publishing & Images</TabsTrigger>
                     </TabsList>
 
                     <BasicInfoTab />
@@ -1218,7 +1239,7 @@ const VariantsTab = React.memo(({
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.value}</TableCell>
                   <TableCell>{item.sku}</TableCell>
-                  <TableCell>{item.price_adjust}</TableCell>
+                  <TableCell>{item.price}</TableCell>
                   <TableCell>{item.stock}</TableCell>
                   <TableCell>
                     {item.image_url ? (
@@ -1332,11 +1353,11 @@ const VariantsTab = React.memo(({
                 <Input
                   id="variant-price_adj"
                   type="number"
-                  value={currentVariantData?.price_adjust ?? ''}
+                  value={currentVariantData?.price ?? ''}
                   onChange={(e) =>
                     setCurrentVariantData((prev) => ({
                       ...prev,
-                      price_adjust: parseFloat(e.target.value) || undefined,
+                      price: parseFloat(e.target.value) || undefined,
                     }))
                   }
                   placeholder="0"

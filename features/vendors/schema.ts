@@ -20,7 +20,6 @@ export const verificationDocumentSchema = z.object({
   expires_at: z.string().optional().nullable(),
   // Local form state fields
   id: z.string().optional(),
-  document_type: z.string().optional(),
   file_name: z.string().optional(),
   expiry_date: z.string().optional(),
 });
@@ -90,15 +89,18 @@ export const vendorFormSchema = z.object({
   contact_phone: z.string().min(10, "Please enter a valid phone number"),
   website: z.string().url("Website must be a valid URL").or(z.literal("")).optional(),
   address_line1: z.string().min(1, "Address line 1 is required"),
-  address_line2: z.string().optional(),
+  address_line2: z.string().optional().nullable(),
   city: z.string().min(1, "City is required"),
   state_province: z.string().min(1, "State/Province is required"),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
-  tax_id: z.string().optional(),
+  tax_id: z.string().optional().nullable(),
   commission_rate: z.string().optional(),
   verification_status: z.string().optional(),
   is_active: z.boolean().optional(),
+  policy: z.string().optional().nullable(),
+  website: z.string().url("Website must be a valid URL").or(z.literal(""))
+    .optional().nullable(), // Changed from just optional to nullable
 
   // Nested objects and arrays
   bank_account: bankAccountSchema,

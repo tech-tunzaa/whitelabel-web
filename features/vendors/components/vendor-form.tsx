@@ -4,7 +4,13 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray, useWatch, Control, FieldPath } from "react-hook-form";
+import {
+  useForm,
+  useFieldArray,
+  useWatch,
+  Control,
+  FieldPath,
+} from "react-hook-form";
 import { Spinner } from "@/components/ui/spinner";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +41,7 @@ import { RequiredField } from "@/components/ui/required-field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { MapPicker } from "@/components/ui/map-picker"
+import { MapPicker } from "@/components/ui/map-picker";
 import {
   DocumentUpload,
   DocumentWithMeta,
@@ -72,26 +78,28 @@ const defaultValues: Partial<VendorFormValues> = {
     swift_code: "",
     branch_code: "",
   },
-  stores: [{
-    store_name: "",
-    store_slug: "",
-    description: "",
-    branding: {
-      logo_url: "",
-      colors: {
-        primary: "#4285F4",
-        secondary: "#34A853",
-        accent: "#FBBC05",
-        text: "#333333",
-        background: "#FFFFFF"
-      }
+  stores: [
+    {
+      store_name: "",
+      store_slug: "",
+      description: "",
+      branding: {
+        logo_url: "",
+        colors: {
+          primary: "#4285F4",
+          secondary: "#34A853",
+          accent: "#FBBC05",
+          text: "#333333",
+          background: "#FFFFFF",
+        },
+      },
+      banners: [],
+      categories: [],
+      return_policy: "",
+      shipping_policy: "",
+      general_policy: "",
     },
-    banners: [],
-    categories: [],
-    return_policy: "",
-    shipping_policy: "",
-    general_policy: "",
-  }],
+  ],
   user: {
     first_name: "",
     last_name: "",
@@ -108,10 +116,22 @@ interface VendorFormProps {
   id?: string;
 }
 
-export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, onCancel, isSubmitting, initialData, id }) => {
+export const VendorForm: React.FC<VendorFormProps> = ({
+  onSubmit: onFormSubmit,
+  onCancel,
+  isSubmitting,
+  initialData,
+  id,
+}) => {
   const { data: session } = useSession();
-  const tenantId = useMemo(() => (session?.user as any)?.tenant_id || "", [session]);
-  const isSuperOwner = useMemo(() => session?.user?.role === "super", [session]);
+  const tenantId = useMemo(
+    () => (session?.user as any)?.tenant_id || "",
+    [session]
+  );
+  const isSuperOwner = useMemo(
+    () => session?.user?.role === "super",
+    [session]
+  );
   const isAddPage = !initialData?.vendor_id;
 
   const [activeTab, setActiveTab] = useState<Tab>("business");
@@ -134,7 +154,8 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
             ...defaultValues.user,
             ...initialData.user,
             email: initialData.user?.email || initialData.contact_email || "",
-            phone_number: initialData.user?.phone_number || initialData.contact_phone || "",
+            phone_number:
+              initialData.user?.phone_number || initialData.contact_phone || "",
           },
         }
       : { ...defaultValues, tenant_id: isSuperOwner ? "" : tenantId },
@@ -150,7 +171,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
 
   useEffect(() => {
     if (watchedTenantId) {
-      fetchCategories(undefined, { 'X-Tenant-ID': watchedTenantId });
+      fetchCategories(undefined, { "X-Tenant-ID": watchedTenantId });
     }
   }, [watchedTenantId, fetchCategories]);
 
@@ -162,9 +183,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
     "documents",
     "review",
   ] as const;
-  type Tab = typeof tabFlow[number];
+  type Tab = (typeof tabFlow)[number];
 
-    const tabFields: Partial<Record<Tab, FieldPath<VendorFormValues>[]>> = {
+  const tabFields: Partial<Record<Tab, FieldPath<VendorFormValues>[]>> = {
     business: [
       "tenant_id",
       "business_name",
@@ -241,7 +262,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
       }
     } else {
       removeDocument(index);
-      toast.info("Document removed from list. Save changes to make it permanent.");
+      toast.info(
+        "Document removed from list. Save changes to make it permanent."
+      );
     }
   };
 
@@ -252,12 +275,12 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
       return;
     }
     const newDocument: VendorVerificationDocument = {
-      document_type: doc.document_type,
+      document_type_id: doc.document_type,
       document_url: doc.document_url,
       file_name: doc.file_name,
       expires_at: doc.expires_at,
       file_id: doc.file_id,
-      verification_status: 'pending',
+      verification_status: "pending",
     };
     appendDocument(newDocument as any);
   };
@@ -273,21 +296,21 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
     }
   };
 
-  const handleUpdateStore = async (vendorId: string, storeId: string, data: any) => {
-    try {
-      await updateStore(vendorId, storeId, data);
-      toast.success("Store updated successfully.");
-    } catch (error) {
-      toast.error("Failed to update store.");
-      console.error("Error updating store:", error);
-    }
-  };
+  // const handleUpdateStore = async (vendorId: string, storeId: string, data: any) => {
+  //   try {
+  //     await updateStore(vendorId, storeId, data);
+  //     toast.success("Store updated successfully.");
+  //   } catch (error) {
+  //     toast.error("Failed to update store.");
+  //     console.error("Error updating store:", error);
+  //   }
+  // };
 
   const onSubmit = (data: VendorFormValues) => {
     setFormError(null);
     // Clean up data before submitting to the parent
     const dataToSubmit = JSON.parse(JSON.stringify(data));
-    
+
     // Ensure tenant_id is set if not super owner
     if (!isSuperOwner) {
       dataToSubmit.tenant_id = tenantId;
@@ -295,25 +318,28 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
 
     // Remove local 'file' objects from documents before submission
     if (dataToSubmit.verification_documents) {
-      dataToSubmit.verification_documents = dataToSubmit.verification_documents.map((doc: any) => {
-        const { file, ...docWithoutFile } = doc;
-        return docWithoutFile;
-      });
+      dataToSubmit.verification_documents =
+        dataToSubmit.verification_documents.map((doc: any) => {
+          const { file, ...docWithoutFile } = doc;
+          return docWithoutFile;
+        });
     }
 
     // Pass the cleaned data to the parent component's submit handler
     onFormSubmit(dataToSubmit);
   };
 
-
-    const handleFormError = (errors: any) => {
-    
-    
+  const handleFormError = (errors: any) => {
+    console.log('Validation errors:', errors);
     const firstErrorField = Object.keys(errors)[0];
     if (firstErrorField) {
-      const fieldRoot = firstErrorField.split('.')[0];
+      const fieldRoot = firstErrorField.split(".")[0];
       for (const tabName in tabFields) {
-        if (tabFields[tabName as Tab]?.some(field => field === firstErrorField || field === fieldRoot)) {
+        if (
+          tabFields[tabName as Tab]?.some(
+            (field) => field === firstErrorField || field === fieldRoot
+          )
+        ) {
           if (activeTab !== tabName) {
             setActiveTab(tabName as Tab);
           }
@@ -324,16 +350,23 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
     toast.error("Please fix the validation errors before submitting.");
   };
 
-  const { fields: bannerFields, append: appendBanner, remove: removeBanner } = useFieldArray({
+  const {
+    fields: bannerFields,
+    append: appendBanner,
+    remove: removeBanner,
+  } = useFieldArray({
     control: form.control,
     name: "stores.0.banners",
   });
 
-  const { fields: documentFields, append: appendDocument, remove: removeDocument } = useFieldArray({
+  const {
+    fields: documentFields,
+    append: appendDocument,
+    remove: removeDocument,
+  } = useFieldArray({
     control: form.control,
     name: "verification_documents",
   });
-
 
   const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const businessName = e.target.value;
@@ -341,7 +374,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
 
     const currentStoreName = form.getValues("stores.0.store_name");
     if (!currentStoreName) {
-      form.setValue("stores.0.store_name", businessName, { shouldValidate: false });
+      form.setValue("stores.0.store_name", businessName, {
+        shouldValidate: false,
+      });
     }
 
     const currentStoreSlug = form.getValues("stores.0.store_slug");
@@ -353,8 +388,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
       form.setValue("stores.0.store_slug", slug, { shouldValidate: false });
     }
   };
-
-
 
   return (
     <div className="space-y-6">
@@ -396,11 +429,16 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                           <SelectContent>
                             {tenants
                               .filter(
-                                (tenant) => tenant.tenant_id && tenant.tenant_id.trim() !== ""
+                                (tenant) =>
+                                  tenant.tenant_id &&
+                                  tenant.tenant_id.trim() !== ""
                               )
                               .map((tenant) => (
                                 <SelectItem
-                                  key={tenant.tenant_id || `tenant-${Math.random()}`}
+                                  key={
+                                    tenant.tenant_id ||
+                                    `tenant-${Math.random()}`
+                                  }
                                   value={tenant.tenant_id}
                                 >
                                   {tenant.name}
@@ -601,7 +639,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                       value={field.value || ""}
                       onChange={(e) => {
                         field.onChange(e);
-                        form.setValue("user.email", e.target.value, { shouldValidate: true });
+                        form.setValue("user.email", e.target.value, {
+                          shouldValidate: true,
+                        });
                       }}
                     />
                   </FormControl>
@@ -627,10 +667,11 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                       {...field}
                       value={field.value || ""}
                       onChange={(value) => {
-                        
                         const phoneValue = value || "";
                         field.onChange(phoneValue);
-                        form.setValue("user.phone_number", phoneValue, { shouldValidate: true });
+                        form.setValue("user.phone_number", phoneValue, {
+                          shouldValidate: true,
+                        });
                       }}
                     />
                   </FormControl>
@@ -970,7 +1011,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
 
         {/* Store Banners using StoreBannerEditor Component */}
         <div className="space-y-4 border-t pt-5 mt-5">
-          <h4 className="text-md font-medium">Store Banners</h4>  
+          <h4 className="text-md font-medium">Store Banners</h4>
           <FormField
             control={form.control}
             name="stores.0.banners"
@@ -984,7 +1025,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                     resourceId={id || initialData?.id || ""}
                     entityId={initialData?.store?.id || ""}
                     onDeleteBanner={handleDeleteBanner}
-                    onUpdateResource={handleUpdateStore}
+                    // onUpdateResource={handleUpdateStore}
                   />
                 </FormControl>
                 <FormMessage />
@@ -1305,7 +1346,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
     );
   }
 
-  // Documents Tab Component - Simplified with new DocumentUpload component
+  // Documents Tab Component
   function DocumentsTab() {
     // Generate a unique ID for this instance
     const uploadId = useMemo(() => `vendor-docs-${Date.now()}`, []);
@@ -1569,22 +1610,22 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                 </dl>
               </div>
 
-            {/* Store Info Review */}
-            <div>
-              <h4 className="font-medium text-md border-b pb-2 mb-2">
-                Store Information
-              </h4>
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <dt className="font-medium text-muted-foreground">
-                    Store Name
-                  </dt>
+              {/* Store Info Review */}
+              <div>
+                <h4 className="font-medium text-md border-b pb-2 mb-2">
+                  Store Information
+                </h4>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="font-medium text-muted-foreground">
+                      Store Name
+                    </dt>
                     <dd>{reviewValues.store?.store_name || "-"}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-muted-foreground">
-                    Store Slug
-                  </dt>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-muted-foreground">
+                      Store Slug
+                    </dt>
                     <dd>{reviewValues.store?.store_slug || "-"}</dd>
                   </div>
                   <div>
@@ -1613,9 +1654,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                             .join(", ")
                         : "None selected"}
                     </dd>
-                </div>
-              </dl>
-            </div>
+                  </div>
+                </dl>
+              </div>
 
               {/* Store Policies Review */}
               <div>
@@ -1632,7 +1673,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-          </div>
+                  </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Shipping Policy
@@ -1642,7 +1683,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-        </div>
+                  </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Terms & Conditions
@@ -1652,7 +1693,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
-      </div>
+                  </div>
                 </dl>
               </div>
 
@@ -1683,12 +1724,12 @@ export const VendorForm: React.FC<VendorFormProps> = ({ onSubmit: onFormSubmit, 
                       No documents uploaded
                     </p>
                   )}
-          </div>
-          </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </TabsContent>
     );
   }
-}
+};

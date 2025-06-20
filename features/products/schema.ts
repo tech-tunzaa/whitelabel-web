@@ -12,7 +12,7 @@ export const variantSchema = z.object({
   _id: z.string().optional(), // For existing variants
   name: z.string().min(1, "Attribute name is required"),
   value: z.string().min(1, "Attribute value is required"),
-  price_adjust: z.coerce.number().optional(), // Can be positive, negative, or zero
+  price: z.coerce.number().optional(), // Can be positive, negative, or zero
   stock: z.coerce.number().int().min(0, "Stock quantity cannot be negative").optional(),
   image_url: z.string().url("Image URL must be a valid URL").optional().or(z.literal('')).nullable(), // Optional, can be empty string or null
   sku: z.string()
@@ -67,14 +67,13 @@ export const productFormSchema = z.object({
     store_id: z.string(), // Assuming this is always present
     images: z.array(productImageSchema).optional().default([]),
     has_variants: z.boolean().default(false),
-    variants: z.array(variantSchema).optional().default([]), // Uses the new variantSchema
+    variants: z.array(variantSchema).optional().default([]),
     weight: z.coerce.number().min(0).optional(),
     dimensions: dimensionsSchema.optional(),
     requires_shipping: z.boolean().default(true),
     is_active: z.boolean().default(true),
     is_featured: z.boolean().default(false),
     promotion: z.string().nullish(),
-    tenant_id: z.string().min(1, "Tenant ID is required"),
 }).refine(
     (data) => { // Refinement for variants presence
         if (data.has_variants) {
