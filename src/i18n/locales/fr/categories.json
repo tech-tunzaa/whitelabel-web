@@ -1,81 +1,113 @@
 {
   "title": "Catégories",
-  "description": "Gérez et organisez les catégories de vos produits.",
-  "add_category": "Ajouter une Catégorie",
+  "description": "Gérez les catégories de vos produits",
+  "add_category": "Ajouter une catégorie",
+  "edit_category": "Modifier la catégorie",
+  "parent_category": "Catégorie Parente",
+  "search_placeholder": "Rechercher des catégories...",
   "tabs": {
     "all": "Toutes",
     "active": "Actives",
     "inactive": "Inactives"
   },
   "table": {
-    "search_placeholder": "Rechercher des catégories par nom...",
-    "empty_state": "Aucune catégorie trouvée.",
     "columns": {
       "name": "Nom",
+      "no_description": "Aucune description fournie.",
       "description": "Description",
+      "parent_category": "Catégorie Parente",
       "status": "Statut",
-      "parent": "Catégorie Parente",
       "image": "Image",
       "actions": "Actions"
-    }
+    },
+    "empty_state": "Aucune catégorie trouvée.",
+    "create_one": "Vous pouvez créer une nouvelle catégorie pour commencer."
   },
   "form": {
-    "add_title": "Ajouter une Nouvelle Catégorie",
-    "add_description": "Remplissez les détails ci-dessous pour créer une nouvelle catégorie.",
-    "edit_title": "Modifier la Catégorie",
-    "edit_description": "Mettez à jour les informations de cette catégorie.",
-    "name_label": "Nom de la Catégorie",
-    "name_placeholder": "ex: Électronique",
-    "name_placeholder_detailed": "Entrez le nom de la catégorie",
-    "slug_placeholder_detailed": "ex: electronique-slug",
-    "description_placeholder": "Une brève description de la catégorie.",
-    "parent_category": "Catégorie Parente",
-    "select_parent_category": "Sélectionner une catégorie parente",
-    "parent_category_description": "Assignez cette catégorie à une autre pour créer une hiérarchie.",
-    "image_label": "Image de la Catégorie",
+    "add_title": "Ajouter une catégorie",
+    "edit_title": "Modifier la catégorie",
+    "name_label": "Nom de la catégorie",
+    "name_placeholder": "p. ex. Électronique",
+    "slug_label": "Identifiant",
+    "slug_placeholder": "p. ex. electronique",
+    "description_placeholder": "Décrivez la catégorie...",
+    "description_label": "Description (Facultatif)",
+    "parent_category_label": "Catégorie parente",
+    "parent_category_placeholder": "Sélectionner une catégorie parente",
+    "parent_category_description": "Laissez vide s'il s'agit d'une catégorie de premier niveau.",
+    "image_label": "Image (Facultatif)",
     "image_description": "Téléchargez une image pour la catégorie (facultatif).",
-    "active_label": "Statut Actif",
-    "active_description": "Les catégories inactives ne seront pas visibles dans la boutique.",
-    "create_button": "Créer la Catégorie",
-    "update_button": "Mettre à Jour la Catégorie"
+    "active_description": "Les catégories inactives ne seront pas visibles sur la place de marché.",
+    "update_button": "Mettre à jour la catégorie",
+    "create_button": "Créer une catégorie"
   },
   "notifications": {
     "created_successfully": "Catégorie créée avec succès.",
-    "updated_successfully": "Catégorie mise à jour avec succès.",
-    "deleted_successfully": "La catégorie '{{name}}' a été supprimée avec succès.",
     "failed_to_create": "Échec de la création de la catégorie.",
+    "updated_successfully": "Catégorie mise à jour avec succès.",
     "failed_to_update": "Échec de la mise à jour de la catégorie.",
-    "failed_to_delete": "Échec de la suppression de la catégorie '{{name}}'.",
-    "status_updated": "Le statut de la catégorie a été mis à jour."
+    "deleted_successfully": "La catégorie \"{{name}}\" a été supprimée avec succès !",
+    "failed_to_delete": "Échec de la suppression de la catégorie."
   },
   "delete_dialog": {
-    "title": "Êtes-vous sûr de vouloir supprimer cette catégorie ?",
-    "description": "Cette action est irréversible. Cela supprimera définitivement la catégorie '{{name}}'.",
-    "confirm_button": "Supprimer",
-    "cancel_button": "Annuler"
+    "title": "Êtes-vous sûr(e) ?",
+    "description": "Cette action est irréversible. Cela supprimera définitivement la catégorie \"<strong>{{name}}</strong>\"."
   },
   "zod": {
-    "name_required": "Le nom de la catégorie est requis.",
-    "url_invalid": "Doit être une URL valide."
+    "name_required": "Le nom est requis",
+    "name_too_short": "Le nom doit comporter au moins 3 caractères",
+    "description_too_long": "La description ne peut pas dépasser 255 caractères"
   },
   "page": {
-    "errorLoading": "Échec du chargement des catégories",
+    "title": "Catégories",
+    "description": "Gérez les catégories de vos produits",
+    "add": "Ajouter une catégorie",
+    "add_title": "Créer une catégorie",
+    "add_description": "Créer une nouvelle catégorie",
+    "edit": "Modifier la catégorie",
+    "edit_title": "Modifier la catégorie : {{name}}",
+    "edit_description": "Mettre à jour les informations et les paramètres de la catégorie",
+    "delete": "Supprimer la catégorie",
+    "viewDetails": "Voir les détails",
+    "success": {
+      "create": "Catégorie ajoutée avec succès",
+      "update": "Catégorie mise à jour avec succès",
+      "delete": "Catégorie supprimée avec succès",
+      "activate": "Catégorie activée avec succès",
+      "deactivate": "Catégorie désactivée avec succès"
+    },
+    "error": {
+      "create": "Échec de l'ajout de la catégorie",
+      "update": "Échec de la mise à jour de la catégorie",
+      "delete": "Échec de la suppression de la catégorie",
+      "activate": "Échec de l'activation de la catégorie",
+      "deactivate": "Échec de la désactivation de la catégorie",
+      "error_fetching_parent": "Erreur lors de la récupération de la catégorie parente :",
+      "error_fetching": "Erreur lors de la récupération de la catégorie :",
+      "loading": "Échec du chargement des catégories. Veuillez réessayer."
+    },
+    "loading": "Chargement des catégories...",
+    "errorLoading": "Erreur de chargement des catégories",
+    "categoryNotFound": "La catégorie demandée n'a pas pu être trouvée.",
+    "category_id": "ID de la catégorie",
     "retry": "Réessayer"
   },
   "details_card": {
-    "title": "Détails de la Catégorie",
+    "title": "Détails de la catégorie",
     "created_at": "Créé le"
   },
   "products_card": {
     "title": "Produits",
     "no_products": "Aucun produit trouvé dans cette catégorie.",
-    "add_product": "Ajouter un Produit"
+    "add_product": "Ajouter un produit",
+    "error_fetching": "Impossible de charger les produits.",
+    "description": "Produits dans cette catégorie. Vous pouvez ajouter, modifier ou supprimer des produits."
   },
   "status_card": {
     "title": "Statut & Infos",
-    "current_status": "Statut Actuel",
-    "last_updated": "Dernière Mise à Jour",
-    "products_count": "Produits dans la Catégorie"
+    "current_status": "Statut actuel",
+    "last_updated": "Dernière mise à jour",
+    "products_count": "Produits dans la catégorie"
   },
   "actions_card": {
     "title": "Actions"

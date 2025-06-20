@@ -5,15 +5,22 @@
     "add": "Add",
     "edit": "Edit",
     "delete": "Delete",
+    "create": "Create",
     "view": "View",
+    "status": "Status",
+    "title": "Title",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "activate": "Activate",
     "deactivate": "Deactivate",
     "saving": "Saving...",
+    "updating": "Updating...",
+    "creating": "Creating...",
+    "save_changes": "Save Changes",
     "edit_entity": "Edit {{entity}}",
-    "delete_entity": "Delete {{entity}}"
+    "delete_entity": "Delete {{entity}}",
+    "back": "Back"
   },
   "status": {
     "active": "Active",
@@ -28,13 +35,19 @@
     "error": "Error",
     "warning": "Warning",
     "info": "Information",
+    "an_error_occurred": "An error occurred",
+    "unknown": "Unknown",
+    "na": "N/A",
     "confirm_action": "Are you sure?",
     "cancel_action": "Cancel",
     "confirm_delete": "Confirm Delete",
-    "tenant_id_missing_for_delete": "Tenant ID is missing. Cannot perform delete."
+    "error_fetching_title": "Error Fetching Data",
+    "tenant_id_missing_for_delete": "Tenant ID is missing. Cannot perform delete.",
+    "tenant_id_missing": "Tenant ID is missing. Please try again."
   },
   "form": {
     "slug": "Slug",
+    "description": "Description",
     "description_optional": "Description (Optional)",
     "none": "None"
   },

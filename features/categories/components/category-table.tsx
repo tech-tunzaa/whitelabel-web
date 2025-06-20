@@ -35,7 +35,7 @@ export function CategoryTable({
             <th className="p-4 text-left">{t('table.columns.name')}</th>
             <th className="p-4 text-left">{t('table.columns.description')}</th>
             <th className="p-4 text-left">{t('table.columns.status')}</th>
-            <th className="p-4 text-left">{t('table.columns.parent')}</th>
+            <th className="p-4 text-left">{t('table.columns.parent_category')}</th>
             <th className="p-4 text-left">{t('table.columns.image')}</th>
             <th className="p-4 text-right">{t('table.columns.actions')}</th>
           </tr>

@@ -13,8 +13,11 @@
   "table": {
     "columns": {
       "name": "Name",
+      "no_description": "No description provided.",
       "description": "Description",
+      "parent_category": "Parent Category",
       "status": "Status",
+      "image": "Image",
       "actions": "Actions"
     },
     "empty_state": "No categories found.",
@@ -22,26 +25,19 @@
   },
   "form": {
     "add_title": "Add Category",
-    "add_description": "Create a new category to organize your products.",
     "edit_title": "Edit Category",
-    "edit_description": "Update the details of this category.",
     "name_label": "Category Name",
     "name_placeholder": "e.g. Electronics",
-    "name_placeholder_detailed": "Electronics, Clothing, etc.",
-    "name_description": "This is the name that will be displayed for this category.",
-    "slug_placeholder_detailed": "category-slug",
-    "slug_description": "URL-friendly version of the name. Auto-generated but can be customized.",
-    "description_placeholder": "e.g. All kinds of electronic gadgets",
-    "description_placeholder_detailed": "Describe this category...",
-    "description_description": "Provide a brief description of this category.",
-    "parent_category_optional": "Parent Category (Optional)",
-    "select_parent_category": "Select parent category",
-    "parent_category_description": "Select a parent category if this is a subcategory.",
-    "image_label": "Category Image",
-    "upload_button": "Upload Category Image",
-    "image_alt": "{{name}} image",
-    "image_description": "Upload an image representing this category.",
-    "active_description": "Active categories are displayed on your marketplace.",
+    "slug_label": "Slug",
+    "slug_placeholder": "e.g. electronics",
+    "description_placeholder": "Describe the category...",
+    "description_label": "Description (Optional)",
+    "parent_category_label": "Parent Category",
+    "parent_category_placeholder": "Select a parent category",
+    "parent_category_description": "Leave blank if this is a top-level category.",
+    "image_label": "Image",
+    "image_description": "Upload an image for the category (optional).",
+    "active_description": "Inactive categories will not be visible in the marketplace.",
     "update_button": "Update Category",
     "create_button": "Create Category"
   },
@@ -66,7 +62,11 @@
     "title": "Categories",
     "description": "Manage your product categories",
     "add": "Add Category",
+    "add_title": "Create Category",
+    "add_description": "Create a new category",
     "edit": "Edit Category",
+    "edit_title": "Edit Category: {{name}}",
+    "edit_description": "Update category information and settings",
     "delete": "Delete Category",
     "viewDetails": "View Details",
     "success": {
@@ -82,10 +82,14 @@
       "delete": "Failed to delete category",
       "activate": "Failed to activate category",
       "deactivate": "Failed to deactivate category",
+    "error_fetching_parent": "Error fetching parent category:",
+    "error_fetching": "Error fetching category:",
       "loading": "Failed to load categories. Please try again."
     },
     "loading": "Loading categories...",
     "errorLoading": "Error Loading Categories",
+    "categoryNotFound": "The requested category could not be found.",
+    "category_id": "Category ID",
     "retry": "Retry"
   },
   "details_card": {
@@ -95,7 +99,9 @@
   "products_card": {
     "title": "Products",
     "no_products": "No products found in this category.",
-    "add_product": "Add Product"
+    "add_product": "Add Product",
+    "error_fetching": "Could not load products.",
+    "description": "Products in this category. You can add, edit, or remove products."
   },
   "status_card": {
     "title": "Status & Info",

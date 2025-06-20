@@ -18,7 +18,7 @@ import { ArrowLeft } from 'lucide-react';
 const AddCategoryPage = () => {
   const router = useRouter();
   const { data: session } = useSession();
-  const { t } = useTranslation();
+  const { t } = useTranslation(['categories', 'common']);
 
   const { createCategory, fetchCategories, categories, loading: isSubmitting } = useCategoryStore();
 
@@ -32,7 +32,7 @@ const AddCategoryPage = () => {
 
   const handleCreateCategory = async (data: CategoryFormValues) => {
     if (!tenantId) {
-      toast.error(t('common:errors.tenant_id_missing'));
+      toast.error(t('common:messages.tenant_id_missing'));
       return;
     }
 
@@ -40,11 +40,11 @@ const AddCategoryPage = () => {
 
     try {
       await createCategory(categoryData, { 'X-Tenant-ID': tenantId });
-      toast.success(t('categories.messages.create_success'));
+      toast.success(t('notifications.created_successfully'));
       router.push('/dashboard/categories');
     } catch (error) {
-      console.error(t('categories.errors.create_failed'), error);
-      toast.error(t('categories.errors.create_failed'));
+      console.error(t('notifications.failed_to_create'), error);
+      toast.error(t('notifications.failed_to_create'));
     }
   };
 
@@ -63,14 +63,14 @@ const AddCategoryPage = () => {
                 className="mr-4"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    <span className="sr-only">Back</span>
+                    <span className="sr-only">{t('common:actions.back')}</span>
                 </Button>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">
-                        Create Category
+                        {t('page.add_title')}
                     </h1>
                     <p className="text-muted-foreground">
-                        Create a new category
+                        {t('page.add_description')}
                     </p>
                 </div>
             </div>
@@ -82,17 +82,17 @@ const AddCategoryPage = () => {
                 {isSubmitting ? (
                 <>
                     <Spinner size="sm" color="white" />
-                    Creating...
+                    {t('common:actions.creating', 'Creating...')}
                 </>
                 ) : (
-                'Create'
+                t('common:actions.create', 'Create')
                 )}
             </Button>
         </div>
         <div className="p-4">
             <Card>
                 <CardHeader>
-                    <CardTitle>{t('categories.form.title')}</CardTitle>
+                    <CardTitle>{t('form.add_title')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <CategoryForm

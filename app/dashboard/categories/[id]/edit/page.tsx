@@ -20,7 +20,7 @@ const EditCategoryPage = () => {
   const router = useRouter();
   const params = useParams();
   const { data: session } = useSession();
-  const { t } = useTranslation();
+  const { t } = useTranslation(['categories', 'common']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categoryId = params.id as string;
@@ -48,17 +48,17 @@ const EditCategoryPage = () => {
     const handleUpdateCategory = async (data: CategoryFormValues) => {
     setIsSubmitting(true);
     if (!tenantId) {
-      toast.error(t('common:errors.tenant_id_missing'));
+      toast.error(t('common:messages.tenant_id_missing'));
       return;
     }
 
     try {
       await updateCategory(categoryId, data, tenantHeader);
-      toast.success(t('categories.messages.update_success'));
+      toast.success(t('notifications.updated_successfully'));
       router.push(`/dashboard/categories/${categoryId}`);
     } catch (error) {
-      console.error(t('categories.errors.update_failed'), error);
-      toast.error(t('categories.errors.update_failed'));
+      console.error(t('notifications.failed_to_update'), error);
+      toast.error(t('notifications.failed_to_update'));
     } finally {
       setIsSubmitting(false);
     }
@@ -79,14 +79,14 @@ const EditCategoryPage = () => {
   if (error && !currentCategory) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>{t('common:errors.fetch_error_title')}</AlertTitle>
+        <AlertTitle>{t('common:messages.error_fetching_title', 'Error')}</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
       </Alert>
     );
   }
 
   if (!currentCategory) {
-    return null; // Or a 'Not Found' component
+    return null; // Or a 'Not Found' component, e.g., <NotFound message={t('page.categoryNotFound')} />
   }
 
   return (
@@ -100,14 +100,14 @@ const EditCategoryPage = () => {
                 className="mr-4"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    <span className="sr-only">Back</span>
+                    <span className="sr-only">{t('common:actions.back', 'Back')}</span>
                 </Button>
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">
-                        Edit Category: {currentCategory?.name}
+                        {t('page.edit_title', { name: currentCategory?.name })}
                     </h1>
                     <p className="text-muted-foreground">
-                        Update category information and settings
+                        {t('page.edit_description', 'Update category information and settings')}
                     </p>
                 </div>
             </div>
@@ -119,28 +119,30 @@ const EditCategoryPage = () => {
                 {isSubmitting ? (
                 <>
                     <Spinner size="sm" color="white" />
-                    Updating...
+                    {t('common:actions.updating', 'Updating...')}
                 </>
                 ) : (
-                'Save Changes'
+                t('common:actions.save_changes', 'Save Changes')
                 )}
             </Button>
         </div>
-        <Card>
-            <CardHeader>
-                <CardTitle>{t('categories.form.title_edit')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <CategoryForm
-                    formId="edit-category-form"
-                    initialData={currentCategory}
-                    onFormSubmit={handleUpdateCategory}
-                    onCancel={handleCancel}
-                    isSubmitting={isSubmitting}
-                    parentCategories={categories}
-                />
-            </CardContent>
-        </Card>
+        <div className="p-4">
+          <Card>
+              <CardHeader>
+                  <CardTitle>{t('form.edit_title')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <CategoryForm
+                      formId="edit-category-form"
+                      initialData={currentCategory}
+                      onFormSubmit={handleUpdateCategory}
+                      onCancel={handleCancel}
+                      isSubmitting={isSubmitting}
+                      parentCategories={categories}
+                  />
+              </CardContent>
+          </Card>
+        </div>
     </div>
   );
 };

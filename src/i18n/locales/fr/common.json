@@ -5,15 +5,22 @@
     "add": "Ajouter",
     "edit": "Modifier",
     "delete": "Supprimer",
+    "create": "Créer",
     "view": "Voir",
+    "status": "Statut",
+    "title": "Titre",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "activate": "Activer",
     "deactivate": "Désactiver",
     "saving": "Enregistrement...",
+    "updating": "Mise à jour...",
+    "creating": "Création...",
+    "save_changes": "Enregistrer les modifications",
     "edit_entity": "Modifier {{entity}}",
-    "delete_entity": "Supprimer {{entity}}"
+    "delete_entity": "Supprimer {{entity}}",
+    "back": "Retour"
   },
   "status": {
     "active": "Actif",
@@ -28,14 +35,19 @@
     "error": "Erreur",
     "warning": "Avertissement",
     "info": "Information",
+    "an_error_occurred": "Une erreur est survenue",
+    "unknown": "Inconnu",
+    "na": "N/A",
     "confirm_action": "Êtes-vous sûr(e) ?",
-    "cancel_action": "Annuler l'action",
+    "cancel_action": "Annuler",
     "confirm_delete": "Confirmer la suppression",
-    "tenant_id_missing": "L'ID du locataire est manquant. Veuillez vous assurer que vous êtes connecté et que vous disposez des autorisations requises.",
-    "tenant_id_missing_for_delete": "L'ID du locataire est manquant. Échec de la suppression."
+    "error_fetching_title": "Erreur lors de la récupération des données",
+    "tenant_id_missing_for_delete": "L'ID du locataire est manquant. La suppression ne peut pas être effectuée.",
+    "tenant_id_missing": "L'ID du locataire est manquant. Veuillez réessayer."
   },
   "form": {
     "slug": "Slug",
+    "description": "Description",
     "description_optional": "Description (Facultatif)",
     "none": "Aucun"
   },

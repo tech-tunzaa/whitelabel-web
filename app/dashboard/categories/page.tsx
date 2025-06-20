@@ -82,7 +82,7 @@ export default function CategoriesPage() {
         const filters = getFilters();
         await fetchCategories(filters, tenantHeaders);
       } catch (error) {
-        console.error("Error fetching categories:", error);
+        console.error(t('page.error.loading'), error);
       } finally {
         setIsTabLoading(false);
       }
@@ -161,8 +161,8 @@ export default function CategoriesPage() {
           <ErrorCard
             title={t('page.errorLoading')}
             error={{
-              status: storeError.status?.toString() || "Error",
-              message: storeError.message || "An error occurred",
+              status: storeError.status?.toString() || t('common:messages.error'),
+              message: storeError.message || t('common:messages.an_error_occurred'),
             }}
             buttonText={t('page.retry')}
             buttonAction={() => fetchCategories(getFilters(), tenantHeaders)}
@@ -192,7 +192,7 @@ export default function CategoriesPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder={t('table.search_placeholder')}
+              placeholder={t('search_placeholder')}
               className="pl-8"
               value={searchQuery}
               onChange={(e) => {

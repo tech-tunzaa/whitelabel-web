@@ -84,11 +84,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
             const parentData = await fetchCategory(categoryData.parent_id, tenantHeaders);
             setParentCategory(parentData);
           } catch (parentError) {
-            console.error("Error fetching parent category:", parentError);
+            console.error(t('page.error_fetching_parent'), parentError);
           }
         }
       } catch (err) {
-        console.error("Error fetching category:", err);
+        console.error(t('page.error_fetching'), err);
         setCategoryError(t('page.errorLoading'));
       } finally {
         setCategoryLoading(false);
@@ -102,7 +102,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         const productsResponse = await fetchProducts(filter, tenantHeaders);
         setProducts(productsResponse.items || []);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.error(t('products_card.error_fetching'), err);
         setProductsError(t('products_card.error_fetching', 'Could not load products.'));
       } finally {
         setProductsLoading(false);
@@ -120,7 +120,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       case false:
         return <Badge variant="destructive">{t('common:status.inactive')}</Badge>;
       default:
-        return <Badge variant="outline">{t('common:status.unknown')}</Badge>;
+        return <Badge variant="outline">{t('common:status.unknown', 'Unknown')}</Badge>;
     }
   };
 
@@ -131,7 +131,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       toast.success(t('notifications.deleted_successfully', { name: category.name }));
       router.push("/dashboard/categories");
     } catch (error) {
-      toast.error(t('notifications.failed_to_delete', { name: category.name }));
+      toast.error(t('notifications.failed_to_delete'));
       setActiveAction(null);
     }
   };
@@ -141,11 +141,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     try {
       const newStatus = !category.is_active;
       await toggleCategoryStatus(id, newStatus, tenantHeaders);
-      toast.success(t(newStatus ? 'notifications.activated_successfully' : 'notifications.deactivated_successfully', { name: category.name }));
+      toast.success(t(newStatus ? 'notifications.activated_successfully' : 'notifications.deactivated_successfully'));
       const updatedCategory = await fetchCategory(id, tenantHeaders);
       setCategory(updatedCategory);
     } catch (error) {
-      toast.error(t(category.is_active ? 'notifications.failed_to_deactivate' : 'notifications.failed_to_activate', { name: category.name }));
+      toast.error(t(category.is_active ? 'notifications.failed_to_deactivate' : 'notifications.failed_to_activate'));
     }
   };
 
@@ -172,9 +172,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t('delete_dialog.title')}</DialogTitle>
-              <DialogDescription>
-                {t('delete_dialog.description', { name: category.name })}
-              </DialogDescription>
+              <DialogDescription dangerouslySetInnerHTML={{ __html: t('delete_dialog.description', { name: category.name }) }} />
             </DialogHeader>
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setActiveAction(null)}>{t('common:actions.cancel')}</Button>
@@ -198,7 +196,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         <div className="flex flex-col">
           <h1 className="text-2xl font-bold tracking-tight">{category.name}</h1>
           <p className="text-sm text-muted-foreground">
-            {t('category_id')}: {category.category_id}
+            {t('page.category_id', 'Category ID')}: {category.category_id}
           </p>
         </div>
         <div className="ml-auto flex items-center space-x-2">
@@ -224,7 +222,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                   <h3 className="text-xl font-semibold">{category.name}</h3>
                   <p className="text-sm text-muted-foreground">
                     {t('details_card.created_at')}:{" "}
-                    {category.created_at ? format(new Date(category.created_at), "PPP") : "N/A"}
+                    {category.created_at ? format(new Date(category.created_at), "PPP") : t('common:na')}
                   </p>
                 </div>
               </div>
@@ -253,7 +251,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               </div>
               <Separator className="my-4" />
               <div>
-                <p className="text-sm font-medium mb-2">{t('details_card.description')}</p>
+                <p className="text-sm font-medium mb-2">{t('common:form.description')}</p>
                 <p className="text-sm whitespace-pre-wrap">
                   {category.description || t('details_card.no_description')}
                 </p>
@@ -320,7 +318,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
                 <div>
                     <p className="text-sm font-medium">{t('status_card.last_updated')}</p>
                     <p className="text-sm text-muted-foreground">
-                        {category.updated_at ? format(new Date(category.updated_at), "PPP p") : "N/A"}
+                        {category.updated_at ? format(new Date(category.updated_at), "PPP p") : t('common:na')}
                     </p>
                 </div>
                 <Separator className="my-4" />

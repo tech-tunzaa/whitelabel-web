@@ -28,8 +28,9 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ formId, initialData, parentCategories, onFormSubmit, onCancel, isSubmitting }: CategoryFormProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['common', 'categories']);
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(!!initialData?.slug);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
@@ -56,15 +57,6 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
       .replace(/\-\-+/g, '-');
   };
 
-  const watchName = form.watch("name");
-
-  useEffect(() => {
-    if (watchName && !form.getValues("slug")) {
-      const newSlug = generateSlug(watchName);
-      form.setValue("slug", newSlug, { shouldValidate: true });
-    }
-  }, [watchName, form]);
-
   const filteredParentCategories = useMemo(() => {
     return parentCategories.filter(cat => cat.category_id !== currentCategoryId);
   }, [parentCategories, currentCategoryId]);
@@ -88,7 +80,17 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
                 <FormItem>
                   <FormLabel>{t('form.name_label')} <RequiredField /></FormLabel>
                   <FormControl>
-                    <Input placeholder={t('form.name_placeholder')} {...field} />
+                    <Input 
+                      placeholder={t('form.name_placeholder')}
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        if (!isSlugManuallyEdited) {
+                          const newSlug = generateSlug(e.target.value);
+                          form.setValue("slug", newSlug, { shouldValidate: true });
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -99,9 +101,19 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('form.slug')} <RequiredField /></FormLabel>
+                  <FormLabel>{t('form.slug_label')} <RequiredField /></FormLabel>
                   <FormControl>
-                    <Input placeholder={t('form.slug_placeholder_detailed')} {...field} value={field.value ?? ''} />
+                    <Input 
+                      placeholder={t('form.slug_placeholder')}
+                      {...field} 
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        if (!isSlugManuallyEdited) {
+                          setIsSlugManuallyEdited(true);
+                        }
+                        field.onChange(e);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,7 +125,7 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('common:form.description_optional')}</FormLabel>
+                <FormLabel>{t('form.description_label')}</FormLabel>
                 <FormControl>
                   <Textarea placeholder={t('form.description_placeholder')} {...field} value={field.value ?? ''} />
                 </FormControl>
@@ -126,7 +138,7 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
             name="parent_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('form.parent_category')}</FormLabel>
+                <FormLabel>{t('form.parent_category_label')}</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(value === "none" ? null : value)}
                   value={field.value ?? "none"}
@@ -134,7 +146,7 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
                 >
                   <FormControl>
                     <SelectTrigger className="w-full md:w-1/2">
-                      <SelectValue placeholder={t('form.select_parent_category')} />
+                      <SelectValue placeholder={t('form.parent_category_placeholder')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -196,8 +208,6 @@ export function CategoryForm({ formId, initialData, parentCategories, onFormSubm
             )}
           />
         </fieldset>
-
-
       </form>
     </Form>
   );

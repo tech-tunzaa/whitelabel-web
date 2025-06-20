@@ -5,15 +5,22 @@
     "add": "Ongeza",
     "edit": "Hariri",
     "delete": "Futa",
+    "create": "Unda",
     "view": "Tazama",
+    "status": "Hali",
+    "title": "Kichwa",
     "save": "Hifadhi",
     "cancel": "Ghairi",
     "confirm": "Thibitisha",
     "activate": "Wezesha",
     "deactivate": "Zima",
     "saving": "Inahifadhi...",
+    "updating": "Inasasisha...",
+    "creating": "Inaunda...",
+    "save_changes": "Hifadhi Mabadiliko",
     "edit_entity": "Hariri {{entity}}",
-    "delete_entity": "Futa {{entity}}"
+    "delete_entity": "Futa {{entity}}",
+    "back": "Rudi"
   },
   "status": {
     "active": "Inayotumika",
@@ -28,14 +35,19 @@
     "error": "Kosa",
     "warning": "Tahadhari",
     "info": "Taarifa",
+    "an_error_occurred": "Kosa limetokea",
+    "unknown": "Haijulikani",
+    "na": "N/A",
     "confirm_action": "Una uhakika?",
-    "cancel_action": "Ghairi kitendo",
+    "cancel_action": "Ghairi",
     "confirm_delete": "Thibitisha kufuta",
-    "tenant_id_missing": "Kitambulisho cha mpangaji hakipo. Tafadhali hakikisha umeingia na una ruhusa zinazohitajika.",
-    "tenant_id_missing_for_delete": "Kitambulisho cha mpangaji hakipo. Imeshindwa kufuta."
+    "error_fetching_title": "Kosa la Kupata Data",
+    "tenant_id_missing_for_delete": "Kitambulisho cha mpangaji hakipo. Haiwezi kufuta.",
+    "tenant_id_missing": "Kitambulisho cha mpangaji hakipo. Tafadhali jaribu tena."
   },
   "form": {
     "slug": "Slug",
+    "description": "Maelezo",
     "description_optional": "Maelezo (Si lazima)",
     "none": "Hakuna"
   },
