@@ -56,6 +56,7 @@ import {
   VendorFormValues,
   VerificationDocument as VendorVerificationDocument,
   StoreBanner,
+  Store,
 } from "../types";
 import { Category } from "@/features/categories/types";
 import { Tenant } from "@/features/tenants/types";
@@ -65,6 +66,7 @@ import { useVendorStore } from "../store";
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
+import StoreFormCard from "./store-form";
 
 // Default values for the form, providing a clean slate for new vendors.
 const defaultValues: Partial<VendorFormValues> = {
@@ -177,7 +179,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
   const tabFlow = [
     "business",
-    "store",
     "address",
     "banking",
     "documents",
@@ -195,12 +196,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       "contact_email",
       "contact_phone",
       "commission_rate",
-    ],
-    store: [
-      "stores.0.store_name",
-      "stores.0.store_slug",
-      "stores.0.description",
-      "stores.0.categories",
     ],
     address: [
       "address_line1",
@@ -285,17 +280,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
     appendDocument(newDocument as any);
   };
 
-  const handleDeleteBanner = async (resourceId: string, bannerId: string) => {
-    if (!initialData?.store?.id) return;
-    try {
-      await deleteBanner(resourceId, initialData.store.id, bannerId);
-      toast.success("Banner deleted successfully.");
-    } catch (error) {
-      toast.error("Failed to delete banner.");
-      console.error("Error deleting banner:", error);
-    }
-  };
-
   // const handleUpdateStore = async (vendorId: string, storeId: string, data: any) => {
   //   try {
   //     await updateStore(vendorId, storeId, data);
@@ -330,7 +314,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
   };
 
   const handleFormError = (errors: any) => {
-    console.log('Validation errors:', errors);
+    console.log("Validation errors:", errors);
     const firstErrorField = Object.keys(errors)[0];
     if (firstErrorField) {
       const fieldRoot = firstErrorField.split(".")[0];
@@ -462,12 +446,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                   className="mt-2"
                   onValueChange={(value) => setActiveTab(value)}
                 >
-                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
                     <TabsTrigger value="business" className="text-center">
                       Business
-                    </TabsTrigger>
-                    <TabsTrigger value="store" className="text-center">
-                      Store
                     </TabsTrigger>
                     <TabsTrigger value="address" className="text-center">
                       Address
@@ -485,7 +466,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
                   <div className="mt-6">
                     <BusinessTab />
-                    <StoreTab />
                     <AddressTab />
                     <BankingTab />
                     <DocumentsTab />
@@ -539,6 +519,17 @@ export const VendorForm: React.FC<VendorFormProps> = ({
           </Form>
         </CardContent>
       </Card>
+
+      {/* StoreFormCard: Standalone card for editing store info */}
+      {initialData?.stores?.[0] && (
+        <StoreFormCard
+          store={initialData.stores[0]}
+          storeId={
+            initialData.stores[0].store_id ||
+            "4f9ad523-09bf-4053-8330-7c1ddf15f0ee"
+          }
+        />
+      )}
     </div>
   );
 
@@ -742,296 +733,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
               )}
             />
           </div>
-        </div>
-      </TabsContent>
-    );
-  }
-
-  // Store Tab Component
-  function StoreTab() {
-    // Handle business name changes through form field change
-    const handleBusinessNameChange = (
-      e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-      const businessName = e.target.value;
-
-      // Only set store name if it's empty or not set yet
-      const currentStoreName = form.getValues("stores.0.store_name");
-      if (!currentStoreName) {
-        form.setValue("stores.0.store_name", businessName, {
-          shouldValidate: false,
-        });
-      }
-
-      // Only set store slug if it's empty or not set yet
-      const currentStoreSlug = form.getValues("stores.0.store_slug");
-      if (!currentStoreSlug) {
-        // Create a slug from the business name
-        const slug = businessName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "");
-        form.setValue("stores.0.store_slug", slug, { shouldValidate: false });
-      }
-    };
-
-    return (
-      <TabsContent value="store" className="space-y-6 pt-4">
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Store Information</h3>
-          <p className="text-sm text-muted-foreground">
-            Provide details about your online store.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="stores.0.store_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Store Name <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="Your store name"
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  The name of your online store.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="stores.0.store_slug"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Store URL <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="your-store"
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  The URL for your store: https://example.com/
-                  <strong>{field.value || "your-store"}</strong>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="stores.0.description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Store Description <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <textarea
-                    {...field}
-                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-2"
-                    placeholder="Describe your store and what you sell..."
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Provide a description of your store to help customers
-                  understand what you offer.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="stores.0.branding.logo_url"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Store Logo</FormLabel>
-                <FormControl>
-                  <ImageUpload
-                    id="store-logo-upload"
-                    value={field.value as string}
-                    onChange={field.onChange}
-                    className="mt-2"
-                    imgHeight="h-70"
-                    previewAlt="Store Logo"
-                    buttonText="Upload Logo"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Upload your store logo image.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Store Categories Field */}
-        <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="stores.0.categories"
-            render={({ field }) => {
-              const categoryOptions =
-                categories?.map((category) => ({
-                  value: String(category?.category_id || ""),
-                  label: String(category?.name || ""),
-                })) || [];
-
-              const selected: string[] = Array.isArray(field.value)
-                ? field.value.map((id) => String(id || ""))
-                : [];
-
-              return (
-                <FormItem>
-                  <FormLabel>
-                    Store Categories <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <MultiSelect
-                      options={categoryOptions}
-                      selected={selected}
-                      onChange={field.onChange}
-                      placeholder="Select categories"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
-          />
-        </div>
-
-        {/* Policy Documents Section */}
-        <div className="space-y-5 border-t pt-5 mt-5">
-          <h4 className="text-md font-medium">Store Policies</h4>
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Return Policy */}
-            <FormField
-              control={form.control}
-              name="stores.0.return_policy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Return Policy</FormLabel>
-                  <FormControl>
-                    <FileUpload
-                      id="return-policy-upload"
-                      value={field.value as string}
-                      onChange={field.onChange}
-                      onRemove={() => field.onChange("")}
-                      acceptedTypes={[".pdf"]}
-                      disabled={isSubmitting}
-                      buttonText="Upload Return Policy"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-sm text-muted-foreground mt-2">
-                    PDF document explaining your return policy
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Shipping Policy */}
-            <FormField
-              control={form.control}
-              name="stores.0.shipping_policy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Shipping Policy</FormLabel>
-                  <FormControl>
-                    <FileUpload
-                      id="shipping-policy-upload"
-                      value={field.value as string}
-                      onChange={field.onChange}
-                      onRemove={() => field.onChange("")}
-                      acceptedTypes={[".pdf"]}
-                      disabled={isSubmitting}
-                      buttonText="Upload Shipping Policy"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-sm text-muted-foreground mt-2">
-                    PDF document explaining your shipping policy
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* General Policy */}
-          <FormField
-            control={form.control}
-            name="stores.0.general_policy"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>General Terms & Conditions</FormLabel>
-                <FormControl>
-                  <FileUpload
-                    id="general-policy-upload"
-                    value={field.value as string}
-                    onChange={field.onChange}
-                    onRemove={() => field.onChange("")}
-                    acceptedTypes={[".pdf"]}
-                    disabled={isSubmitting}
-                    buttonText="Upload Terms & Conditions"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  PDF document with general terms and conditions
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Store Banners using StoreBannerEditor Component */}
-        <div className="space-y-4 border-t pt-5 mt-5">
-          <h4 className="text-md font-medium">Store Banners</h4>
-          <FormField
-            control={form.control}
-            name="stores.0.banners"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <BannerEditor
-                    banners={field.value ?? []}
-                    onChange={field.onChange}
-                    readOnly={false}
-                    resourceId={id || initialData?.id || ""}
-                    entityId={initialData?.store?.id || ""}
-                    onDeleteBanner={handleDeleteBanner}
-                    // onUpdateResource={handleUpdateStore}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
       </TabsContent>
     );
