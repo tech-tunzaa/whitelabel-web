@@ -114,9 +114,7 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (error) {
@@ -124,7 +122,9 @@ export default function ProductsPage() {
       <>
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Products & Services</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Products & Services
+            </h1>
             <p className="text-muted-foreground">
               Manage your marketplace products and services
             </p>
@@ -152,7 +152,9 @@ export default function ProductsPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Products & Services</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Products & Services
+          </h1>
           <p className="text-muted-foreground">
             Manage your marketplace products
           </p>
@@ -186,7 +188,10 @@ export default function ProductsPage() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category.product_id} value={category.product_id}>
+                  <SelectItem
+                    key={category.product_id}
+                    value={category.product_id}
+                  >
                     {category.name}
                   </SelectItem>
                 ))}
@@ -202,6 +207,9 @@ export default function ProductsPage() {
               onEdit={(product) =>
                 router.push(`/dashboard/products/${product.product_id}`)
               }
+              onProductClick={(product) =>
+                router.push(`/dashboard/products/${product.product_id}`)
+              }
               onDelete={openDeleteDialog}
             />
           </TabsContent>
@@ -211,12 +219,18 @@ export default function ProductsPage() {
               onEdit={(product) =>
                 router.push(`/dashboard/products/${product.product_id}`)
               }
+              onProductClick={(product) =>
+                router.push(`/dashboard/products/${product.product_id}`)
+              }
               onDelete={openDeleteDialog}
             />
           </TabsContent>
           <TabsContent value="draft">
             <ProductTable
               products={pendingProducts}
+              onProductClick={(product) =>
+                router.push(`/dashboard/products/${product.product_id}`)
+              }
               onDelete={openDeleteDialog}
             />
           </TabsContent>

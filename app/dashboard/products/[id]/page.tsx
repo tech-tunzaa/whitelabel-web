@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -20,7 +20,7 @@ import {
   Truck,
   RefreshCw,
   Trash2,
-  ImageIcon
+  ImageIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -32,7 +32,7 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-  CardDescription
+  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -56,43 +56,39 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ProductPageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
 export default function ProductPage({ params }: ProductPageProps) {
   const router = useRouter();
-  const { id } = params;
+  const { id } = use(params);
   const { data: session } = useSession();
   const tenantId = (session?.user as any)?.tenant_id || "";
-  
+
   // Stores
-  const { fetchProduct, updateProductStatus, deleteProduct } = useProductStore();
+  const { fetchProduct, updateProductStatus, deleteProduct } =
+    useProductStore();
   const { categories, fetchCategories } = useCategoryStore();
   const { vendors, fetchVendors } = useVendorStore();
-  
+
   // State
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   // UI States
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionType, setRejectionType] = useState("product_quality");
   const [customReason, setCustomReason] = useState("");
-  
+
   // Image Preview States
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -111,16 +107,16 @@ export default function ProductPage({ params }: ProductPageProps) {
       loadData();
     }
   }, [id]);
-  
+
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Fetch product
       const productData = await fetchProduct(id, tenantHeaders);
       setProduct(productData);
-      
+
       // Fetch related data
       fetchCategories(undefined, tenantHeaders);
       fetchVendors(undefined, tenantHeaders);
@@ -161,9 +157,16 @@ export default function ProductPage({ params }: ProductPageProps) {
   };
 
   // Helper to safely access product properties with appropriate fallbacks
-  const productStatus = product?.verification_status || (product?.is_active ? "active" : "pending");
-  const productVendor = vendors.find(v => v.vendor_id === product?.vendor_id);
-  const productImageUrl = product?.images?.[0]?.url || "/placeholder-product.svg";
+  const productStatus =
+    product?.verification_status || (product?.is_active ? "active" : "pending");
+
+  console.log("The vendors", vendors);
+  const productVendor =
+    vendors && vendors.length > 0
+      ? vendors.find((v) => v.vendor_id === product?.vendor_id)
+      : null;
+  const productImageUrl =
+    product?.images?.[0]?.url || "/placeholder-product.svg";
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not specified";
@@ -194,21 +197,22 @@ export default function ProductPage({ params }: ProductPageProps) {
       setIsUpdating(false);
     }
   };
-  
+
   // Handle rejection confirmation
   const handleRejectConfirm = async () => {
     try {
       setIsUpdating(true);
-      
+
       // Prepare rejection reason
-      let finalReason = rejectionType === "other" 
-        ? customReason 
-        : getRejectionReasonText(rejectionType);
-      
+      let finalReason =
+        rejectionType === "other"
+          ? customReason
+          : getRejectionReasonText(rejectionType);
+
       await updateProductStatus(id, "rejected", tenantHeaders, finalReason);
       toast.success("Product rejected successfully");
       setShowRejectDialog(false);
-      
+
       // Refresh the product data
       loadData();
     } catch (error) {
@@ -218,7 +222,7 @@ export default function ProductPage({ params }: ProductPageProps) {
       setIsUpdating(false);
     }
   };
-  
+
   // Helper to get rejection reason text based on type
   const getRejectionReasonText = (type: string) => {
     switch (type) {
@@ -234,14 +238,14 @@ export default function ProductPage({ params }: ProductPageProps) {
         return customReason;
     }
   };
-  
+
   // Handle product delete
   const handleDeleteProduct = async () => {
     try {
       setIsDeleting(true);
       await deleteProduct(id, tenantHeaders);
       toast.success("Product deleted successfully");
-      
+
       // Redirect back to products list
       router.push("/dashboard/products");
     } catch (error) {
@@ -255,19 +259,27 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   const getCategoryNames = (categoryIds: string[]) => {
     if (!categories || !categoryIds || !categoryIds.length) return "None";
-    
+
     return (
       <div className="flex flex-wrap gap-2">
-        {categoryIds.map(id => {
-          const category = categories.find(c => (c._id === id || c.category_id === id));
+        {categoryIds.map((id) => {
+          const category = categories.find(
+            (c) => c._id === id || c.category_id === id
+          );
           if (!category) return null;
-          
+
           return (
-            <Badge 
+            <Badge
               key={id}
               variant="secondary"
               className="hover:bg-secondary/80 cursor-pointer"
-              onClick={() => router.push(`/dashboard/categories/${category.category_id || category._id}`)}
+              onClick={() =>
+                router.push(
+                  `/dashboard/categories/${
+                    category.category_id || category._id
+                  }`
+                )
+              }
             >
               {category.name || "Unknown"}
             </Badge>
@@ -276,19 +288,17 @@ export default function ProductPage({ params }: ProductPageProps) {
       </div>
     );
   };
-  
+
   const formatPrice = (price: number | undefined) => {
     if (price === undefined || price === null) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "TZS"
+      currency: "TZS",
     }).format(price);
   };
 
   if (loading) {
-    return (
-      <Spinner />
-    );
+    return <Spinner />;
   }
 
   if (!product) {
@@ -317,23 +327,26 @@ export default function ProductPage({ params }: ProductPageProps) {
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>
           </Button>
-          
+
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage 
-                src={productImageUrl} 
-                alt={product.name}
-              />
+              <AvatarImage src={productImageUrl} alt={product.name} />
               <AvatarFallback>
                 <Package className="h-5 w-5" />
               </AvatarFallback>
             </Avatar>
-            
+
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {product.name}
+              </h1>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant={getStatusVariant(productStatus)} className={getBadgeStyles(productStatus)}>
-                  {productStatus.charAt(0).toUpperCase() + productStatus.slice(1)}
+                <Badge
+                  variant={getStatusVariant(productStatus)}
+                  className={getBadgeStyles(productStatus)}
+                >
+                  {productStatus.charAt(0).toUpperCase() +
+                    productStatus.slice(1)}
                 </Badge>
                 <span>SKU: {product.sku}</span>
               </div>
@@ -437,19 +450,27 @@ export default function ProductPage({ params }: ProductPageProps) {
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Name</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Name
+                    </p>
                     <p>{product.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">SKU</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      SKU
+                    </p>
                     <p>{product.sku || "Not provided"}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Categories</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Categories
+                    </p>
                     {getCategoryNames(product.category_ids)}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Vendor</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Vendor
+                    </p>
                     <p>{productVendor?.business_name || "Unknown Vendor"}</p>
                   </div>
                 </div>
@@ -460,10 +481,12 @@ export default function ProductPage({ params }: ProductPageProps) {
                 <div>
                   <h3 className="text-sm font-medium mb-3">Description</h3>
                   <p className="text-sm">{product.description}</p>
-                  
+
                   {product.short_description && (
                     <div className="mt-4">
-                      <h3 className="text-sm font-medium mb-1">Short Description</h3>
+                      <h3 className="text-sm font-medium mb-1">
+                        Short Description
+                      </h3>
                       <p className="text-sm">{product.short_description}</p>
                     </div>
                   )}
@@ -476,16 +499,28 @@ export default function ProductPage({ params }: ProductPageProps) {
                   <h3 className="text-sm font-medium mb-3">Pricing</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Base Price</p>
-                      <p className="text-lg font-medium">{formatPrice(product.base_price)}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Base Price
+                      </p>
+                      <p className="text-lg font-medium">
+                        {formatPrice(product.base_price)}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Sale Price</p>
-                      <p className="text-lg font-medium">{formatPrice(product.sale_price)}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Sale Price
+                      </p>
+                      <p className="text-lg font-medium">
+                        {formatPrice(product.sale_price)}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Cost Price</p>
-                      <p className="text-lg font-medium">{formatPrice(product.cost_price)}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Cost Price
+                      </p>
+                      <p className="text-lg font-medium">
+                        {formatPrice(product.cost_price)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -503,22 +538,38 @@ export default function ProductPage({ params }: ProductPageProps) {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Inventory Quantity</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Inventory Quantity
+                    </p>
                     <p>{product.inventory_quantity}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Inventory Tracking</p>
-                    <Badge variant={product.inventory_tracking ? "default" : "outline"}>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Inventory Tracking
+                    </p>
+                    <Badge
+                      variant={
+                        product.inventory_tracking ? "default" : "outline"
+                      }
+                    >
                       {product.inventory_tracking ? "Enabled" : "Disabled"}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Low Stock Threshold</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Low Stock Threshold
+                    </p>
                     <p>{product.low_stock_threshold}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Requires Shipping</p>
-                    <Badge variant={product.requires_shipping ? "default" : "outline"}>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Requires Shipping
+                    </p>
+                    <Badge
+                      variant={
+                        product.requires_shipping ? "default" : "outline"
+                      }
+                    >
                       {product.requires_shipping ? "Yes" : "No"}
                     </Badge>
                   </div>
@@ -528,22 +579,32 @@ export default function ProductPage({ params }: ProductPageProps) {
 
                 {/* Dimensions & Weight */}
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Dimensions & Weight</h3>
+                  <h3 className="text-sm font-medium mb-3">
+                    Dimensions & Weight
+                  </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Weight</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Weight
+                      </p>
                       <p>{product.weight} g</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Length</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Length
+                      </p>
                       <p>{product.dimensions?.length} cm</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Width</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Width
+                      </p>
                       <p>{product.dimensions?.width} cm</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Height</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Height
+                      </p>
                       <p>{product.dimensions?.height} cm</p>
                     </div>
                   </div>
@@ -552,47 +613,65 @@ export default function ProductPage({ params }: ProductPageProps) {
             </Card>
 
             {/* Variants */}
-            {product.has_variants && product.variants && product.variants.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Tag className="h-5 w-5 mr-2" />
-                    Product Variants
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {product.variants.map((variant: any, index: number) => (
-                      <div key={variant._id || index} className="border rounded-md p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="font-medium">{variant.name}</div>
-                          <Badge>{variant.sku}</Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Attributes</p>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              {Object.entries(variant.attributes || {}).map(([key, value]) => (
-                                value ? (
-                                  <Badge key={key} variant="outline" className="capitalize">
-                                    {key}: {value as string}
-                                  </Badge>
-                                ) : null
-                              ))}
+            {product.has_variants &&
+              product.variants &&
+              product.variants.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Tag className="h-5 w-5 mr-2" />
+                      Product Variants
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {product.variants.map((variant: any, index: number) => (
+                        <div
+                          key={variant._id || index}
+                          className="border rounded-md p-4"
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="font-medium">{variant.name}</div>
+                            <Badge>{variant.sku}</Badge>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Attributes
+                              </p>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {Object.entries(variant.attributes || {}).map(
+                                  ([key, value]) =>
+                                    value ? (
+                                      <Badge
+                                        key={key}
+                                        variant="outline"
+                                        className="capitalize"
+                                      >
+                                        {key}: {value as string}
+                                      </Badge>
+                                    ) : null
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">
+                                Price Adjustment
+                              </p>
+                              <p>
+                                {formatPrice(
+                                  variant.price + product.sale_price
+                                )}
+                              </p>
                             </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Price Adjustment</p>
-                            <p>{formatPrice(variant.price + product.sale_price)}</p>
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
           </div>
 
           {/* Sidebar */}
@@ -606,12 +685,12 @@ export default function ProductPage({ params }: ProductPageProps) {
                 <div className="grid grid-cols-2 gap-2">
                   {product.images && product.images.length > 0 ? (
                     product.images.map((image: any, index: number) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="aspect-square rounded-md overflow-hidden border cursor-pointer"
                         onClick={() => handlePreviewImage(image.url)}
                       >
-                        <img 
+                        <img
                           src={image.url}
                           alt={image.alt || `Product image ${index + 1}`}
                           className="w-full h-full object-cover"
@@ -626,56 +705,75 @@ export default function ProductPage({ params }: ProductPageProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Product Details Card */}
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   <div className="w-full flex justify-between text-sm">
                     <span className="text-muted-foreground">Status:</span>
-                    <Badge variant={getStatusVariant(productStatus)} className={getBadgeStyles(productStatus)}>
-                      {productStatus.charAt(0).toUpperCase() + productStatus.slice(1)}
+                    <Badge
+                      variant={getStatusVariant(productStatus)}
+                      className={getBadgeStyles(productStatus)}
+                    >
+                      {productStatus.charAt(0).toUpperCase() +
+                        productStatus.slice(1)}
                     </Badge>
                   </div>
                   <div className="w-full flex justify-between text-sm">
                     <span className="text-muted-foreground">Created:</span>
-                    <span className="font-medium">{formatDate(product.createdAt || product.created_at)}</span>
+                    <span className="font-medium">
+                      {formatDate(product.createdAt || product.created_at)}
+                    </span>
                   </div>
                   <div className="w-full flex justify-between text-sm">
                     <span className="text-muted-foreground">Last Updated:</span>
-                    <span className="font-medium">{formatDate(product.updatedAt || product.updated_at)}</span>
+                    <span className="font-medium">
+                      {formatDate(product.updatedAt || product.updated_at)}
+                    </span>
                   </div>
-                  
+
                   {product.approved_at && (
                     <div className="w-full flex justify-between text-sm">
                       <span className="text-muted-foreground">Approved:</span>
-                      <span className="font-medium">{formatDate(product.approved_at)}</span>
+                      <span className="font-medium">
+                        {formatDate(product.approved_at)}
+                      </span>
                     </div>
                   )}
 
                   {product.is_featured && (
                     <div className="w-full flex justify-between text-sm">
                       <span className="text-muted-foreground">Featured:</span>
-                      <Badge variant="success" className="bg-amber-500 text-white">Featured Product</Badge>
+                      <Badge
+                        variant="success"
+                        className="bg-amber-500 text-white"
+                      >
+                        Featured Product
+                      </Badge>
                     </div>
                   )}
                 </div>
-                
+
                 {/* Rejection reason if applicable */}
                 {product.rejection_reason && (
                   <div className="mt-4 p-3 border border-red-200 rounded-md bg-red-50">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-red-800">Rejection Reason:</p>
-                        <p className="text-sm text-red-700 mt-1">{product.rejection_reason}</p>
+                        <p className="text-sm font-medium text-red-800">
+                          Rejection Reason:
+                        </p>
+                        <p className="text-sm text-red-700 mt-1">
+                          {product.rejection_reason}
+                        </p>
                       </div>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Actions Card */}
             <Card>
               <CardHeader>
@@ -714,9 +812,15 @@ export default function ProductPage({ params }: ProductPageProps) {
                 ) : product.verification_status === "approved" ? (
                   <Button
                     variant={product.is_active ? "destructive" : "success"}
-                    className={`w-full ${!product.is_active ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    className={`w-full ${
+                      !product.is_active
+                        ? "bg-green-600 hover:bg-green-700"
+                        : ""
+                    }`}
                     disabled={isUpdating}
-                    onClick={() => handleStatusChange(product.is_active ? "draft" : "active")}
+                    onClick={() =>
+                      handleStatusChange(product.is_active ? "draft" : "active")
+                    }
                   >
                     {isUpdating ? (
                       <Spinner className="h-4 w-4 mr-2" />
@@ -733,7 +837,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                     )}
                   </Button>
                 ) : null}
-                
+
                 <Button
                   variant="outline"
                   className="w-full"
@@ -750,25 +854,26 @@ export default function ProductPage({ params }: ProductPageProps) {
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete Product
                 </Button>
-                
+
                 {/* Inline delete confirmation */}
                 {confirmDelete && (
                   <div className="mt-4 p-3 border border-red-200 rounded-md bg-red-50">
                     <p className="text-sm text-red-800 mb-2">
-                      Are you sure you want to delete this product? This action cannot be undone.
+                      Are you sure you want to delete this product? This action
+                      cannot be undone.
                     </p>
                     <div className="flex justify-end gap-2">
                       <Button
-                        variant="outline" 
+                        variant="outline"
                         size="sm"
                         onClick={() => setConfirmDelete(false)}
                       >
                         Cancel
                       </Button>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         size="sm"
-                        onClick={handleDeleteProduct} 
+                        onClick={handleDeleteProduct}
                         disabled={isDeleting}
                       >
                         {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
@@ -782,7 +887,7 @@ export default function ProductPage({ params }: ProductPageProps) {
           </div>
         </div>
       </div>
-      
+
       {/* Image Preview Modal */}
       <FilePreviewModal
         src={previewImage || ""}
@@ -790,44 +895,55 @@ export default function ProductPage({ params }: ProductPageProps) {
         isOpen={!!previewImage}
         onClose={() => setPreviewImage(null)}
       />
-      
+
       {/* Rejection Dialog */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Product</AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide a reason for rejecting this product. This will be visible to the vendor.
+              Please provide a reason for rejecting this product. This will be
+              visible to the vendor.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <div className="py-4">
-            <RadioGroup 
-              value={rejectionType}
-              onValueChange={setRejectionType}
-            >
+            <RadioGroup value={rejectionType} onValueChange={setRejectionType}>
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="product_quality" id="product_quality" />
-                  <Label htmlFor="product_quality">Product quality issues</Label>
+                  <RadioGroupItem
+                    value="product_quality"
+                    id="product_quality"
+                  />
+                  <Label htmlFor="product_quality">
+                    Product quality issues
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inadequate_information" id="inadequate_information" />
-                  <Label htmlFor="inadequate_information">Inadequate product information</Label>
+                  <RadioGroupItem
+                    value="inadequate_information"
+                    id="inadequate_information"
+                  />
+                  <Label htmlFor="inadequate_information">
+                    Inadequate product information
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="pricing_issues" id="pricing_issues" />
                   <Label htmlFor="pricing_issues">Pricing issues</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="policy_violation" id="policy_violation" />
+                  <RadioGroupItem
+                    value="policy_violation"
+                    id="policy_violation"
+                  />
                   <Label htmlFor="policy_violation">Policy violation</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="other" id="other" />
                   <Label htmlFor="other">Other (specify below)</Label>
                 </div>
-                
+
                 {rejectionType === "other" && (
                   <Textarea
                     value={customReason}
@@ -842,16 +958,14 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleRejectConfirm();
               }}
               disabled={rejectionType === "other" && !customReason.trim()}
             >
-              {isUpdating ? (
-                <Spinner className="mr-2 h-4 w-4" />
-              ) : null}
+              {isUpdating ? <Spinner className="mr-2 h-4 w-4" /> : null}
               Reject Product
             </AlertDialogAction>
           </AlertDialogFooter>
