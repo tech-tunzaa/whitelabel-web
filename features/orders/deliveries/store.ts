@@ -86,7 +86,7 @@ export const useDeliveryStore = create<DeliveryStore>()((set, get) => ({
       if (filter.orderId) params.append('order_id', filter.orderId);
 
       const response = await apiClient.get<any>(
-        `/deliveries?${params.toString()}`,
+        `/deliveries/?${params.toString()}`,
         undefined,
         headers
       );
@@ -122,6 +122,7 @@ export const useDeliveryStore = create<DeliveryStore>()((set, get) => ({
 
   // Fetch single delivery by id
   fetchDelivery: async (id, headers) => {
+    console.log(headers);
     const { setActiveAction, setLoading, setStoreError, setDelivery } = get();
     try {
       setActiveAction('fetchDelivery');

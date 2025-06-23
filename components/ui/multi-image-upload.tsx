@@ -8,10 +8,12 @@ import { uploadFile } from "@/lib/services/file-upload.service"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export interface ImageFile {
-  url: string
-  file?: File
-  alt?: string
-  is_primary?: boolean
+  url: string;
+  file?: File;
+  alt?: string;
+  is_primary?: boolean;
+  isUploading?: boolean;
+  error?: string;
 }
 
 interface MultiImageUploadProps {
@@ -35,70 +37,62 @@ export function MultiImageUpload({
   readOnly = false,
   onUploadingChange,
 }: MultiImageUploadProps) {
-  const [isUploading, setIsUploading] = React.useState(false)
-
+  // Inform parent if any image is uploading
   React.useEffect(() => {
     if (onUploadingChange) {
-      onUploadingChange(isUploading);
+      onUploadingChange(value.some(img => img.isUploading));
     }
-  }, [isUploading, onUploadingChange]);
-  const [currentUploadIndex, setCurrentUploadIndex] = React.useState<number | null>(null)
+  }, [value, onUploadingChange]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
-    
-    const files = Array.from(e.target.files)
-    if (value.length + files.length > maxImages) {
-      alert(`You can only upload a maximum of ${maxImages} images.`)
-      return
+    const files = e.target.files ? Array.from(e.target.files).slice(0, maxImages - value.length) : [];
+    if (!files.length) {
+      e.target.value = "";
+      return;
     }
 
-    // Create temporary images with local URLs for preview
-    const newImages: ImageFile[] = files.map(file => ({
-      url: URL.createObjectURL(file),
-      file,
-      is_primary: value.length === 0 && files.indexOf(file) === 0 // First image is primary by default
-    }))
-    
-    const updatedImages = [...value, ...newImages]
-    onChange(updatedImages)
-    
-    // Upload each file
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const imageIndex = value.length + i
-      
-      try {
-        setIsUploading(true)
-        setCurrentUploadIndex(imageIndex)
-        
-        // Upload to server
-        const response = await uploadFile(file, true)
-        
-        // Update with CDN URL
-        const serverUrl = response.fileCDNUrl
-        
-        // Update the specific image that was just uploaded
-        const updatedImagesList = [...updatedImages]
-        updatedImagesList[imageIndex] = {
-          ...updatedImagesList[imageIndex],
-          url: serverUrl,
-          file: undefined // Remove file reference after upload
+    const newImageFiles: ImageFile[] = files.map(file => ({
+        url: URL.createObjectURL(file),
+        file: file,
+        isUploading: true,
+    }));
+
+    // Use a local variable to track the current state of images within this handler
+    let currentImages = [...value, ...newImageFiles];
+    onChange(currentImages);
+
+    // Process uploads sequentially to avoid race conditions with state updates
+    for (const imageToUpload of newImageFiles) {
+        try {
+            if (!imageToUpload.file) continue;
+            const response = await uploadFile(imageToUpload.file, true);
+            const serverUrl = response.fileCDNUrl;
+
+            // Find the image by its temporary blob URL and update it immutably
+            currentImages = currentImages.map(img =>
+                img.url === imageToUpload.url
+                    ? { ...img, url: serverUrl, file: undefined, isUploading: false }
+                    : img
+            );
+
+            // Notify the parent with the updated list
+            onChange(currentImages);
+
+        } catch (err) {
+            console.error("Image upload error:", err);
+            // Optionally mark the image as failed and stop its loading state
+            currentImages = currentImages.map(img =>
+                img.url === imageToUpload.url
+                    ? { ...img, isUploading: false, error: "Upload failed" }
+                    : img
+            );
+            onChange(currentImages);
         }
-        
-        onChange(updatedImagesList)
-      } catch (err) {
-        console.error("Image upload error:", err)
-        // Keep local URL but mark as error
-      }
     }
-    
-    setIsUploading(false)
-    setCurrentUploadIndex(null)
-    
+
     // Clear the input to allow uploading the same file again
-    e.target.value = ""
-  }
+    e.target.value = "";
+  };
 
   const removeImage = (index: number) => {
     const updatedImages = [...value]
@@ -135,7 +129,7 @@ export function MultiImageUpload({
               alt={image.alt || `${previewAlt} ${index + 1}`}
               className={`object-cover w-full h-full ${image.is_primary ? 'ring-2 ring-primary' : ''}`}
             />
-            {isUploading && currentUploadIndex === index && (
+            {image.isUploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/30">
                 <Loader className="h-6 w-6 animate-spin text-primary" />
               </div>
@@ -176,14 +170,14 @@ export function MultiImageUpload({
               accept="image/*"
               onChange={handleFileChange}
               multiple
-              disabled={isUploading}
+              disabled={value.some(img => img.isUploading)}
             />
             <Button
               type="button"
               variant="ghost"
               onClick={() => document.getElementById(id)?.click()}
               className="h-full w-full flex flex-col gap-2"
-              disabled={isUploading}
+              disabled={value.some(img => img.isUploading)}
             >
               <PlusCircle className="h-8 w-8 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">

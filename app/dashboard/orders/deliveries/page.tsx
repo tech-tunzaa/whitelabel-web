@@ -71,7 +71,7 @@ export default function DeliveryPage() {
   }, [fetchDeliveries, activeTab, currentPage, searchQuery]);
 
   const handleDeliveryClick = (delivery: Delivery) => {
-    router.push(`/dashboard/orders/delivery/${delivery.id}`);
+    router.push(`/dashboard/orders/deliveries/${delivery.id}`);
   };
 
   if (loading && !deliveries) {
@@ -107,15 +107,9 @@ export default function DeliveryPage() {
       <div className="flex items-center justify-between p-4 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-          <p className="text-muted-foreground">Monitor order deliveries</p>
+          <p className="text-muted-foreground">Monitor marketplace order deliveries</p>
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            placeholder="Search deliveries..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
           <Button
             variant="outline"
             onClick={() => fetchDeliveries(getFilters(), tenantHeaders)}
@@ -127,13 +121,18 @@ export default function DeliveryPage() {
       </div>
 
       <div className="p-4 space-y-4">
+        <Input
+          placeholder="Search deliveries..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="w-full">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="assigned">Assigned</TabsTrigger>
-            <TabsTrigger value="in-transit">In Transit</TabsTrigger>
+            <TabsTrigger value="in_transit">In Transit</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
-            <TabsTrigger value="failed">Failed</TabsTrigger>
           </TabsList>
         </Tabs>
 

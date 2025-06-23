@@ -40,7 +40,10 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { MultiImageUpload, type ImageFile } from "@/components/ui/multi-image-upload";
+import {
+  MultiImageUpload,
+  type ImageFile,
+} from "@/components/ui/multi-image-upload";
 
 import { useCategoryStore } from "@/features/categories/store";
 import { useVendorStore } from "@/features/vendors/store";
@@ -63,9 +66,17 @@ import {
   DialogTitle,
   // DialogTrigger, // Dialog is controlled programmatically here
 } from "@/components/ui/dialog";
-import { productFormSchema, type ProductFormValues, variantSchema } from "../schema";
+import {
+  productFormSchema,
+  type ProductFormValues,
+  variantSchema,
+} from "../schema";
 import type { Product, ProductVariant } from "../types";
-import type { UseFormReturn, FieldArrayWithId, FieldArrayMethodProps } from 'react-hook-form';
+import type {
+  UseFormReturn,
+  FieldArrayWithId,
+  FieldArrayMethodProps,
+} from "react-hook-form";
 
 // Helper component for required field indicator
 const RequiredField = () => <span className="text-destructive ml-1">*</span>;
@@ -123,21 +134,30 @@ interface VariantsTabProps {
   form: UseFormReturn<ProductFormValues, any, undefined>;
   variantFields: FieldArrayWithId<ProductFormValues, "variants", "id">[];
   // Types for useFieldArray functions - adjust if your ProductVariant type is different in the form
-  appendVariant: (value: ProductVariant, options?: FieldArrayMethodProps | undefined) => void;
-  updateVariant: (index: number, value: ProductVariant, options?: FieldArrayMethodProps | undefined) => void;
+  appendVariant: (
+    value: ProductVariant,
+    options?: FieldArrayMethodProps | undefined
+  ) => void;
+  updateVariant: (
+    index: number,
+    value: ProductVariant,
+    options?: FieldArrayMethodProps | undefined
+  ) => void;
   removeVariant: (index?: number | number[] | undefined) => void;
   isVariantModalOpen: boolean;
   setIsVariantModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   editingVariantIndex: number | null;
   setEditingVariantIndex: React.Dispatch<React.SetStateAction<number | null>>;
   currentVariantData: Partial<ProductVariant> | null;
-  setCurrentVariantData: React.Dispatch<React.SetStateAction<Partial<ProductVariant> | null>>;
+  setCurrentVariantData: React.Dispatch<
+    React.SetStateAction<Partial<ProductVariant> | null>
+  >;
   handleAddNewVariant: () => void;
   handleEditVariant: (index: number) => void;
   handleSaveVariant: (variantData: ProductVariant) => void;
   setTabAndValidate: (tab: string) => Promise<void>;
   // tenantId might be needed if ImageUpload within the modal requires it directly
-  // tenantId: string | undefined; 
+  // tenantId: string | undefined;
 }
 
 export function ProductForm({
@@ -169,15 +189,34 @@ export function ProductForm({
         variants: initialData.variants || defaultValues.variants || [],
         images: initialData.images || defaultValues.images || [],
         tags: initialData.tags || defaultValues.tags || [],
-        category_ids: initialData.category_ids || defaultValues.category_ids || [],
+        category_ids:
+          initialData.category_ids || defaultValues.category_ids || [],
         // Handle potential type mismatches or transformations if necessary here
         // For example, if initialData.base_price is string and schema expects number
-        base_price: initialData.base_price !== undefined ? Number(initialData.base_price) : defaultValues.base_price,
-        sale_price: initialData.sale_price !== undefined ? Number(initialData.sale_price) : defaultValues.sale_price,
-        cost_price: initialData.cost_price !== undefined ? Number(initialData.cost_price) : defaultValues.cost_price,
-        inventory_quantity: initialData.inventory_quantity !== undefined ? Number(initialData.inventory_quantity) : defaultValues.inventory_quantity,
-        low_stock_threshold: initialData.low_stock_threshold !== undefined ? Number(initialData.low_stock_threshold) : defaultValues.low_stock_threshold,
-        weight: initialData.weight !== undefined ? Number(initialData.weight) : defaultValues.weight,
+        base_price:
+          initialData.base_price !== undefined
+            ? Number(initialData.base_price)
+            : defaultValues.base_price,
+        sale_price:
+          initialData.sale_price !== undefined
+            ? Number(initialData.sale_price)
+            : defaultValues.sale_price,
+        cost_price:
+          initialData.cost_price !== undefined
+            ? Number(initialData.cost_price)
+            : defaultValues.cost_price,
+        inventory_quantity:
+          initialData.inventory_quantity !== undefined
+            ? Number(initialData.inventory_quantity)
+            : defaultValues.inventory_quantity,
+        low_stock_threshold:
+          initialData.low_stock_threshold !== undefined
+            ? Number(initialData.low_stock_threshold)
+            : defaultValues.low_stock_threshold,
+        weight:
+          initialData.weight !== undefined
+            ? Number(initialData.weight)
+            : defaultValues.weight,
       };
       return merged as ProductFormValues;
     }
@@ -193,7 +232,7 @@ export function ProductForm({
   // Effect to reset form when initialData changes
   useEffect(() => {
     form.reset(getResolvedDefaultValues());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, form.reset]); // form.reset is stable, initialData is the key dependency
 
   // Tab validation mapping - which fields belong to which tab
@@ -222,8 +261,11 @@ export function ProductForm({
 
   // State for variant modal
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
-  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
-  const [currentVariantData, setCurrentVariantData] = useState<Partial<ProductVariant> | null>(null);
+  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(
+    null
+  );
+  const [currentVariantData, setCurrentVariantData] =
+    useState<Partial<ProductVariant> | null>(null);
 
   const {
     fields: variantFields,
@@ -258,28 +300,46 @@ export function ProductForm({
   }, []);
 
   // Placeholder save function - proper implementation needs a dedicated form for the modal
-  const handleSaveVariant = React.useCallback((variantData: ProductVariant) => {
-    const validationResult = variantSchema.safeParse(variantData);
-    if (!validationResult.success) {
-      console.error("Variant validation error:", validationResult.error.flatten().fieldErrors);
-      toast.error("Failed to save variant. Please check the data.", {
-        description: Object.values(validationResult.error.flatten().fieldErrors).flat().join(", ")
-      });
-      return;
-    }
+  const handleSaveVariant = React.useCallback(
+    (variantData: ProductVariant) => {
+      const validationResult = variantSchema.safeParse(variantData);
+      if (!validationResult.success) {
+        console.error(
+          "Variant validation error:",
+          validationResult.error.flatten().fieldErrors
+        );
+        toast.error("Failed to save variant. Please check the data.", {
+          description: Object.values(
+            validationResult.error.flatten().fieldErrors
+          )
+            .flat()
+            .join(", "),
+        });
+        return;
+      }
 
-    if (editingVariantIndex !== null) {
-      updateVariant(editingVariantIndex, validationResult.data);
-      toast.success("Variant updated successfully!");
-    } else {
-      appendVariant(validationResult.data);
-      toast.success("Variant added successfully!");
-    }
-    form.setValue('has_variants', true); // Ensure has_variants is true
-    setIsVariantModalOpen(false);
-    setEditingVariantIndex(null);
-    setCurrentVariantData(null);
-  }, [editingVariantIndex, appendVariant, updateVariant, form, setIsVariantModalOpen, setEditingVariantIndex, setCurrentVariantData]);
+      if (editingVariantIndex !== null) {
+        updateVariant(editingVariantIndex, validationResult.data);
+        toast.success("Variant updated successfully!");
+      } else {
+        appendVariant(validationResult.data);
+        toast.success("Variant added successfully!");
+      }
+      form.setValue("has_variants", true); // Ensure has_variants is true
+      setIsVariantModalOpen(false);
+      setEditingVariantIndex(null);
+      setCurrentVariantData(null);
+    },
+    [
+      editingVariantIndex,
+      appendVariant,
+      updateVariant,
+      form,
+      setIsVariantModalOpen,
+      setEditingVariantIndex,
+      setCurrentVariantData,
+    ]
+  );
 
   // Determine if form is submitting from either external or internal state, or if images are uploading
   const isSubmitting =
@@ -300,16 +360,16 @@ export function ProductForm({
 
   // Handle form submission
   const handleFormSubmit = async (data: ProductFormValues) => {
-    console.log('Form submission started');
-    console.log('Raw form data:', data);
-    
+    console.log("Form submission started");
+    console.log("Raw form data:", data);
+
     try {
       setFormError(null);
       setInternalIsSubmitting(true);
 
       // Generate slug from name if not provided
       const slug = data.slug || generateSlug(data.name);
-      console.log('Generated slug:', slug);
+      console.log("Generated slug:", slug);
 
       // Ensure images don't have File objects when sending to API and format variants
       const cleanedData = {
@@ -320,46 +380,55 @@ export function ProductForm({
           alt: img.alt || "",
           is_primary: img.is_primary || false,
         })),
-        variants: data.variants?.map(variant => ({
-          ...variant,
-          price: Number(variant.price), // Ensure price is a number
-          stock: Number(variant.stock), // Ensure stock is a number
-          sku: variant.sku || '', // Ensure SKU is a string
-          image_url: variant.image_url || '', // Ensure image_url is a string
-        })) || [],
+        variants:
+          data.variants?.map((variant) => ({
+            ...variant,
+            price: Number(variant.price), // Ensure price is a number
+            stock: Number(variant.stock), // Ensure stock is a number
+            sku: variant.sku || "", // Ensure SKU is a string
+            image_url: variant.image_url || "", // Ensure image_url is a string
+          })) || [],
       };
-      
+
       // Set has_variants flag based on variants array
       cleanedData.has_variants = cleanedData.variants.length > 0;
-      console.log('Cleaned data before submission:', cleanedData);
+      console.log("Cleaned data before submission:", cleanedData);
 
       await onSubmit(cleanedData);
-      console.log('Form submission completed successfully');
+      console.log("Form submission completed successfully");
       // Success is handled by the calling component
     } catch (error) {
       console.log("Form submission error:", error);
       console.log("Error type:", typeof error);
-      console.log("Error message:", error instanceof Error ? error.message : error);
+      console.log(
+        "Error message:",
+        error instanceof Error ? error.message : error
+      );
       setFormError(
         error instanceof Error ? error.message : "Failed to save product"
       );
     } finally {
-      console.log('Form submission ended');
+      console.log("Form submission ended");
       setInternalIsSubmitting(false);
     }
   };
 
   // Handle form errors
   const handleFormError = (errors: any) => {
-    console.log('Form validation errors detected');
-    console.log('Error details:', errors);
+    console.log("Form validation errors detected");
+    console.log("Error details:", errors);
 
     // Find which tab has errors
     for (const [tabName, fieldNames] of Object.entries(tabValidationMap)) {
       for (const fieldName of fieldNames) {
         const fieldHasError = errors[fieldName as keyof ProductFormValues];
         if (fieldHasError) {
-          console.log('Validation error in tab:', tabName, 'for field:', fieldName);
+          console.log(
+            "Validation error in tab:",
+            tabName,
+            "for field:",
+            fieldName
+          );
           setActiveTab(tabName);
           return; // Exit after setting the first tab with errors
         }
@@ -368,21 +437,29 @@ export function ProductForm({
   };
 
   // Navigation between tabs
-  const setTabAndValidate = React.useCallback(async (tab: string) => {
-    const currentTabFields =
-      tabValidationMap[activeTab as keyof typeof tabValidationMap];
+  const setTabAndValidate = React.useCallback(
+    async (tab: string) => {
+      const currentTabFields =
+        tabValidationMap[activeTab as keyof typeof tabValidationMap];
 
-    if (currentTabFields) {
-      const isValid = await form.trigger(currentTabFields as Path<ProductFormValues>[]);
-      if (!isValid) {
-        toast.error("Please correct the errors before proceeding.", {
-          description: `There are errors in the ${activeTab.replace(/_/g, " ")} tab.`,
-        });
-        return; // Stop if validation fails
-      }
-    } // Closes: if (currentTabFields)
-    setActiveTab(tab); // Proceed to set active tab if validation passed or no fields to validate
-  }, [activeTab, form, setActiveTab, tabValidationMap]);
+      if (currentTabFields) {
+        const isValid = await form.trigger(
+          currentTabFields as Path<ProductFormValues>[]
+        );
+        if (!isValid) {
+          toast.error("Please correct the errors before proceeding.", {
+            description: `There are errors in the ${activeTab.replace(
+              /_/g,
+              " "
+            )} tab.`,
+          });
+          return; // Stop if validation fails
+        }
+      } // Closes: if (currentTabFields)
+      setActiveTab(tab); // Proceed to set active tab if validation passed or no fields to validate
+    },
+    [activeTab, form, setActiveTab, tabValidationMap]
+  );
 
   // Add effect to update slug when name changes
   useEffect(() => {
@@ -424,7 +501,7 @@ export function ProductForm({
           <Button
             type="submit"
             form="product-form"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isImageUploading}
             className="ml-auto"
           >
             <Save className="h-4 w-4 mr-2" />
@@ -495,7 +572,9 @@ export function ProductForm({
                       <TabsTrigger value="pricing">Pricing</TabsTrigger>
                       <TabsTrigger value="details">Details</TabsTrigger>
                       <TabsTrigger value="variants">Variants</TabsTrigger>
-                      <TabsTrigger value="publishing">Publishing & Images</TabsTrigger>
+                      <TabsTrigger value="publishing">
+                        Publishing & Images
+                      </TabsTrigger>
                     </TabsList>
 
                     <BasicInfoTab />
@@ -519,7 +598,6 @@ export function ProductForm({
                       setTabAndValidate={setTabAndValidate}
                     />
                     <PublishingTab />
-
                   </Tabs>
                 </fieldset>
               </form>
@@ -534,9 +612,7 @@ export function ProductForm({
     return (
       <TabsContent value="basic" className="space-y-6 pt-2">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">
-            Basic Product Information
-          </h3>
+          <h3 className="text-lg font-medium">Basic Product Information</h3>
           <p className="text-sm text-muted-foreground">
             Enter the essential information about your product.
           </p>
@@ -552,10 +628,7 @@ export function ProductForm({
                   Product Name <RequiredField />
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="Premium Wireless Headphones"
-                  />
+                  <Input {...field} placeholder="Premium Wireless Headphones" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -569,14 +642,11 @@ export function ProductForm({
               <FormItem>
                 <FormLabel>Slug</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="premium-wireless-headphones"
-                  />
+                  <Input {...field} placeholder="premium-wireless-headphones" />
                 </FormControl>
                 <FormDescription>
-                  URL-friendly version of the product name.
-                  Auto-generated if left empty.
+                  URL-friendly version of the product name. Auto-generated if
+                  left empty.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -635,15 +705,11 @@ export function ProductForm({
                   options={categories
                     .filter(
                       (category) =>
-                        (category._id || category.category_id) &&
-                        category.name
+                        (category._id || category.category_id) && category.name
                     )
                     .map((category) => ({
                       label: category.name,
-                      value:
-                        category.category_id ||
-                        category._id ||
-                        "",
+                      value: category.category_id || category._id || "",
                     }))}
                   selected={field.value || []}
                   onChange={field.onChange}
@@ -674,9 +740,7 @@ export function ProductForm({
             };
 
             const removeTag = (tagToRemove: string) => {
-              field.onChange(
-                field.value.filter((tag) => tag !== tagToRemove)
-              );
+              field.onChange(field.value.filter((tag) => tag !== tagToRemove));
             };
 
             return (
@@ -686,9 +750,7 @@ export function ProductForm({
                   <FormControl>
                     <Input
                       value={tagInput}
-                      onChange={(e) =>
-                        setTagInput(e.target.value)
-                      }
+                      onChange={(e) => setTagInput(e.target.value)}
                       placeholder="Add tags"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -732,10 +794,7 @@ export function ProductForm({
         />
 
         <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => setTabAndValidate("pricing")}
-          >
+          <Button type="button" onClick={() => setTabAndValidate("pricing")}>
             Next: Pricing
           </Button>
         </div>
@@ -794,9 +853,7 @@ export function ProductForm({
                     placeholder="0.00"
                   />
                 </FormControl>
-                <FormDescription>
-                  Current selling price
-                </FormDescription>
+                <FormDescription>Current selling price</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -833,10 +890,7 @@ export function ProductForm({
           >
             Back: Basic Info
           </Button>
-          <Button
-            type="button"
-            onClick={() => setTabAndValidate("details")}
-          >
+          <Button type="button" onClick={() => setTabAndValidate("details")}>
             Next: Details
           </Button>
         </div>
@@ -876,9 +930,7 @@ export function ProductForm({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-6">
-            <h4 className="text-md font-medium">
-              Inventory Information
-            </h4>
+            <h4 className="text-md font-medium">Inventory Information</h4>
             <FormField
               control={form.control}
               name="inventory_quantity"
@@ -886,11 +938,7 @@ export function ProductForm({
                 <FormItem className="mb-4">
                   <FormLabel>Stock Quantity</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      placeholder="0"
-                    />
+                    <Input {...field} type="number" placeholder="0" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -904,11 +952,7 @@ export function ProductForm({
                 <FormItem className="mb-4">
                   <FormLabel>Low Stock Threshold</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      placeholder="10"
-                    />
+                    <Input {...field} type="number" placeholder="10" />
                   </FormControl>
                   <FormDescription>
                     Get alerts when stock is below this level
@@ -944,9 +988,7 @@ export function ProductForm({
           </div>
 
           <div className="space-y-6">
-            <h4 className="text-md font-medium">
-              Physical Properties
-            </h4>
+            <h4 className="text-md font-medium">Physical Properties</h4>
             <FormField
               control={form.control}
               name="weight"
@@ -954,11 +996,7 @@ export function ProductForm({
                 <FormItem className="mb-4">
                   <FormLabel>Weight (grams)</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      placeholder="0"
-                    />
+                    <Input {...field} type="number" placeholder="0" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1058,10 +1096,7 @@ export function ProductForm({
           >
             Back: Pricing
           </Button>
-          <Button
-            type="button"
-            onClick={() => setTabAndValidate("variants")}
-          >
+          <Button type="button" onClick={() => setTabAndValidate("variants")}>
             Next: Variants
           </Button>
         </div>
@@ -1073,16 +1108,14 @@ export function ProductForm({
     return (
       <TabsContent value="publishing" className="space-y-6 pt-2">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">
-            Product Images & Status
-          </h3>
+          <h3 className="text-lg font-medium">Product Images & Status</h3>
           <p className="text-sm text-muted-foreground">
             Upload product images and set visibility status.
           </p>
         </div>
 
         <FormField
-          control={form.control} 
+          control={form.control}
           name="images"
           render={({ field }) => (
             <FormItem>
@@ -1097,8 +1130,8 @@ export function ProductForm({
                 />
               </FormControl>
               <FormDescription>
-                Upload high-quality product images. First or
-                selected image will be used as the main image.
+                Upload high-quality product images. First or selected image will
+                be used as the main image.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -1106,19 +1139,15 @@ export function ProductForm({
         />
 
         <div className="space-y-4">
-          <h4 className="text-md font-medium">
-            Visibility Settings
-          </h4>
+          <h4 className="text-md font-medium">Visibility Settings</h4>
           <div className="grid gap-6 md:grid-cols-2">
             <FormField
-              control={form.control} 
+              control={form.control}
               name="is_active"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between p-3 border rounded-lg shadow-sm">
                   <div className="space-y-0.5">
-                    <FormLabel className="cursor-pointer">
-                      Active
-                    </FormLabel>
+                    <FormLabel className="cursor-pointer">Active</FormLabel>
                     <FormDescription>
                       Product is visible and can be purchased
                     </FormDescription>
@@ -1135,17 +1164,15 @@ export function ProductForm({
             />
 
             <FormField
-              control={form.control} 
+              control={form.control}
               name="is_featured"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between p-3 border rounded-lg shadow-sm">
                   <div className="space-y-0.5">
-                    <FormLabel className="cursor-pointer">
-                      Featured
-                    </FormLabel>
+                    <FormLabel className="cursor-pointer">Featured</FormLabel>
                     <FormDescription>
-                      Highlight this product on the homepage and
-                      featured sections
+                      Highlight this product on the homepage and featured
+                      sections
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -1169,7 +1196,7 @@ export function ProductForm({
           >
             Back: Variants
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || isImageUploading}>
             {isSubmitting
               ? "Saving..."
               : initialData?.product_id
@@ -1182,245 +1209,265 @@ export function ProductForm({
   }
 }
 
-const VariantsTab = React.memo(({
-  form, // form is not directly used in this JSX, but handlers might need it from ProductForm's scope
-  variantFields,
-  // appendVariant, // Not directly called here, but handleSaveVariant (prop) uses it
-  // updateVariant, // Not directly called here, but handleSaveVariant (prop) uses it
-  removeVariant,
-  isVariantModalOpen,
-  setIsVariantModalOpen,
-  editingVariantIndex,
-  setEditingVariantIndex,
-  currentVariantData,
-  setCurrentVariantData,
-  handleAddNewVariant,
-  handleEditVariant,
-  handleSaveVariant,
-  setTabAndValidate,
-}: VariantsTabProps) => {
-  // Note: `form` prop is available if needed for direct operations, 
-  // but variant modal inputs are controlled by `currentVariantData` state.
-  // Handlers like `handleSaveVariant` passed as props already have `form` in their closure if needed.
+const VariantsTab = React.memo(
+  ({
+    form, // form is not directly used in this JSX, but handlers might need it from ProductForm's scope
+    variantFields,
+    // appendVariant, // Not directly called here, but handleSaveVariant (prop) uses it
+    // updateVariant, // Not directly called here, but handleSaveVariant (prop) uses it
+    removeVariant,
+    isVariantModalOpen,
+    setIsVariantModalOpen,
+    editingVariantIndex,
+    setEditingVariantIndex,
+    currentVariantData,
+    setCurrentVariantData,
+    handleAddNewVariant,
+    handleEditVariant,
+    handleSaveVariant,
+    setTabAndValidate,
+  }: VariantsTabProps) => {
+    // Note: `form` prop is available if needed for direct operations,
+    // but variant modal inputs are controlled by `currentVariantData` state.
+    // Handlers like `handleSaveVariant` passed as props already have `form` in their closure if needed.
 
-  return (
-    <TabsContent value="variants" className="space-y-6 pt-2">
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Product Variants</h3>
-        <p className="text-sm text-muted-foreground">
-          Add variations of this product such as size or color options.
-        </p>
-      </div>
-
-      <div className="border rounded-lg p-4 space-y-4">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="font-medium">Manage Variants</h4>
-          <Button type="button" size="sm" onClick={handleAddNewVariant}>
-            <Plus className="mr-2 h-4 w-4" /> Add Variant
-          </Button>
+    return (
+      <TabsContent value="variants" className="space-y-6 pt-2">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Product Variants</h3>
+          <p className="text-sm text-muted-foreground">
+            Add variations of this product such as size or color options.
+          </p>
         </div>
 
-        {variantFields.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[150px]">Attribute</TableHead>
-                <TableHead className="w-[150px]">Value</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Price Adj.</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Image</TableHead>
-                <TableHead className="text-right w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variantFields.map((item, index) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.value}</TableCell>
-                  <TableCell>{item.sku}</TableCell>
-                  <TableCell>{item.price}</TableCell>
-                  <TableCell>{item.stock}</TableCell>
-                  <TableCell>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.value || 'Variant image'}
-                        className="h-10 w-10 object-cover rounded"
-                      />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No image</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditVariant(index)}
-                      className="mr-1"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeVariant(index)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+        <div className="border rounded-lg p-4 space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-medium">Manage Variants</h4>
+            <Button type="button" size="sm" onClick={handleAddNewVariant}>
+              <Plus className="mr-2 h-4 w-4" /> Add Variant
+            </Button>
+          </div>
+
+          {variantFields.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[150px]">Attribute</TableHead>
+                  <TableHead className="w-[150px]">Value</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Price Adj.</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Image</TableHead>
+                  <TableHead className="text-right w-[100px]">
+                    Actions
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No variants added yet. Click "Add Variant" to get started.
-          </p>
+              </TableHeader>
+              <TableBody>
+                {variantFields.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell>{item.value}</TableCell>
+                    <TableCell>{item.sku}</TableCell>
+                    <TableCell>{item.price}</TableCell>
+                    <TableCell>{item.stock}</TableCell>
+                    <TableCell>
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.value || "Variant image"}
+                          className="h-10 w-10 object-cover rounded"
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          No image
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditVariant(index)}
+                        className="mr-1"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeVariant(index)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No variants added yet. Click "Add Variant" to get started.
+            </p>
+          )}
+        </div>
+
+        {/* Variant Add/Edit Modal */}
+        {isVariantModalOpen && (
+          <Dialog
+            open={isVariantModalOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setIsVariantModalOpen(false);
+                setEditingVariantIndex(null);
+                setCurrentVariantData(null);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingVariantIndex !== null
+                    ? "Edit Variant"
+                    : "Add New Variant"}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingVariantIndex !== null
+                    ? "Modify details for this product variant."
+                    : "Add details for a new product variant."}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div>
+                  <Label htmlFor="variant-attr_name">Attribute Name</Label>
+                  <Input
+                    id="variant-attr_name"
+                    value={currentVariantData?.name || ""}
+                    onChange={(e) =>
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., Color"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-attr_value">Attribute Value</Label>
+                  <Input
+                    id="variant-attr_value"
+                    value={currentVariantData?.value || ""}
+                    onChange={(e) =>
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        value: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., Red"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-sku">SKU</Label>
+                  <Input
+                    id="variant-sku"
+                    value={currentVariantData?.sku || ""}
+                    onChange={(e) =>
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        sku: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., RED-001D"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-price_adj">Price Adjustment</Label>
+                  <Input
+                    id="variant-price_adj"
+                    type="number"
+                    value={currentVariantData?.price ?? ""}
+                    onChange={(e) =>
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        price: parseFloat(e.target.value) || undefined,
+                      }))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-stock_qty">Stock Quantity</Label>
+                  <Input
+                    id="variant-stock_qty"
+                    type="number"
+                    value={currentVariantData?.stock ?? ""}
+                    onChange={(e) =>
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        stock: parseInt(e.target.value, 10) || undefined,
+                      }))
+                    }
+                    placeholder="10"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="variant-thumbnail-upload">
+                    Variant Image (Optional)
+                  </Label>
+                  <ImageUpload
+                    id="variant-thumbnail-upload"
+                    value={currentVariantData?.image_url || ""}
+                    onChange={(url) => {
+                      setCurrentVariantData((prev) => ({
+                        ...prev,
+                        image_url: url || undefined,
+                      }));
+                    }}
+                    previewAlt={currentVariantData?.value || "Variant image"}
+                    className="mt-1"
+                    // tenantId={tenantId} // Pass tenantId if ImageUpload component requires it and it's passed to VariantsTab
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsVariantModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    currentVariantData &&
+                    handleSaveVariant(currentVariantData as ProductVariant)
+                  }
+                >
+                  Add Variant
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
-      </div>
 
-      {/* Variant Add/Edit Modal */}
-      {isVariantModalOpen && (
-        <Dialog
-          open={isVariantModalOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              setIsVariantModalOpen(false);
-              setEditingVariantIndex(null);
-              setCurrentVariantData(null);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingVariantIndex !== null ? "Edit Variant" : "Add New Variant"}
-              </DialogTitle>
-              <DialogDescription>
-                {editingVariantIndex !== null
-                  ? "Modify details for this product variant."
-                  : "Add details for a new product variant."}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div>
-                <Label htmlFor="variant-attr_name">Attribute Name</Label>
-                <Input
-                  id="variant-attr_name"
-                  value={currentVariantData?.name || ''}
-                  onChange={(e) =>
-                    setCurrentVariantData((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g., Color"
-                />
-              </div>
-              <div>
-                <Label htmlFor="variant-attr_value">Attribute Value</Label>
-                <Input
-                  id="variant-attr_value"
-                  value={currentVariantData?.value || ''}
-                  onChange={(e) =>
-                    setCurrentVariantData((prev) => ({
-                      ...prev,
-                      value: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g., Red"
-                />
-              </div>
-              <div>
-                <Label htmlFor="variant-sku">SKU</Label>
-                <Input
-                  id="variant-sku"
-                  value={currentVariantData?.sku || ''}
-                  onChange={(e) =>
-                    setCurrentVariantData((prev) => ({
-                      ...prev,
-                      sku: e.target.value,
-                    }))
-                  }
-                  placeholder="e.g., RED-001D"
-                />
-              </div>
-              <div>
-                <Label htmlFor="variant-price_adj">Price Adjustment</Label>
-                <Input
-                  id="variant-price_adj"
-                  type="number"
-                  value={currentVariantData?.price ?? ''}
-                  onChange={(e) =>
-                    setCurrentVariantData((prev) => ({
-                      ...prev,
-                      price: parseFloat(e.target.value) || undefined,
-                    }))
-                  }
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="variant-stock_qty">Stock Quantity</Label>
-                <Input
-                  id="variant-stock_qty"
-                  type="number"
-                  value={currentVariantData?.stock ?? ''}
-                  onChange={(e) =>
-                    setCurrentVariantData((prev) => ({
-                      ...prev,
-                      stock: parseInt(e.target.value, 10) || undefined,
-                    }))
-                  }
-                  placeholder="10"
-                />
-              </div>
-              <div>
-                <Label htmlFor="variant-thumbnail-upload">Variant Image (Optional)</Label>
-                <ImageUpload
-                  id="variant-thumbnail-upload"
-                  value={currentVariantData?.image_url || ''}
-                  onChange={(url) => {
-                    setCurrentVariantData((prev) => ({ ...prev, image_url: url || undefined }));
-                  }}
-                  previewAlt={currentVariantData?.value || 'Variant image'}
-                  className="mt-1"
-                  // tenantId={tenantId} // Pass tenantId if ImageUpload component requires it and it's passed to VariantsTab
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsVariantModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => currentVariantData && handleSaveVariant(currentVariantData as ProductVariant)}
-              >
-                Add Variant
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+        <div className="flex justify-between mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setTabAndValidate("images")}
+          >
+            Back: Images
+          </Button>
+          <Button type="button" onClick={() => setTabAndValidate("publishing")}>
+            Next: Publishing
+          </Button>
+        </div>
+      </TabsContent>
+    );
+  }
+);
 
-      <div className="flex justify-between mt-6">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setTabAndValidate("images")}
-        >
-          Back: Images
-        </Button>
-        <Button type="button" onClick={() => setTabAndValidate("publishing")}>
-          Next: Publishing
-        </Button>
-      </div>
-    </TabsContent>
-  );
-});
-
-VariantsTab.displayName = 'VariantsTab';
+VariantsTab.displayName = "VariantsTab";
