@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft } from "lucide-react";
 import { useVendorStore } from "@/features/vendors/store";
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { VendorFormValues } from "@/features/vendors/types";
+import { VendorFormOld } from "@/features/vendors/components/vendor-form-old";
 
 export default function VendorAddPage() {
   const router = useRouter();
@@ -48,7 +49,8 @@ export default function VendorAddPage() {
       }
     } catch (error) {
       console.error("Error creating vendor:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
       toast.error(`Failed to create vendor: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
@@ -77,7 +79,7 @@ export default function VendorAddPage() {
             </p>
           </div>
         </div>
-        <Button 
+        <Button
           type="submit"
           form="marketplace-vendor-form"
           disabled={isSubmitting}
@@ -94,10 +96,10 @@ export default function VendorAddPage() {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <VendorForm
+        <VendorFormOld
           onSubmit={handleCreateVendor}
           isSubmitting={isSubmitting}
-          onCancel={() => router.push('/dashboard/vendors')}
+          onCancel={() => router.push("/dashboard/vendors")}
         />
       </div>
     </div>
