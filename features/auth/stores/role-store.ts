@@ -3,7 +3,8 @@ import { Role, Permission, RoleAction, RoleError, RoleFilter, RoleListResponse }
 import { apiClient } from '@/lib/api/client';
 
 interface RoleStore {
-  roles: Role[];
+  roles: Role[],
+  selectedRole: null,
   role: Role | null;
   permissions: Permission[];
   loading: boolean;
@@ -23,7 +24,6 @@ interface RoleStore {
   setSearchQuery: (query: string) => void;
   
   // API methods
-  fetchRole: (id: string, headers?: Record<string, string>) => Promise<Role>;
   fetchRoles: (filter?: RoleFilter, headers?: Record<string, string>) => Promise<RoleListResponse>;
   fetchAvailablePermissions: (headers?: Record<string, string>) => Promise<Permission[]>;
   fetchUserPermissions: (userId: string, headers?: Record<string, string>) => Promise<Permission[]>;
@@ -43,12 +43,12 @@ interface RoleStore {
 export const useRoleStore = create<RoleStore>()(
   (set, get) => ({
   roles: [],
+  selectedRole: null,
   role: null,
   permissions: [],
   loading: false,
   storeError: null,
   activeAction: null,
-  selectedRole: null,
   searchQuery: '',
   // State setters
   setActiveAction: (action) => set({ activeAction: action }),
@@ -69,42 +69,6 @@ export const useRoleStore = create<RoleStore>()(
     get().permissions.filter(permission => permission.module === module),
   
   // API methods
-  fetchRole: async (id: string, headers?: Record<string, string>) => {
-    const { setActiveAction, setLoading, setStoreError, setRole } = get();
-    try {
-      setActiveAction('fetchOne');
-      setLoading(true);
-      const response = await apiClient.get<any>(`/auth/roles/${id}`, undefined, headers);
-
-      // Handle different response structures
-      let roleData = null;
-      if (response.data && response.data.data) {
-        roleData = response.data.data;
-      } else if (response.data) {
-        roleData = response.data;
-      }
-
-      if (roleData) {
-        setRole(roleData as Role);
-        setLoading(false);
-        return roleData as Role;
-      }
-
-      throw new Error('Role data not found in the response');
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch role';
-      const errorStatus = (error as any)?.response?.status;
-      setStoreError({
-        message: errorMessage,
-        status: errorStatus,
-      });
-      setLoading(false);
-      throw error;
-    } finally {
-      setActiveAction(null);
-    }
-  },
-
   fetchRoles: async (filter: RoleFilter = {}, headers?: Record<string, string>) => {
     const { setActiveAction, setLoading, setStoreError, setRoles } = get();
     try {
@@ -158,6 +122,7 @@ export const useRoleStore = create<RoleStore>()(
   },
 
   fetchAvailablePermissions: async (headers?: Record<string, string>) => {
+    console.log(headers);
     const { setActiveAction, setLoading, setStoreError, setPermissions } = get();
     try {
       setActiveAction('fetchMany');

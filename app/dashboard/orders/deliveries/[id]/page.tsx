@@ -192,7 +192,7 @@ export default function DeliveryDetailsPage() {
         {/* Left Column */}
         <div className="lg:col-span-1 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className='border-b'>
               <CardTitle className="flex items-center justify-between">
                 <span>Delivery Status</span>
                 <DeliveryStatusBadge status={delivery.current_stage} />

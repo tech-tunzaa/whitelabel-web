@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from 'next-auth/react';
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { useUserStore } from "@/features/auth/stores/user-store"
@@ -18,17 +19,19 @@ interface EditUserPageProps {
 
 export default function EditUserPage({ params }: EditUserPageProps) {
   const router = useRouter()
+  const { data: session } = useSession();
   const { fetchUser, updateUser } = useUserStore()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const tenantId = session?.user?.tenant_id;
   
   useEffect(() => {
     async function loadUser() {
       setLoading(true)
       try {
         // Fetch the user data from API
-        await fetchUser(params.id)
+        await fetchUser(params.id, { 'X-Tenant-ID': tenantId })
           .then((userData) => {
             if (userData) {
               setUser(userData)
