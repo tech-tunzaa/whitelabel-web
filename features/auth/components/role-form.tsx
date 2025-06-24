@@ -44,6 +44,7 @@ interface RoleFormProps {
 }
 
 export function RoleForm({ initialData, onSubmit, isLoading, availablePermissions }: RoleFormProps) {
+  const isSystemRole = initialData?.is_system_role;
   const [searchTerm, setSearchTerm] = useState("");
 
   const form = useForm<RoleFormValues>({
@@ -111,7 +112,7 @@ export function RoleForm({ initialData, onSubmit, isLoading, availablePermission
                   <FormItem>
                     <FormLabel>Role Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., store_manager" {...field} disabled={isLoading} />
+                      <Input placeholder="e.g., store_manager" {...field} disabled={isLoading || isSystemRole} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,6 +142,13 @@ export function RoleForm({ initialData, onSubmit, isLoading, availablePermission
               Select the permissions for this role. You can search for specific permissions.
             </CardDescription>
           </CardHeader>
+          {isSystemRole && (
+            <div className="px-6 pb-4 -mt-4">
+                <p className="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                    System role permissions and role name cannot be modified.
+                </p>
+            </div>
+          )}
           <CardContent>
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -168,21 +176,31 @@ export function RoleForm({ initialData, onSubmit, isLoading, availablePermission
                                   <Controller
                                     control={form.control}
                                     name="permissions"
-                                    render={({ field }) => (
-                                      <Checkbox
-                                        checked={permissionsInModule.every(p => field.value.includes(p))}
-                                        onCheckedChange={(checked) => {
-                                          const currentPermissions = new Set(field.value);
-                                          if (checked) {
-                                            permissionsInModule.forEach(p => currentPermissions.add(p));
-                                          } else {
-                                            permissionsInModule.forEach(p => currentPermissions.delete(p));
-                                          }
-                                          field.onChange(Array.from(currentPermissions));
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    )}
+                                    render={({ field }) => {
+                                      const selectedCount = permissionsInModule.filter(p => field.value.includes(p)).length;
+                                      const allSelected = selectedCount === permissionsInModule.length;
+                                      const someSelected = selectedCount > 0 && !allSelected;
+
+                                      return (
+                                        <Checkbox
+                                          checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                                          onCheckedChange={(checked) => {
+                                            const currentPermissions = new Set(field.value);
+                                            // When clicking an indeterminate or unchecked box, it becomes checked (true).
+                                            // When clicking a checked box, it becomes unchecked (false).
+                                            // This logic correctly selects all or deselects all based on the click.
+                                            if (checked) {
+                                              permissionsInModule.forEach(p => currentPermissions.add(p));
+                                            } else {
+                                              permissionsInModule.forEach(p => currentPermissions.delete(p));
+                                            }
+                                            field.onChange(Array.from(currentPermissions));
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                          disabled={isSystemRole}
+                                        />
+                                      );
+                                    }}
                                   />
                                   <span className="text-sm font-normal">Select All</span>
                                 </div>
@@ -205,6 +223,7 @@ export function RoleForm({ initialData, onSubmit, isLoading, availablePermission
                                                 ? field.onChange([...field.value, permission])
                                                 : field.onChange(field.value?.filter((value) => value !== permission));
                                             }}
+                                            disabled={isSystemRole}
                                           />
                                         </FormControl>
                                         <FormLabel className="text-sm font-normal capitalize cursor-pointer w-full">

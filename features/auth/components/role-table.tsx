@@ -46,7 +46,7 @@ export function RoleTable({
             <TableRow>
               <TableHead>Role</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>System Role</TableHead>
+              <TableHead>Role Type</TableHead>
               <TableHead>Permissions</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -60,26 +60,26 @@ export function RoleTable({
               </TableRow>
             ) : (
               roles.map((role) => (
-                <TableRow key={role.id}>
+                <TableRow key={role.role}>
                   <TableCell className="font-medium">{role.role}</TableCell>
                   <TableCell>{role.description || "-"}</TableCell>
                   <TableCell>
                     {role.is_system_role ? (
-                      <Badge variant="secondary">Yes</Badge>
+                      <Badge variant="secondary">System</Badge>
                     ) : (
-                      <Badge variant="outline">No</Badge>
+                      <Badge variant="default">Custom</Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     {Array.isArray(role.permissions) && role.permissions.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {role.permissions.slice(0, 3).map((p) => (
-                          <Badge key={p.id} variant="outline">
-                            {p.name}
+                          <Badge key={p} variant="secondary">
+                            {p}
                           </Badge>
                         ))}
                         {role.permissions.length > 3 && (
-                          <Badge variant="secondary">+{role.permissions.length - 3}</Badge>
+                          <Badge variant="outline">+{role.permissions.length - 3}</Badge>
                         )}
                       </div>
                     ) : (

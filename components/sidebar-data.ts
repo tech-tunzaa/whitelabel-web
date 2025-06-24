@@ -40,27 +40,10 @@ export const navigationData = {
       roles: ["super", "admin", "sub_admin"],
     },
     {
-      title: "Loans",
-      url: "#",
-      icon: IconCreditCard,
-      roles: ["super", "admin", "sub_admin"],
-      items: [
-        {
-          title: "Providers",
-          url: "/dashboard/loans/providers",
-          icon: IconBusinessplan,
-        },
-        {
-          title: "Products",
-          url: "/dashboard/loans/products",
-          icon: IconPackages,
-        },
-        {
-          title: "Loan Requests",
-          url: "/dashboard/loans/requests",
-          icon: IconListDetails,
-        }
-      ],
+      title: "Products & Services",
+      url: "/dashboard/products",
+      icon: IconPackage,
+      roles: ["super", "admin", "sub_admin", "support"],
     },
     {
       title: "Vendors",
@@ -79,12 +62,6 @@ export const navigationData = {
       url: "/dashboard/delivery-partners",
       icon: IconTruck,
       roles: ["super", "admin", "sub_admin"],
-    },
-    {
-      title: "Products & Services",
-      url: "/dashboard/products",
-      icon: IconPackage,
-      roles: ["super", "admin", "sub_admin", "support"],
     },
     {
       title: "Orders",
@@ -120,6 +97,29 @@ export const navigationData = {
       url: "/dashboard/support",
       icon: IconHelp,
       roles: ["super", "admin", "sub_admin", "support"],
+    },
+    {
+      title: "Vendor Loans",
+      url: "#",
+      icon: IconCreditCard,
+      roles: ["super", "admin", "sub_admin"],
+      items: [
+        {
+          title: "Providers",
+          url: "/dashboard/loans/providers",
+          icon: IconBusinessplan,
+        },
+        {
+          title: "Products",
+          url: "/dashboard/loans/products",
+          icon: IconPackages,
+        },
+        {
+          title: "Loan Requests",
+          url: "/dashboard/loans/requests",
+          icon: IconListDetails,
+        }
+      ],
     },
   ],
   
