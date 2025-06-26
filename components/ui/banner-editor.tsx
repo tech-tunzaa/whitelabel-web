@@ -185,11 +185,11 @@ function SortableBannerItem({
             </div>
             
             {/* Display Order Field */}
-            <div>
+            {/* <div>
               <Label htmlFor={`banner-order-${index}`} className="font-medium">Display Order</Label>
               <Input
                 id={`banner-order-${index}`}
-                type="hidden"
+                type=""
                 value={banner.display_order || index + 1}
                 onChange={(e) => {
                   const value = parseInt(e.target.value);
@@ -203,41 +203,7 @@ function SortableBannerItem({
                 className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
               />
               <p className="text-xs text-muted-foreground mt-1">Banners display in ascending order (lowest first)</p>
-            </div>
-            
-            {/* URL Field (if available) */}
-            {banner.url !== undefined && (
-              <div>
-                <Label htmlFor={`banner-url-${index}`} className="font-medium">Link URL</Label>
-                <Input
-                  id={`banner-url-${index}`}
-                  value={banner.url || ""}
-                  onChange={(e) => onUpdate(index, "url", e.target.value)}
-                  placeholder="https://example.com"
-                  disabled={readOnly}
-                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-                />
-              </div>
-            )}
-            
-            {/* Custom Fields (if any are present in the banner object) */}
-            {Object.keys(banner).filter(key => 
-              !['id', 'title', 'image_url', 'alt_text', 'is_active', 'display_order', 'url'].includes(key)
-            ).map(key => (
-              <div key={key}>
-                <Label htmlFor={`banner-${key}-${index}`} className="font-medium capitalize">
-                  {key.replace(/_/g, ' ')}
-                </Label>
-                <Input
-                  id={`banner-${key}-${index}`}
-                  value={banner[key] || ""}
-                  onChange={(e) => onUpdate(index, key, e.target.value)}
-                  placeholder={`Enter ${key.replace(/_/g, ' ')}`}
-                  disabled={readOnly}
-                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-                />
-              </div>
-            ))}
+            </div> */}
             
             {/* Active Status */}
             <div className="rounded-lg p-3 flex items-center justify-between border p-3 py-4">
@@ -477,7 +443,7 @@ export function BannerEditor({
         </div>
       )}
 
-      <div className="space-y-3 max-h-[700px] overflow-y-auto pr-2 pb-4">
+      <div className="space-y-3 max-h-[1000px] overflow-y-auto pr-2 pb-4">
         {disableDragAndDrop ? (
           // Render banners without drag and drop
           banners.map((banner, index) => (

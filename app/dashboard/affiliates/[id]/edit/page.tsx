@@ -9,54 +9,59 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { AffiliateForm } from "@/features/affiliates/components";
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 interface EditAffiliatePageProps {
   params: { id: string };
 }
 
 export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
+  const { data: session } = useSession();
   const { id } = params;
   const router = useRouter();
-  const { affiliate, loading, storeError, fetchAffiliate } =
-    useAffiliateStore();
+  const { affiliate, loading, error, fetchAffiliate, updateAffiliate, uploadKycDocuments, setActiveAction, setError } = useAffiliateStore();
   const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  console.log(
-    "[EditAffiliatePage] Render. ID:",
-    id,
-    "Loading:",
-    loading,
-    "Affiliate ID:",
-    affiliate?.id,
-    "Fetch Attempted:",
-    fetchAttempted,
-    "StoreError:",
-    storeError?.message
-  );
 
   useEffect(() => {
-    console.log(
-      "[EditAffiliatePage] useEffect. ID:",
-      id,
-      "Fetch Attempted:",
-      fetchAttempted
-    );
     if (id && !fetchAttempted) {
       setFetchAttempted(true);
-      console.log("[EditAffiliatePage] Calling fetchAffiliate for ID:", id);
       fetchAffiliate(id).catch((error) => {
-        // Error handling is already in the store, toast can be here or based on storeError in render
-        console.error("Fetch affiliate from useEffect failed:", error);
-        // Potentially router.push or toast here if fetchAffiliate itself doesn't handle all UI feedback for critical errors
+        // Error handling is already in the store
       });
     }
-  }, [id, fetchAffiliate, fetchAttempted, router]); // Added fetchAttempted, removed loading, affiliate, storeError
+  }, [id, fetchAffiliate, fetchAttempted]);
 
-  if (loading) {
+  const handleSubmit = async (values: any) => {
+    setIsSubmitting(true);
+    setActiveAction("update");
+    try {
+      const tenant_id = (session?.user as any)?.tenant_id;
+      const headers = { "X-Tenant-ID": tenant_id };
+      const updated = await updateAffiliate(id, values, headers);
+      if (updated) {
+        setError(null);
+        toast.success("Affiliate updated successfully!");
+        router.push(`/dashboard/affiliates/${id}`);
+      } else {
+        toast.error("Failed to update affiliate.");
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || "Failed to update affiliate.";
+      setError({ message: errorMessage, details: error, action: "update" });
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+      setActiveAction(null);
+    }
+  };
+
+  if (loading && !isSubmitting) {
     return <Spinner />;
   }
 
-  if (fetchAttempted && !loading && !affiliate && storeError) {
+  if (fetchAttempted && !loading && !affiliate && error) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center p-4 border-b">
@@ -77,8 +82,8 @@ export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
           <ErrorCard
             title="Failed to load affiliate details"
             error={{
-              status: storeError?.status?.toString() || "Error",
-              message: storeError?.message || "An error occurred",
+              status: error?.status?.toString() || "Error",
+              message: error?.message || "An error occurred",
             }}
             buttonText="Back to Affiliates"
             buttonAction={() => router.push("/dashboard/affiliates")}
@@ -91,22 +96,44 @@ export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center p-4 border-b">
-        <Button variant="ghost" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Edit Vendor Affiliate
-          </h1>
-          <p className="text-muted-foreground">
-            Update information for an existing affiliate
-          </p>
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push(`/dashboard/affiliates/${id}`)}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Edit Affiliate: {affiliate?.name}
+            </h1>
+            <p className="text-muted-foreground">
+              Update information for an existing affiliate
+            </p>
+          </div>
         </div>
+        <Button 
+          type="submit" 
+          form="marketplace-affiliate-form" 
+          disabled={isSubmitting || loading}
+        >
+          {isSubmitting ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Updating...
+            </>
+          ) : (
+            'Update Affiliate'
+          )}
+        </Button>
       </div>
 
       <div className="p-4">
-        {/* <AffiliateForm affiliateId={id} initialData={affiliate} /> */}
+        <AffiliateForm initialData={affiliate || undefined} onSubmit={handleSubmit} isSubmitting={isSubmitting || loading} />
       </div>
     </div>
   );

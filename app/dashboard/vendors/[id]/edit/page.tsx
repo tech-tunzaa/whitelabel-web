@@ -24,9 +24,10 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
   const { 
     vendor, 
     loading, 
-    error: storeError, 
+    error, 
     fetchVendor, 
-    updateVendor 
+    updateVendor,
+    updateStore 
   } = useVendorStore();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +36,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
 
   useEffect(() => {
     if (vendorId) {
-      const headers = tenantId ? { 'x-tenant-id': tenantId } : {};
+      const headers = tenantId ? { 'x-tenant-id': tenantId } : undefined;
       fetchVendor(vendorId, headers);
     }
   }, [vendorId, tenantId, fetchVendor]);
@@ -43,10 +44,28 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
   const handleSubmit = async (data: VendorFormValues) => {
     setIsSubmitting(true);
     try {
-      const headers = tenantId ? { 'X-Tenant-ID': tenantId } : {};
-      await updateVendor(vendorId, data, headers);
-      toast.success("Vendor updated successfully!");
-      router.push(`/dashboard/vendors/${vendorId}`);
+      const headers = tenantId ? { 'X-Tenant-ID': tenantId } : undefined;
+      const updatedVendor = await updateVendor(vendorId, data, headers);
+
+      if (updatedVendor) {
+        const storeToUpdate = data.stores?.[0];
+        if (storeToUpdate && storeToUpdate.store_id) {
+          try {
+            await updateStore(storeToUpdate.store_id, storeToUpdate, headers);
+            toast.success("Vendor and store updated successfully!");
+
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            router.push(`/dashboard/vendors/${vendorId}`);
+          } catch (storeError) {
+            console.error("Store update failed after vendor update:", storeError);
+            toast.warning("Vendor details were updated, but the store update failed.");
+          }
+        } else {
+          toast.success("Vendor updated successfully!");
+        }
+      } else {
+        toast.error(error?.message || "Failed to update vendor. Please try again.");
+      }
     } catch (apiError) {
       const errorMessage = apiError instanceof Error ? apiError.message : "An unknown error occurred";
       toast.error(`Failed to update vendor: ${errorMessage}`);
@@ -58,32 +77,18 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
 
   if (loading && !vendor) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Spinner />
-      </div>
+      <Spinner />
     );
   }
 
-  if (storeError) {
+  if (error && !vendor) {
     return (
       <ErrorCard
         title="Failed to load vendor"
         error={{
-          status: storeError.status?.toString() || "Error",
-          message: storeError.message || "An unexpected error occurred."
+          status: error.status?.toString() || "Error",
+          message: error.message || "An unexpected error occurred."
         }}
-        buttonText="Back to Vendors"
-        buttonAction={() => router.push("/dashboard/vendors")}
-        buttonIcon={ArrowLeft}
-      />
-    );
-  }
-
-  if (!vendor) {
-    return (
-      <ErrorCard
-        title="Vendor Not Found"
-        error={{ status: "404", message: "This vendor could not be found." }}
         buttonText="Back to Vendors"
         buttonAction={() => router.push("/dashboard/vendors")}
         buttonIcon={ArrowLeft}

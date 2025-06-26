@@ -1,16 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Role, Permission } from "../types/role"
-import { useRoleStore } from "../stores/role-store"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, Controller } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -19,264 +12,251 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Separator } from "@/components/ui/separator"
-import { RequiredField } from "@/components/ui/required-field"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Role } from "../types/role";
+import { useMemo, useState } from "react";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Search } from "lucide-react";
 
-// Form schema
-const roleFormSchema = z.object({
-  role: z.string().min(2, {
-    message: "Role identifier must be at least 2 characters."
-  }),
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters."
-  }),
-  display_name: z.string().min(2, {
-    message: "Display name must be at least 2 characters."
-  }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters."
-  }),
-  permissions: z.array(z.string()),
-  is_active: z.boolean().default(true)
-})
+export type RoleFormValues = {
+  role: string;
+  description?: string;
+  permissions: string[];
+};
 
-type RoleFormValues = z.infer<typeof roleFormSchema>
+const roleFormSchema: z.ZodType<RoleFormValues> = z.object({
+  role: z.string().min(2, { message: "Role name must be at least 2 characters." }),
+  description: z.string().optional(),
+  permissions: z.array(z.string()).min(1, { message: "At least one permission must be selected." }),
+});
 
 interface RoleFormProps {
-  onSubmit: (data: RoleFormValues) => void
-  onCancel?: () => void
-  initialData?: Partial<RoleFormValues> & { id?: string }
+  initialData?: Role | null;
+  onSubmit: (values: RoleFormValues) => void;
+  isLoading: boolean;
+  availablePermissions: string[];
 }
 
-export function RoleForm({ onSubmit, onCancel, initialData }: RoleFormProps) {
-  const { permissions } = useRoleStore()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  
-  // Group permissions by module
-  const permissionsByModule: Record<string, Permission[]> = {}
-  permissions.forEach(permission => {
-    if (!permissionsByModule[permission.module]) {
-      permissionsByModule[permission.module] = []
-    }
-    permissionsByModule[permission.module].push(permission)
-  })
-  
-  // Sort modules by name
-  const modules = Object.keys(permissionsByModule).sort()
-  
+export function RoleForm({ initialData, onSubmit, isLoading, availablePermissions }: RoleFormProps) {
+  const isSystemRole = initialData?.is_system_role;
+  const [searchTerm, setSearchTerm] = useState("");
+
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: {
       role: initialData?.role || "",
-      name: initialData?.name || "",
-      display_name: initialData?.display_name || "",
       description: initialData?.description || "",
-      permissions: initialData?.permissions || [],
-      is_active: initialData?.is_active !== undefined ? initialData.is_active : true
-    }
-  })
+      permissions: initialData?.permissions?.map(p => typeof p === 'string' ? p : p.name) || [],
+    },
+  });
 
-  const handleSubmit = async (data: RoleFormValues) => {
-    setIsSubmitting(true)
-    try {
-      await onSubmit(data)
-    } finally {
-      setIsSubmitting(false)
+  const filteredPermissions = availablePermissions.filter(permission => typeof permission === 'string' && permission);
+
+  const groupedPermissions = useMemo(() => {
+    return filteredPermissions.reduce((acc, permission) => {
+      // Guard against undefined or non-string permissions to prevent crashes.
+      if (typeof permission !== 'string' || !permission) {
+        return acc;
+      }
+      const module = permission.split(':')[0] || 'general';
+      if (!acc[module]) {
+        acc[module] = [];
+      }
+      acc[module].push(permission);
+      return acc;
+    }, {} as Record<string, string[]>);
+  }, [filteredPermissions]);
+
+  const filteredGroupedPermissions = useMemo(() => {
+    if (!searchTerm) {
+      return groupedPermissions;
     }
-  }
+    const lowercasedFilter = searchTerm.toLowerCase();
+    const filtered = Object.entries(groupedPermissions).reduce((acc, [module, permissions]) => {
+      const matchingPermissions = permissions.filter(p => p.toLowerCase().includes(lowercasedFilter));
+      if (matchingPermissions.length > 0) {
+        acc[module] = matchingPermissions;
+      }
+      return acc;
+    }, {} as Record<string, string[]>);
+    return filtered;
+  }, [groupedPermissions, searchTerm]);
+
+  const defaultAccordionOpen = useMemo(() => {
+    return searchTerm ? Object.keys(filteredGroupedPermissions) : [];
+  }, [searchTerm, filteredGroupedPermissions]);
+
 
   return (
-    <Card className="mx-4">
-      <CardContent className="p-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Role Information</h3>
-              <div className="grid gap-6">
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role Identifier <RequiredField /></FormLabel>
-                      <FormControl>
-                        <Input placeholder="admin" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        A unique identifier for the role (e.g., admin, manager)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role Name <RequiredField /></FormLabel>
-                      <FormControl>
-                        <Input placeholder="Admin" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="display_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Display Name <RequiredField /></FormLabel>
-                      <FormControl>
-                        <Input placeholder="Administrator" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        How the role name is displayed to users
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description <RequiredField /></FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Describe the role and its responsibilities" 
-                          {...field} 
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="is_active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Active</FormLabel>
-                        <FormDescription>
-                          Whether this role is active and can be assigned to users
-                        </FormDescription>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <Separator className="my-4" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Permissions</h3>
-                <FormField
-                  control={form.control}
-                  name="permissions"
-                  render={() => (
-                    <FormItem>
-                      <div className="mb-4">
-                        <FormDescription>
-                          Select the permissions to assign to this role
-                        </FormDescription>
-                      </div>
-                      
-                      <Tabs defaultValue={modules[0]}>
-                        <TabsList className="mb-4 flex flex-wrap h-auto w-full">
-                          {modules.map(module => (
-                            <TabsTrigger 
-                              key={module} 
-                              value={module}
-                              className="capitalize"
-                            >
-                              {module.replace('_', ' ')}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                        
-                        {modules.map(module => (
-                          <TabsContent key={module} value={module} className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              {permissionsByModule[module].map(permission => (
-                                <FormField
-                                  key={permission.id || permission.permission_id}
-                                  control={form.control}
-                                  name="permissions"
-                                  render={({ field }) => {
-                                    // Use either id or permission_id based on API response
-                                    const permId = permission.id || permission.permission_id || '';
-                                    return (
-                                      <FormItem
-                                        key={permId}
-                                        className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
-                                      >
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Role Details</CardTitle>
+            <CardDescription>
+              Define the name and description for this role.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., store_manager" {...field} disabled={isLoading || isSystemRole} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="A brief description of the role's responsibilities." {...field} disabled={isLoading} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+
+          <Separator className="my-6" />
+
+          <CardHeader>
+            <CardTitle>Permissions</CardTitle>
+            <CardDescription>
+              Select the permissions for this role. You can search for specific permissions.
+            </CardDescription>
+          </CardHeader>
+          {isSystemRole && (
+            <div className="px-6 pb-4 -mt-4">
+                <p className="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                    System role permissions and role name cannot be modified.
+                </p>
+            </div>
+          )}
+          <CardContent>
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search permissions..."
+                value={searchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="permissions"
+              render={() => (
+                <FormItem>
+                  <ScrollArea className="h-[450px] pr-4 border rounded-md">
+                    <Accordion type="multiple" value={defaultAccordionOpen.length > 0 ? defaultAccordionOpen : undefined} onValueChange={searchTerm ? () => {} : undefined} className="w-full">
+                      {Object.keys(filteredGroupedPermissions).length > 0 ? (
+                        Object.entries(filteredGroupedPermissions).map(([module, permissionsInModule]) => (
+                          <AccordionItem value={module} key={module}>
+                            <AccordionTrigger className="px-4 hover:no-underline">
+                              <div className="flex w-full items-center justify-between">
+                                <h3 className="font-semibold capitalize">{module.replace(/_/g, ' ')}</h3>
+                                <div className="flex items-center space-x-2 mr-4">
+                                  <Controller
+                                    control={form.control}
+                                    name="permissions"
+                                    render={({ field }) => {
+                                      const selectedCount = permissionsInModule.filter(p => field.value.includes(p)).length;
+                                      const allSelected = selectedCount === permissionsInModule.length;
+                                      const someSelected = selectedCount > 0 && !allSelected;
+
+                                      return (
+                                        <Checkbox
+                                          checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                                          onCheckedChange={(checked) => {
+                                            const currentPermissions = new Set(field.value);
+                                            // When clicking an indeterminate or unchecked box, it becomes checked (true).
+                                            // When clicking a checked box, it becomes unchecked (false).
+                                            // This logic correctly selects all or deselects all based on the click.
+                                            if (checked) {
+                                              permissionsInModule.forEach(p => currentPermissions.add(p));
+                                            } else {
+                                              permissionsInModule.forEach(p => currentPermissions.delete(p));
+                                            }
+                                            field.onChange(Array.from(currentPermissions));
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                          disabled={isSystemRole}
+                                        />
+                                      );
+                                    }}
+                                  />
+                                  <span className="text-sm font-normal">Select All</span>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-4 pt-2 bg-muted/40">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {permissionsInModule.map((permission) => (
+                                  <FormField
+                                    key={permission}
+                                    control={form.control}
+                                    name="permissions"
+                                    render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md p-2 hover:bg-accent/50 transition-colors">
                                         <FormControl>
                                           <Checkbox
-                                            checked={field.value?.includes(permId)}
+                                            checked={field.value?.includes(permission)}
                                             onCheckedChange={(checked) => {
                                               return checked
-                                                ? field.onChange([...field.value, permId])
-                                                : field.onChange(
-                                                    field.value?.filter(
-                                                      (value) => value !== permId
-                                                    )
-                                                  )
+                                                ? field.onChange([...field.value, permission])
+                                                : field.onChange(field.value?.filter((value) => value !== permission));
                                             }}
+                                            disabled={isSystemRole}
                                           />
                                         </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                          <FormLabel className="text-sm font-medium">
-                                            {permission.name ? permission.name.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''}
-                                          </FormLabel>
-                                          <FormDescription className="text-xs">
-                                            {permission.description || ''}
-                                          </FormDescription>
-                                        </div>
+                                        <FormLabel className="text-sm font-normal capitalize cursor-pointer w-full">
+                                          {(permission.split(':')[1] || permission).replace(/_/g, ' ')}
+                                        </FormLabel>
                                       </FormItem>
-                                    )
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            
-            <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
-              {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel}>
-                  Cancel
-                </Button>
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))
+                      ) : (
+                        <div className="text-center text-muted-foreground p-8">
+                          No permissions found for &quot;{searchTerm}&quot;.
+                        </div>
+                      )}
+                    </Accordion>
+                  </ScrollArea>
+                  <FormMessage className="pt-2" />
+                </FormItem>
               )}
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : initialData?.id ? "Update Role" : "Create Role"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  )
+            />
+          </CardContent>
+
+          <CardFooter>
+            <Button type="submit" disabled={isLoading} className="ml-auto">
+              {isLoading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Role')}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+    </Form>
+  );
 }

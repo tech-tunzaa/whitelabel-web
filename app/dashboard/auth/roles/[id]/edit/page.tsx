@@ -1,101 +1,125 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
-import { useRoleStore } from "@/features/auth/stores/role-store"
-import { RoleForm } from "@/features/auth/components/role-form"
-import { toast } from "sonner"
-import { Separator } from "@/components/ui/separator"
+import { useEffect, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useRoleStore } from '@/features/auth/stores/role-store';
+import { RoleForm, RoleFormValues } from '@/features/auth/components/role-form';
+import { Spinner } from '@/components/ui/spinner';
+import { ErrorCard } from '@/components/ui/error-card';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Permission } from '@/features/auth/types/role';
+import { ArrowLeft } from 'lucide-react';
 
-import { Button } from "@/components/ui/button"
+const EditRolePage = () => {
+  const { id } = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const tenantId = session?.user?.tenant_id;
+  const decodedId = useMemo(() => id ? decodeURIComponent(id as string) : '', [id]);
 
-interface EditRolePageProps {
-  params: {
-    id: string
-  }
-}
+  const {
+    roles,
+    permissions,
+    loading,
+    fetchRoles,
+    fetchAvailablePermissions,
+    updateRole,
+  } = useRoleStore();
 
-export default function EditRolePage({ params }: EditRolePageProps) {
-  const router = useRouter()
-  const { fetchRole, updateRole } = useRoleStore()
-  const [role, setRole] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
   useEffect(() => {
-    async function loadRole() {
-      setLoading(true)
-      try {
-        // Fetch the role data from API
-        await fetchRole(params.id)
-          .then((roleData) => {
-            if (roleData) {
-              setRole(roleData)
-            } else {
-              setError('Role not found')
-              toast.error("Role not found")
-              router.push("/dashboard/auth/roles")
-            }
-          })
-      } catch (err) {
-        console.error('Error fetching role:', err)
-        setError('Failed to load role data')
-        toast.error("Failed to load role data")
-      } finally {
-        setLoading(false)
+    const headers = { 'X-Tenant-ID': tenantId };
+    if (tenantId) {
+      if (roles.length === 0) {
+        fetchRoles(undefined, headers).catch(err => {
+          console.error('Failed to fetch roles:', err);
+        });
       }
+      fetchAvailablePermissions(headers).catch(err => {
+        console.error('Failed to fetch permissions:', err);
+      });
     }
+  }, [tenantId, roles.length, fetchRoles, fetchAvailablePermissions]);
+
+  const roleToEdit = useMemo(() => {
+    if (!decodedId || roles.length === 0) return undefined;
+    return roles.find(r => r.role === decodedId);
+  }, [roles, decodedId]);
+
+  const handleSubmit = async (data: RoleFormValues) => {
+    console.log(data)
+    if (!tenantId || !roleToEdit?.role) return;
+    const headers = { 'X-Tenant-ID': tenantId };
     
-    loadRole()
-  }, [params.id, fetchRole, router])
-  
-  const handleSubmit = async (data: any) => {
-    try {
-      // Don't allow editing the permissions for the Super Owner role
-      if (params.id === '1' && data.permissions.length < role.permissions.length) {
-        toast.error("Cannot remove permissions from the Super Owner role")
-        return
-      }
-      
-      // Format data for API request
-      const updatedRole = {
-        ...data,
-        // API will handle timestamps automatically
-      }
-      
-      await updateRole(params.id, updatedRole)
-      toast.success("Role updated successfully")
-      router.push("/dashboard/auth/roles")
-    } catch (error) {
-      console.error('Error updating role:', error)
-      toast.error("Failed to update role")
-    }
+    const promise = updateRole(roleToEdit.id, data, headers);
+
+    toast.promise(promise, {
+      loading: 'Updating role...',
+      success: (updatedRole) => {
+        router.push(`/dashboard/auth/roles`);
+        return `Role '${updatedRole.role}' updated successfully.`;
+      },
+      error: 'Failed to update role.',
+    });
+  };
+
+  const combinedPermissions = useMemo(() => {
+    const rolePermissions = roleToEdit?.permissions?.map((p: Permission | string) => typeof p === 'string' ? p : p.name) || [];
+    const availablePermissions = permissions || [];
+    return [...new Set([...availablePermissions, ...rolePermissions])];
+  }, [roleToEdit, permissions]);
+
+  const isLoading = loading && roles.length === 0;
+
+  if (isLoading) {
+    return <Spinner className="fixed inset-0 m-auto" />;
+  }
+
+  if (!loading && !roleToEdit) {
+    return (
+      <ErrorCard 
+        title="Role Not Found"
+        error={{ message: `A role with the name '${decodedId}' could not be found.`, status: '404' }}
+        buttonText="Back to Roles"
+        buttonAction={() => router.push('/dashboard/auth/roles')}
+        buttonIcon={ArrowLeft}
+      />
+    );
   }
   
-  const handleCancel = () => {
-    router.push("/dashboard/auth/roles")
+  if (!roleToEdit) {
+    return <Spinner />;
   }
-  
-  if (loading) {
-    return <div className="container py-6">Loading role data...</div>
-  }
-  
-  if (error || !role) {
-    return <div className="container py-6">Error: {error || 'Role not found'}</div>
-  }
-  
+
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex items-center space-x-2 mx-4">
-        <Button variant="outline" size="icon" onClick={handleCancel}>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-4 p-4 md:p-6">
+        <Button variant="outline" size="icon" onClick={() => router.back()} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Role: {role.name}</h1>
+        <div>
+          <h1 className="text-lg font-medium">Edit Role</h1>
+          <p className="text-sm text-muted-foreground">
+            Update the details for the role: {roleToEdit.role}.
+          </p>
+        </div>
       </div>
       <Separator />
-      
-      <RoleForm onSubmit={handleSubmit} onCancel={handleCancel} initialData={role} />
+      <div className='p-4 md:p-6'>
+        <RoleForm
+          initialData={roleToEdit}
+          onSubmit={handleSubmit}
+          isLoading={loading}
+          availablePermissions={combinedPermissions}
+        />
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default EditRolePage;
+
+

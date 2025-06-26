@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Role } from "../types/role";
 import { MoreHorizontal, Edit, Trash, Eye } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 import {
   Table,
@@ -12,7 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,31 +24,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface RoleTableProps {
   roles: Role[];
-  onRoleClick: (role: Role) => void;
   onEditRole: (id: string) => void;
   onDeleteRole: (id: string) => void;
 }
 
 export function RoleTable({
-  roles,
-  onRoleClick,
+  roles = [],
   onEditRole,
   onDeleteRole,
 }: RoleTableProps) {
+  const router = useRouter();
+
   return (
-    <Card className="mx-4">
+    <Card>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead>Role Type</TableHead>
               <TableHead>Permissions</TableHead>
-              <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -57,27 +60,31 @@ export function RoleTable({
               </TableRow>
             ) : (
               roles.map((role) => (
-                <TableRow key={role.id || role.role_id || role.role}>
-                  <TableCell className="font-medium">
-                    {role.name || role.display_name || role.role}
-                  </TableCell>
+                <TableRow key={role.role}>
+                  <TableCell className="font-medium">{role.role}</TableCell>
                   <TableCell>{role.description || "-"}</TableCell>
                   <TableCell>
-                    {Array.isArray(role.permissions)
-                      ? role.permissions.length
-                      : 0}{" "}
-                    permissions
+                    {role.is_system_role ? (
+                      <Badge variant="secondary">System</Badge>
+                    ) : (
+                      <Badge variant="default">Custom</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {role.created_at || role.createdAt
-                      ? new Date(
-                          role.created_at || role.createdAt
-                        ).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
-                      : "-"}
+                    {Array.isArray(role.permissions) && role.permissions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {role.permissions.slice(0, 3).map((p) => (
+                          <Badge key={p} variant="secondary">
+                            {p}
+                          </Badge>
+                        ))}
+                        {role.permissions.length > 3 && (
+                          <Badge variant="outline">+{role.permissions.length - 3}</Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No permissions</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -88,29 +95,21 @@ export function RoleTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onRoleClick(role)}>
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/auth/roles/${encodeURIComponent(role.role)}`)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View details
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            onEditRole(role.id || role.role_id || role.role)
-                          }
-                        >
+                        <DropdownMenuItem onClick={() => onEditRole(role.role)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        {/* Only show delete for non-default roles */}
-                        {role.id !== "1" && role.role !== "super" && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              onDeleteRole(role.id || role.role_id || role.role)
-                            }
-                          >
-                            <Trash className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem
+                          onClick={() => onDeleteRole(role.role)}
+                          className="text-red-600"
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

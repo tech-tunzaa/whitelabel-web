@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
+import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Badge } from "@/components/ui/badge";
@@ -625,6 +625,16 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
             </Card>
           </div>
         </div>
+
+        {/* If product has verification_documents, render VerificationDocumentManager */}
+        {product?.verification_documents && (
+          <VerificationDocumentManager
+            documents={product.verification_documents}
+            onApprove={handleDocumentApprove}
+            onReject={handleDocumentReject}
+            showActions={true}
+          />
+        )}
       </div>
     </div>
   );

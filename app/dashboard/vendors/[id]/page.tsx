@@ -57,7 +57,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,9 +71,7 @@ import {
   Store as VendorStore,
 } from "@/features/vendors/types";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog";
-import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
-import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
+import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { AffiliateTable } from "@/features/affiliates/components/affiliate-table";
@@ -643,21 +640,6 @@ export default function VendorPage({ params }: VendorPageProps) {
         </div>
       </div>
 
-      {/* File Preview Modal */}
-      <FilePreviewModal
-        isOpen={!!previewImage}
-        onClose={() => setPreviewImage(null)}
-        src={previewImage || ""}
-        alt="Image preview"
-      />
-
-      {/* File Preview Modal for Policy Documents */}
-      <FilePreviewModal
-        isOpen={isPolicyDocOpen}
-        onClose={() => setIsPolicyDocOpen(false)}
-        src={policyDocUrl}
-        alt="Document preview"
-      />
 
       {/* File Preview Modal for Verification Documents */}
       <FilePreviewModal
@@ -666,17 +648,6 @@ export default function VendorPage({ params }: VendorPageProps) {
         src={policyDocUrl}
         alt="Verification document preview"
       />
-
-      {/* Document Verification Dialog */}
-      {isVerificationModalOpen && verificationDocumentData && (
-        <DocumentVerificationDialog
-          isOpen={isVerificationModalOpen}
-          setIsOpen={setIsVerificationModalOpen}
-          document={verificationDocumentData}
-          vendorId={vendor?.id}
-          onSuccess={() => fetchVendor(id)}
-        />
-      )}
     </div>
   );
 
@@ -1128,8 +1099,6 @@ export default function VendorPage({ params }: VendorPageProps) {
     );
   }
 
-  
-
   function Sidebar() {
     return (
       <div className="md:col-span-2 space-y-6">
@@ -1188,51 +1157,13 @@ export default function VendorPage({ params }: VendorPageProps) {
         {/* Verification Documents */}
         <div className="mt-8 space-y-4">
           <h2 className="text-xl font-semibold">Verification Documents</h2>
-          <div className="bg-gray-50 rounded-lg p-4">
-            {vendorDocuments.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {vendorDocuments.map((doc, index) => {
-                  // Convert the document to the format expected by VerificationDocumentCard
-                  const formattedDoc: any = {
-                    id: doc.id,
-                    document_id: doc.id,
-                    document_type: doc.document_type,
-                    document_url: doc.document_url,
-                    file_name: doc.file_name,
-                    file_size: doc.file_size,
-                    mime_type: doc.mime_type,
-                    expires_at: doc.expires_at || doc.expiry_date,
-                    verification_status: doc.verification_status || "pending",
-                    rejection_reason: doc.rejection_reason,
-                    submitted_at: doc.submitted_at,
-                    verified_at: doc.verified_at,
-                  };
-
-                  return (
-                    <VerificationDocumentCard
-                      key={doc.id || `doc-${index}`}
-                      document={formattedDoc}
-                      onApprove={(documentId) =>
-                        handleDocumentApprove(documentId)
-                      }
-                      onReject={handleDocumentReject}
-                      onPreview={(url) => {
-                        setPolicyDocUrl(url);
-                        setIsPreviewOpen(true);
-                      }}
-                      showActions={true}
-                      className="shadow-sm"
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-muted-foreground">
-                  No verification documents found
-                </p>
-              </div>
-            )}
+          <div className="rounded-lg p-4 border shadow-sm">
+            <VerificationDocumentManager
+              documents={vendor?.verification_documents || []}
+              onApprove={handleDocumentApprove}
+              onReject={handleDocumentReject}
+              showActions={true}
+            />
           </div>
         </div>
 

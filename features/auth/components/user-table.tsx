@@ -5,11 +5,11 @@ import { User } from "../types/user";
 import {
   MoreHorizontal,
   Edit,
-  Trash,
   Eye,
   ShieldCheck,
   ShieldOff,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import {
   Table,
@@ -38,6 +38,13 @@ interface UserTableProps {
   onEditUser: (id: string) => void;
 }
 
+const getInitials = (name: string) => {
+  if (!name) return "";
+  const names = name.split(' ');
+  const initials = names.map(n => n[0]).join('');
+  return initials.toUpperCase();
+};
+
 export function UserTable({
   users,
   onUserClick,
@@ -55,24 +62,11 @@ export function UserTable({
     }
   };
 
-  const getRoleBadge = (role?: string) => {
-    if (!role) return <Badge variant="outline">No Role</Badge>;
-
-    switch (role.toLowerCase()) {
-      case "super":
-        return <Badge className="bg-purple-500">Super Owner</Badge>;
-      case "admin":
-        return <Badge className="bg-blue-500">Admin</Badge>;
-      case "sub_admin":
-        return <Badge className="bg-green-500">Sub Admin</Badge>;
-      case "support":
-        return <Badge className="bg-amber-500">Support</Badge>;
-      case "vendor":
-        return <Badge className="bg-orange-500">Vendor</Badge>;
-      case "buyer":
-        return <Badge className="bg-teal-500">Buyer</Badge>;
-      default:
-        return <Badge variant="outline">{role}</Badge>;
+  const getVerifiedBadge = (isVerified?: boolean) => {
+    if (isVerified) {
+      return <Badge className="bg-green-500 hover:bg-green-600">Verified</Badge>;
+    } else {
+      return <Badge variant="secondary">Not Verified</Badge>;
     }
   };
 
@@ -83,78 +77,79 @@ export function UserTable({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Last Login</TableHead>
+              <TableHead>Verified</TableHead>
+              <TableHead>Date Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-24">
+                <TableCell colSpan={5} className="text-center h-24">
                   No users found.
                 </TableCell>
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id || user.user_id}>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {/* No avatar in API user model currently */}
-                    {user.name || `${user.first_name} ${user.last_name}`}
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
+                <TableRow key={user.user_id} onClick={() => onUserClick(user)} className="cursor-pointer">
                   <TableCell>
-                    {getRoleBadge(
-                      user.active_profile_role || user.activeProfileRole
-                    )}
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback>{getInitials(user.name || `${user.first_name} ${user.last_name}`)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.name || `${user.first_name} ${user.last_name}`}</div>
+                        <div className="text-xs text-muted-foreground">User_ID: {user.user_id}</div>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(user.is_active)}</TableCell>
+                  <TableCell>{getVerifiedBadge(user.is_verified)}</TableCell>
                   <TableCell>
-                    {user.last_login
-                      ? new Date(user.last_login).toLocaleDateString("en-US", {
+                    {user.created_at
+                      ? new Date(user.created_at).toLocaleDateString("en-US", {
+                          year: "numeric",
                           month: "short",
                           day: "numeric",
-                          year: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
                         })
-                      : "Never"}
+                      : "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onUserClick(user)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View details
-                        </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => onEditUser(user.id || user.user_id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditUser(user.user_id);
+                          }}
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
                         {user.is_active ? (
                           <DropdownMenuItem
-                            onClick={() =>
-                              onDeactivateUser(user.id || user.user_id)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeactivateUser(user.user_id);
+                            }}
                           >
                             <ShieldOff className="mr-2 h-4 w-4" />
                             Deactivate
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem
-                            onClick={() =>
-                              onActivateUser(user.id || user.user_id)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onActivateUser(user.user_id);
+                            }}
                           >
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             Activate

@@ -250,7 +250,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     let axiosResponse;
     try {
       axiosResponse = await apiClient.post<Affiliate>( // apiClient.post returns AxiosResponse<CoreApiResponse<Affiliate>>
-        '/winga',
+        '/winga/signup',
         payload,
         headers
       );
@@ -289,7 +289,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     setLoading(true);
     let axiosResponse;
     try {
-      axiosResponse = await apiClient.put<Affiliate>( // apiClient.put returns AxiosResponse<CoreApiResponse<Affiliate>>
+      axiosResponse = await apiClient.patch<Affiliate>( // apiClient.put returns AxiosResponse<CoreApiResponse<Affiliate>>
         `/winga/${id}`,
         payload,
         headers

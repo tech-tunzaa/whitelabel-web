@@ -16,31 +16,17 @@ import {
   MapPin,
   FileText,
   CreditCard,
-  AlertCircle,
   Building,
   User,
-  Landmark,
-  Calendar,
-  Tag,
-  Percent,
-  Star,
-  CheckCircle2,
-  XCircle,
-  Trash2,
-  FileSymlink,
-  DollarSign,
-  TrendingUp,
-  ShoppingCart,
-  Users,
   Store as StoreIcon,
   Link as LinkIcon,
-  UserCheck,
-  Megaphone,
   ExternalLink,
   Settings,
   Info,
   History,
   CalendarDays,
+  Copy,
+  Power
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -60,77 +46,38 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { Affiliate, VerificationDocument, VendorPartnerRequest } from "@/features/affiliates/types";
 import { AffiliateVerificationDialog } from "@/features/affiliates/components";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog";
-import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
+import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 import { formatCurrency } from "@/lib/utils";
-
-function PageSkeleton() {
-  return (
-    <div className="flex flex-col h-full p-4 md:p-6 gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <div className="space-y-1">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-24 rounded-md" />
-          <Skeleton className="h-9 w-24 rounded-md" />
-        </div>
-      </div>
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AffiliateDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { data: session } = useSession();
-  const tenantId = (session?.user as any)?.tenant_id; // TODO: Properly type NextAuth session user
+  const tenantId = (session?.user as any)?.tenant_id;
 
-  const id = params.id; // Access id from the hook's result
+  const id = params.id;
 
   // Destructure store state and actions
   const {
     affiliate,
     loading,
-    storeError,
+    error: storeError,
     fetchAffiliate,
     updateAffiliateStatus,
     vendorPartnerRequests,
@@ -140,15 +87,12 @@ export default function AffiliateDetailPage() {
   } = useAffiliateStore();
 
 
-
-
   // UI States
   const [activeTab, setActiveTab] = useState("overview");
-  const [dialogAction, setDialogAction] = useState<"approve" | "reject" | null>(
-    null
-  );
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [pendingAction, setPendingAction] = useState<null | 'approve' | 'reject' | 'activate' | 'deactivate'>(null);
 
   // Document and Verification States
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -163,106 +107,73 @@ export default function AffiliateDetailPage() {
     "X-Tenant-ID": tenantId,
   };
 
-  // Effect for fetching affiliate data using the store's method
-  // This ensures that we use the memoized version of the fetch function
-  // and correctly update component state based on store changes.
+  // Fetch affiliate by id ONCE
   useEffect(() => {
     if (id && tenantId) {
       fetchAffiliate(id as string, { 'x-tenant-id': tenantId });
-    } else {
-      // Optionally, you might want to keep a log or set an error state if id or tenantId is missing
-      // For now, removing the console.warn as requested.
     }
+  }, [id, tenantId, fetchAffiliate]);
 
-    // Fetch vendor partner requests
-    if (id && tenantId) {
-      fetchVendorPartnerRequests(id as string, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId });
+  // Fetch vendor partner requests when affiliate is loaded
+  useEffect(() => {
+    if (affiliate && affiliate.id && tenantId) {
+      fetchVendorPartnerRequests(affiliate.id, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId });
     }
-  }, [id, tenantId, fetchAffiliate, fetchVendorPartnerRequests]);
+  }, [affiliate, tenantId, fetchVendorPartnerRequests]);
 
-  // Document handling functions
-  const handleDocumentPreview = (document: VerificationDocument) => {
-    if (document.document_url) {
-      // Determine file type
-      if (isImageFile(document.document_url)) {
-        setPreviewType("image");
-        setPreviewUrl(document.document_url);
-      } else if (isPdfFile(document.document_url)) {
-        setPreviewType("pdf");
-        setPreviewUrl(document.document_url);
+ 
+
+  // Unified status change handler
+  const handleStatusChange = async (action: 'approve' | 'reject' | 'activate' | 'deactivate', reason?: string) => {
+    if (!affiliate?.id) return;
+    setIsUpdating(true);
+    try {
+      let statusData: any = {};
+      switch (action) {
+        case 'approve':
+          statusData = { status: 'approved', is_active: true };
+          break;
+        case 'reject':
+          statusData = { status: 'rejected', rejection_reason: reason };
+          break;
+        case 'activate':
+          statusData = { is_active: true };
+          break;
+        case 'deactivate':
+          statusData = { is_active: false, status: 'inactive' };
+          break;
+      }
+      const result = await updateAffiliateStatus(affiliate.id, statusData, tenantHeaders);
+      if (result) {
+        toast.success(`Affiliate ${action}d successfully`);
+        fetchAffiliate(affiliate.id, tenantHeaders);
       } else {
-        // Default to opening in a new tab
-        // Make sure we're in browser environment before using window
-        if (typeof window !== "undefined") {
-          window.open(document.document_url, "_blank");
-        }
+        toast.error(`Failed to ${action} affiliate`);
       }
-    }
-  };
-
-  const handleClosePreview = () => {
-    setPreviewUrl(null);
-    setPreviewType(null);
-  };
-
-  const handleDocumentVerification = (document: VerificationDocument) => {
-    setVerificationDoc(document);
-    setShowVerificationDialog(true);
-  };
-
-  const handleVerificationComplete = async (
-    documentId: string,
-    status: "approved" | "rejected",
-    reason?: string
-  ) => {
-    try {
-      setIsUpdating(true);
-      // This is a placeholder - update with the actual API call when implemented
-      // await updateDocumentStatus(id, documentId, status, reason, tenantHeaders);
-      toast.success(`Document ${status} successfully`);
-      fetchAffiliate(id, tenantHeaders);
     } catch (error) {
-      console.error(`Error updating document status:`, error);
-      toast.error(`Failed to update document status`);
+      toast.error(`Failed to ${action} affiliate`);
     } finally {
       setIsUpdating(false);
-      setShowVerificationDialog(false);
-      setVerificationDoc(null);
+      setShowRejectDialog(false);
+      setPendingAction(null);
+      setRejectionReason("");
     }
   };
 
-  // Affiliate status action handlers
-  const handleApprove = () => {
-    setDialogAction("approve");
-    setIsDialogOpen(true);
-  };
-
+  // Button handlers
+  const handleApprove = () => handleStatusChange('approve');
+  const handleActivate = () => handleStatusChange('activate');
+  const handleDeactivate = () => handleStatusChange('deactivate');
   const handleReject = () => {
-    setDialogAction("reject");
-    setIsDialogOpen(true);
+    setShowRejectDialog(true);
+    setPendingAction('reject');
   };
-
-  const handleConfirmAction = async (reason?: string) => {
-    try {
-      setIsUpdating(true);
-      if (dialogAction === "approve") {
-        await updateAffiliateStatus(id, "approved", tenantHeaders);
-        toast.success("Affiliate approved successfully");
-      } else if (dialogAction === "reject") {
-        await updateAffiliateStatus(id, "rejected", tenantHeaders, reason);
-        toast.success("Affiliate rejected successfully");
-      }
-
-      // Refresh the data
-      fetchAffiliate(id, tenantHeaders);
-    } catch (error) {
-      console.error(`Error ${dialogAction}ing affiliate:`, error);
-      toast.error(`Failed to ${dialogAction} affiliate`);
-    } finally {
-      setIsUpdating(false);
-      setIsDialogOpen(false);
-      setDialogAction(null);
+  const handleRejectConfirm = () => {
+    if (!rejectionReason.trim()) {
+      toast.error('Please provide a rejection reason.');
+      return;
     }
+    handleStatusChange('reject', rejectionReason.trim());
   };
 
   const handleEdit = () => {
@@ -271,7 +182,7 @@ export default function AffiliateDetailPage() {
 
   const handleRefresh = () => {
     // Refresh affiliate details
-    fetchAffiliate(id, tenantHeaders);
+    fetchAffiliate(id as string, tenantHeaders);
 
     // TODO: refresh vendorPartners as well
   };
@@ -377,16 +288,9 @@ export default function AffiliateDetailPage() {
 
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              {affiliate?.profile_image ? (
-                <AvatarImage
-                  src={affiliate?.profile_image}
-                  alt={affiliate?.name}
-                />
-              ) : (
-                <AvatarFallback style={{ backgroundColor: "#4f46e5" }}>
-                  {getInitials(affiliate?.name || "W")}
-                </AvatarFallback>
-              )}
+              <AvatarFallback style={{ backgroundColor: "#4f46e5" }}>
+                {getInitials(affiliate?.name || "W")}
+              </AvatarFallback>
             </Avatar>
 
             <div>
@@ -479,21 +383,55 @@ export default function AffiliateDetailPage() {
       </div>
 
       <AffiliateVerificationDialog
-        action={dialogAction}
+        action={pendingAction}
         title={
-          dialogAction === "approve" ? "Approve Affiliate" : "Reject Affiliate"
+          pendingAction === "approve" ? "Approve Affiliate" : "Reject Affiliate"
         }
         description={
-          dialogAction === "approve"
+          pendingAction === "approve"
             ? "Are you sure you want to approve this affiliate? This will allow them to operate on the platform."
             : "Are you sure you want to reject this affiliate? Please provide a reason for rejection."
         }
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onConfirm={handleConfirmAction}
-        confirmLabel={dialogAction === "approve" ? "Approve" : "Reject"}
-        withReason={dialogAction === "reject"}
+        open={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        onConfirm={handleRejectConfirm}
+        confirmLabel={pendingAction === "approve" ? "Approve" : "Reject"}
+        withReason={pendingAction === "reject"}
       />
+
+      {/* Reject Dialog */}
+      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Affiliate</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide a reason for rejecting this affiliate. This information may be shared with the affiliate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <textarea
+              className="w-full border rounded p-2 min-h-[80px]"
+              placeholder="Enter rejection reason..."
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              disabled={isUpdating}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating} onClick={() => setShowRejectDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isUpdating || !rejectionReason.trim()}
+            >
+              {isUpdating ? (
+                <Spinner size="sm" className="mr-2 h-4 w-4" />
+              ) : null}
+              Confirm Rejection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   ) : null;
 
@@ -512,22 +450,15 @@ export default function AffiliateDetailPage() {
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center text-center">
                 <Avatar className="h-20 w-20 mb-2">
-                  {affiliate?.profile_image ? (
-                    <AvatarImage
-                      src={affiliate?.profile_image}
-                      alt={affiliate?.name}
-                    />
-                  ) : (
-                    <AvatarFallback className="text-lg">
-                      {getInitials(affiliate?.name || "W")}
-                    </AvatarFallback>
-                  )}
+                  <AvatarFallback className="text-lg">
+                    {getInitials(affiliate?.name || "W")}
+                  </AvatarFallback>
                 </Avatar>
                 <h3 className="text-lg font-medium">
                   {affiliate?.name}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {affiliate?.role || "Affiliate"}
+                  Affiliate
                 </p>
                 {affiliate?.status && (
                   <Badge
@@ -551,34 +482,27 @@ export default function AffiliateDetailPage() {
               <Separator />
 
               <div className="space-y-3">
-                {affiliate?.contact_email && (
+                {affiliate?.email && (
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <a
-                      href={`mailto:${affiliate?.contact_email}`}
+                      href={`mailto:${affiliate?.email}`}
                       className="text-sm hover:underline"
                     >
-                      {affiliate?.contact_email}
+                      {affiliate?.email}
                     </a>
                   </div>
                 )}
 
-                {affiliate?.contact_phone && (
+                {affiliate?.phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <a
-                      href={`tel:${affiliate?.contact_phone}`}
+                      href={`tel:${affiliate?.phone}`}
                       className="text-sm hover:underline"
                     >
-                      {affiliate?.contact_phone}
+                      {affiliate?.phone}
                     </a>
-                  </div>
-                )}
-
-                {affiliate?.city && affiliate?.country && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{`${affiliate?.city}, ${affiliate?.country}`}</span>
                   </div>
                 )}
 
@@ -610,9 +534,7 @@ export default function AffiliateDetailPage() {
                     Default Commission
                   </span>
                   <Badge variant="outline" className="font-normal">
-                    {affiliate?.commission_rate
-                      ? `${affiliate?.commission_rate}%`
-                      : "N/A"}
+                    N/A
                   </Badge>
                 </div>
 
@@ -641,11 +563,12 @@ export default function AffiliateDetailPage() {
                 )}
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium w-full">
                     Affiliate ID
                   </span>
-                  <span className="text-sm font-mono">
-                    {affiliate?.affiliate_id || affiliate?.id || "N/A"}
+                  <span className="text-sm font-mono inline-flex items-center gap-2 truncate max-w-xs">
+                    <span className="truncate">{affiliate?.id || "N/A"}</span>
+                    <Copy className="h-4 w-4 shrink-0 cursor-pointer" onClick={() => navigator.clipboard.writeText(affiliate?.id || "N/A")} />
                   </span>
                 </div>
               </div>
@@ -760,10 +683,17 @@ export default function AffiliateDetailPage() {
         return (
           <ErrorCard
             title="Failed to Load Partnerships"
-            error={vendorPartnerRequestsError}
+            error={{
+              status: vendorPartnerRequestsError?.status?.toString() || "Error",
+              message: vendorPartnerRequestsError?.message || "An unexpected error occurred."
+            }}
             buttonText="Retry"
-            buttonAction={() => fetchVendorPartnerRequests(id as string, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId })}
-            buttonIcon={<RefreshCw className="h-4 w-4 mr-2" />}
+            buttonAction={() => {
+              if (affiliate?.id && tenantId) {
+                fetchVendorPartnerRequests(affiliate.id, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId });
+              }
+            }}
+            buttonIcon={RefreshCw}
           />
         );
       }
@@ -838,45 +768,22 @@ export default function AffiliateDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {affiliate?.verification_documents &&
-            affiliate?.verification_documents.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {affiliate?.verification_documents.map(
-                  (document, index) => (
-                    <VerificationDocumentCard
-                      key={index}
-                      document={{
-                        id:
-                          document.id ||
-                          document.document_id ||
-                          `doc-${index}`,
-                        document_type: document.document_type,
-                        document_url: document.document_url,
-                        status:
-                          document.status || "pending",
-                        file_name: document.file_name,
-                        expires_at: document.expires_at,
-                        rejection_reason: document.rejection_reason,
-                      }}
-                      onPreview={() => handleDocumentPreview(document)}
-                      onVerify={() => handleDocumentVerification(document)}
-                      showVerificationControls={
-                        affiliate?.status === "pending"
-                      }
-                    />
-                  )
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <div className="mb-2">
-                  <FileText className="h-8 w-8 text-muted-foreground mx-auto opacity-20" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  No documents submitted
-                </p>
-              </div>
-            )}
+            <VerificationDocumentManager
+              documents={affiliate?.verification_documents || []}
+              onApprove={async (documentId) => {
+                if (affiliate?.id) {
+                  await updateAffiliateStatus(affiliate.id, { status: "approved", is_active: true }, tenantHeaders);
+                  fetchAffiliate(affiliate.id, tenantHeaders);
+                }
+              }}
+              onReject={async (documentId, reason) => {
+                if (affiliate?.id) {
+                  await updateAffiliateStatus(affiliate.id, { status: "rejected", rejection_reason: reason }, tenantHeaders);
+                  fetchAffiliate(affiliate.id, tenantHeaders);
+                }
+              }}
+              showActions={affiliate?.status === "pending"}
+            />
           </CardContent>
         </Card>
 
@@ -895,7 +802,7 @@ export default function AffiliateDetailPage() {
                 <div className="flex flex-col gap-2">
                   <Button
                     size="sm"
-                    className="bg-green-500 hover:bg-green-600 w-full justify-start"
+                    className="text-green-500 border-green-200 hover:bg-green-50 hover:text-green-600 w-full justify-start"
                     onClick={handleApprove}
                     disabled={isUpdating}
                   >
@@ -914,17 +821,33 @@ export default function AffiliateDetailPage() {
               </div>
             )}
 
-            {affiliate?.status === "approved" && (
+            {affiliate?.status === "approved" && affiliate.is_active && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
-                    onClick={handleReject}
+                    onClick={handleDeactivate}
                     disabled={isUpdating}
                   >
                     <X className="h-4 w-4 mr-2" /> Deactivate Affiliate
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {affiliate?.status === "approved" && !affiliate.is_active && (
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-green-500 border-green-300 hover:bg-green-50 hover:text-green-600 w-full justify-start"
+                    onClick={handleActivate}
+                    disabled={isUpdating}
+                  >
+                    <Power className="h-4 w-4 mr-2" /> Activate Affiliate
                   </Button>
                 </div>
               </div>
@@ -934,12 +857,13 @@ export default function AffiliateDetailPage() {
               <div className="space-y-2">
                 <div className="flex flex-col gap-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="bg-green-500 hover:bg-green-600 w-full justify-start"
+                    className="text-green-500 border-green-300 hover:bg-green-50 hover:text-green-600 w-full justify-start"
                     onClick={handleApprove}
                     disabled={isUpdating}
                   >
-                    <Check className="h-4 w-4 mr-2" /> Reactivate Affiliate
+                    <Check className="h-4 w-4 mr-2" /> Reconsider Affiliate Approval
                   </Button>
                 </div>
               </div>
@@ -954,20 +878,6 @@ export default function AffiliateDetailPage() {
                   onClick={handleEdit}
                 >
                   <Edit className="h-4 w-4 mr-2" /> Edit Affiliate
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={handleRefresh}
-                  disabled={loading || isUpdating}
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 mr-2 ${
-                      loading ? "animate-spin" : ""
-                    }`}
-                  />{" "}
-                  Refresh Data
                 </Button>
               </div>
             </div>

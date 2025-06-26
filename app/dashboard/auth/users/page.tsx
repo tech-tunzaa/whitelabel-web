@@ -3,17 +3,18 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, RotateCcw } from "lucide-react"
 import { useUserStore } from "@/features/auth/stores/user-store"
 import { User } from "@/features/auth/types/user"
 import { UserTable } from "@/features/auth/components/user-table"
-import { UserDetailsDialog } from "@/features/auth/components/user-details-dialog"
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
+import { toast } from "sonner";
 
 export default function UsersPage() {
   const router = useRouter()
@@ -25,13 +26,12 @@ export default function UsersPage() {
     selectedUser,
     selectUser,
     setSearchQuery,
-    setSelectedStatus,
     getFilteredUsers,
     fetchUsers,
     changeUserStatus
   } = useUserStore()
-  
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+
+  const [activeTab, setActiveTab] = useState<string>("all");
   const tenantId = session?.user?.tenant_id;
   
   // Define tenant headers
@@ -39,38 +39,47 @@ export default function UsersPage() {
     "X-Tenant-ID": tenantId,
   };
   
-  // Fetch users on component mount
+  // Fetch users when activeTab changes
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        await fetchUsers(undefined, tenantHeaders)
+        let statusFilter;
+        switch (activeTab) {
+          case "active":
+            statusFilter = { is_active: true };
+            break;
+          case "inactive":
+            statusFilter = { is_active: false };
+            break;
+          default:
+            statusFilter = undefined;
+        }
+        await fetchUsers(statusFilter, tenantHeaders);
       } catch (error) {
         console.error('Failed to load users:', error)
       }
     }
-    
-    loadUsers()
-  }, [fetchUsers])
+    loadUsers();
+  }, [fetchUsers, activeTab])
   
   // Handle search input
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
   }
   
-  // Handle status filter
-  const handleStatusChange = (status: string) => {
-    setSelectedStatus(status as 'all' | 'active' | 'inactive')
+  // Handle tab filter
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
   }
   
   // Handle user selection
   const handleUserClick = (user: User) => {
-    selectUser(user)
-    setIsDetailsOpen(true)
-  }
-  
-  // Handle dialog close
-  const handleCloseDialog = () => {
-    setIsDetailsOpen(false)
+    const userId = user.id || user.user_id
+    if (userId) {
+      router.push(`/dashboard/auth/users/${userId}`)
+    } else {
+      toast.error("Cannot view details for a user without an ID.")
+    }
   }
   
   // Handle user activation/deactivation
@@ -93,9 +102,9 @@ export default function UsersPage() {
   // Navigate to edit user page
   const handleEditUser = (id: string) => {
     router.push(`/dashboard/auth/users/${id}/edit`)
-    setIsDetailsOpen(false)
   }
   
+  // Navigate to add user page
   // Navigate to add user page
   const handleAddUser = () => {
     router.push('/dashboard/auth/users/add')
@@ -103,6 +112,32 @@ export default function UsersPage() {
   
   // Get filtered users
   const filteredUsers = getFilteredUsers()
+
+  const handleRetry = () => {
+    const filter: any = {}
+    if (activeTab === "active") {
+      filter.is_active = true
+    } else if (activeTab === "inactive") {
+      filter.is_active = false
+    }
+    fetchUsers(filter, tenantHeaders)
+  }
+
+  if (loading && users.length === 0) {
+    return <Spinner className="absolute top-1/2 left-1/2" />
+  }
+
+  if (storeError && users.length === 0) {
+    return (
+      <ErrorCard
+        title="Failed to load users"
+        error={storeError ? { message: storeError.message, status: String(storeError.status) } : undefined}
+        buttonText="Retry"
+        buttonAction={handleRetry}
+        buttonIcon={RotateCcw}
+      />
+    )
+  }
   
   return (
     <div className="container py-6 space-y-6">
@@ -130,46 +165,21 @@ export default function UsersPage() {
         />
       </div>
       
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between mx-4">
-        <Tabs defaultValue="all" className="flex-1" onValueChange={handleStatusChange}>
-          <TabsList className="grid w-full grid-cols-3 md:w-auto">
+      <div className="flex flex-col gap-4 mx-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1">
+          <TabsList className="w-full">
             <TabsTrigger value="all">
               All Users
-              <Badge variant="outline" className="ml-2">{users.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="active">
               Active
-              <Badge variant="outline" className="ml-2">
-                {users.filter(user => user.is_active).length}
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="inactive">
               Inactive
-              <Badge variant="outline" className="ml-2">
-                {users.filter(user => !user.is_active).length}
-              </Badge>
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        
-      </div>
-      
-      {loading ? (
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : storeError ? (
-        <div className="text-center py-8 text-destructive">
-          <p>Error loading users: {storeError.message}</p>
-          <Button 
-            variant="outline" 
-            className="mt-2"
-            onClick={() => fetchUsers()}
-          >
-            Retry
-          </Button>
-        </div>
-      ) : (
+
         <UserTable
           users={filteredUsers}
           onUserClick={handleUserClick}
@@ -177,16 +187,7 @@ export default function UsersPage() {
           onDeactivateUser={handleDeactivateUser}
           onEditUser={handleEditUser}
         />
-      )}
-      
-      <UserDetailsDialog
-        user={selectedUser}
-        isOpen={isDetailsOpen}
-        onClose={handleCloseDialog}
-        onActivate={handleActivateUser}
-        onDeactivate={handleDeactivateUser}
-        onEdit={handleEditUser}
-      />
+      </div>
     </div>
   )
 }

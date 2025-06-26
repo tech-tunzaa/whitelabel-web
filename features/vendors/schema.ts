@@ -59,9 +59,9 @@ export const storeSchema = z.object({
   branding: storeBrandingSchema,
   banners: z.array(storeBannerSchema).optional(),
   categories: z.array(z.string()).optional(),
-  general_policy: z.string().optional(),
-  return_policy: z.string().optional(),
-  shipping_policy: z.string().optional(),
+  general_policy: z.string().optional().nullable(),
+  return_policy: z.string().optional().nullable(),
+  shipping_policy: z.string().optional().nullable(),
 });
 
 // Corresponds to User type
@@ -92,7 +92,7 @@ export const vendorFormSchema = z.object({
   address_line2: z.string().optional().nullable(),
   city: z.string().min(1, "City is required"),
   state_province: z.string().min(1, "State/Province is required"),
-  postal_code: z.string().min(1, "Postal code is required"),
+  postal_code: z.string().nullable(),
   country: z.string().min(1, "Country is required"),
   tax_id: z.string().optional().nullable(),
   commission_rate: z.string().optional(),

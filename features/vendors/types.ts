@@ -1,13 +1,13 @@
 // Generic API response type
 export interface ApiResponse<T> {
-  status: number;
-  success: boolean;
-  message?: string;
-  data: T;
-  items?: T[];
-  total?: number;
-  skip?: number;
-  limit?: number;
+    status: number;
+    success: boolean;
+    message?: string;
+    data: T;
+    items?: T[];
+    total?: number;
+    skip?: number;
+    limit?: number;
 }
 
 // From user payload
@@ -125,7 +125,28 @@ export type VendorFormValues = Vendor;
 
 // Error Type
 export type VendorError = {
-  status?: number;
-  message: string;
+    status?: number;
+    message: string;
 };
+
+// Types for store actions and filters
+export type VendorAction = "fetchList" | "fetchOne" | "create" | "update" | "delete" | "updateStatus" | "fetchStore";
+
+export interface VendorFilter {
+    skip?: number;
+    limit?: number;
+    search?: string;
+    is_active?: boolean;
+    verification_status?: string;
+}
+
+export interface VendorListResponse {
+    items: Vendor[];
+    total: number;
+    skip: number;
+    limit: number;
+}
+
+// Ensure VendorApiResponse is defined to match the expected structure from fetchVendors
+export type VendorApiResponse = VendorListResponse;
 

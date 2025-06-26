@@ -65,7 +65,7 @@ export const useUserStore = create<UserStore>()(
     try {
       setActiveAction('fetchOne');
       setLoading(true);
-      const response = await apiClient.get<any>(`/auth/users/${id}`, undefined, headers);
+      const response = await apiClient.get<any>(`/users/${id}`, undefined, headers);
 
       // Handle different response structures
       let userData = null;

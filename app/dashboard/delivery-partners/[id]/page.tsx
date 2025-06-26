@@ -50,6 +50,8 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { DriversTab } from "@/features/delivery-partners/components/DriversTab";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
 
@@ -64,27 +66,11 @@ const MapPicker = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-60 w-full flex items-center justify-center bg-muted rounded-md">
-        <Spinner />
-      </div>
+      <Spinner />
     ),
   }
 );
-import { VerificationDocumentCard } from "@/components/ui/verification-document-card"; // Assuming this path
-import { FilePreviewModal } from "@/components/ui/file-preview-modal"; // Assuming this path
-import { DocumentVerificationDialog } from "@/components/ui/document-verification-dialog"; // Assuming this path
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { DriversTab } from "./DriversTab"; // Import the new DriversTab component
+import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 
 interface DeliveryPartnerPageProps {
   params: {
@@ -301,43 +287,6 @@ export default function DeliveryPartnerPage({
     setIsUpdatingStatus(false);
   };
 
-  const handlePreviewDocument = (doc: KycDocument) => {
-    setPreviewUrl(doc.link);
-    setIsPreviewOpen(true);
-  };
-
-  const handleOpenVerificationModal = (doc: KycDocument) => {
-    setVerificationDoc(doc);
-    setIsVerificationModalOpen(true);
-  };
-
-  const handleDocumentApprove = async (
-    documentId: string,
-    expiryDate?: string
-  ) => {
-    if (!partner || !partner.partner_id || !tenantId || !verificationDoc)
-      return;
-    // TODO: Implement actual document approval logic using a store action
-    // Example: await approveKycDocument(partner.partner_id, verificationDoc.type, documentId, expiryDate, { "X-Tenant-ID": tenantId });
-    toast.info("Document approval action (not implemented yet).");
-    setIsVerificationModalOpen(false);
-    setVerificationDoc(null);
-    // Re-fetch partner data
-    // fetchDeliveryPartnerById(partner.partner_id, { "X-Tenant-ID": tenantId });
-  };
-
-  const handleDocumentReject = async (documentId: string, reason: string) => {
-    if (!partner || !partner.partner_id || !tenantId || !verificationDoc)
-      return;
-    // TODO: Implement actual document rejection logic using a store action
-    // Example: await rejectKycDocument(partner.partner_id, verificationDoc.type, documentId, reason, { "X-Tenant-ID": tenantId });
-    toast.info("Document rejection action (not implemented yet).");
-    setIsVerificationModalOpen(false);
-    setVerificationDoc(null);
-    // Re-fetch partner data
-    // fetchDeliveryPartnerById(partner.partner_id, { "X-Tenant-ID": tenantId });
-  };
-
   const handleDeletePartner = async () => {
     if (!partner || !partner.partner_id || !tenantId) return;
     const toastId = toast.loading("Deleting delivery partner...");
@@ -350,38 +299,6 @@ export default function DeliveryPartnerPage({
       router.push("/dashboard/delivery-partners");
     } catch (err: any) {
       toast.error(err.message || "Failed to delete partner.", { id: toastId });
-    }
-  };
-
-  const getStatusVariant = (
-    status: string | undefined
-  ):
-    | "default"
-    | "outline"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "destructive" => {
-    switch (status) {
-      case "active":
-        return "success";
-      case "pending":
-        return "warning";
-      case "rejected":
-        return "destructive";
-      case "suspended":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
-
-  const formatDate = (dateString: string | undefined | null) => {
-    if (!dateString) return "N/A";
-    try {
-      return format(new Date(dateString), "PPpp"); // Example: Sep 17, 2023, 12:30:00 PM
-    } catch {
-      return "Invalid Date";
     }
   };
 
@@ -577,7 +494,6 @@ export default function DeliveryPartnerPage({
                 </TabsContent>
 
                 <TabsContent value="drivers">
-                  {/* DriversTab is already designed as a Card with Header and Content */}
                   <DriversTab
                     partnerId={partner?.partner_id!}
                     tenantId={tenantId!}
@@ -773,29 +689,12 @@ export default function DeliveryPartnerPage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {partner?.kyc?.documents && partner?.kyc.documents.length > 0 ? (
-                  partner?.kyc.documents.map((doc: KycDocument, index) => (
-                    <VerificationDocumentCard
-                      key={doc.number || `kyc-doc-${index}`}
-                      document={{
-                        document_id: doc.number,
-                        document_type: doc.type,
-                        document_url: doc.link,
-                        verification_status: doc.verified
-                          ? "approved"
-                          : "pending",
-                      }}
-                      onApprove={handleVerifyDocument}
-                      onReject={handleRejectDocument}
-                      showActions={true} // Or false if actions should only be in KYC tab
-                      className="mb-2 last:mb-0"
-                    />
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    No KYC documents submitted.
-                  </p>
-                )}
+                <VerificationDocumentManager
+                  documents={partner?.kyc?.documents || []}
+                  onApprove={handleVerifyDocument}
+                  onReject={handleRejectDocument}
+                  showActions={true}
+                />
               </CardContent>
             </Card>
 
@@ -919,28 +818,6 @@ export default function DeliveryPartnerPage({
           </div>
         </div>
       </div>
-
-      <FilePreviewModal
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        fileUrl={previewUrl}
-      />
-      {verificationDoc && (
-        <DocumentVerificationDialog
-          isOpen={isVerificationModalOpen}
-          onClose={() => {
-            setIsVerificationModalOpen(false);
-            setVerificationDoc(null);
-          }}
-          document={{
-            id: verificationDoc.number,
-            name: verificationDoc.type,
-            url: verificationDoc.link,
-          }}
-          onApprove={handleDocumentApprove}
-          onReject={handleDocumentReject}
-        />
-      )}
     </div>
   );
 }
