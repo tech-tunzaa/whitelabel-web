@@ -147,50 +147,84 @@ const createApiClient = () => {
     (error) => Promise.reject(error)
   );
   
+  let isRefreshing = false;
+  let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
+
+  const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach(prom => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve(token!);
+      }
+    });
+    failedQueue = [];
+  };
+
   // Handle 401 errors and token refresh
   apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
       const { response } = error;
-      
+
       // Handle expired tokens (401 Unauthorized)
       if (response?.status === 401 && !originalRequest._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then(token => {
+              originalRequest.headers['Authorization'] = 'Bearer ' + token;
+              return apiClient(originalRequest);
+            })
+            .catch(err => {
+              return Promise.reject(err);
+            });
+        }
+
         originalRequest._retry = true;
-        
+        isRefreshing = true;
+
         try {
           const refreshToken = getRefreshToken();
           if (!refreshToken) {
+            const noTokenError = new Error('No refresh token available');
+            processQueue(noTokenError, null);
             clearTokens();
-            window.location.href = '/';
-            return Promise.reject(new Error('No refresh token available'));
+            if (typeof window !== 'undefined') window.location.href = '/';
+            return Promise.reject(noTokenError);
           }
-          
-          // Get new tokens
+
           const refreshResponse = await authClient.post('/auth/refresh', {
             refresh_token: refreshToken
           });
-          
+
           const data = refreshResponse.data as any;
           if (data.access_token) {
             setTokens(data.access_token, data.refresh_token);
-            
-            // Retry the original request
+            apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
             originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+            processQueue(null, data.access_token);
             return apiClient(originalRequest);
           }
+          // If refresh response is malformed
+          throw new Error('Invalid token refresh response');
         } catch (refreshError) {
+          processQueue(refreshError, null);
           clearTokens();
-          window.location.href = '/';
+          if (typeof window !== 'undefined') window.location.href = '/';
           return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
         }
       }
-      
+
       // Global error handling
       if (response?.data?.message && response?.status !== 401) {
         toast.error(response.data.message);
       }
-      
+
       return Promise.reject(error);
     }
   );
@@ -211,23 +245,63 @@ const createApiClient = () => {
     }
   );
   
-  // Simple wrapper functions
+  // --- Request Deduplication Logic ---
+  const pendingRequests = new Map<string, Promise<any>>();
+
+  const generateRequestKey = (method: string, url: string, config: AxiosRequestConfig = {}): string => {
+    const { data, params } = config;
+    // A simple but effective way to serialize the request identifying properties.
+    // Sorting keys ensures that {a: 1, b: 2} and {b: 2, a: 1} produce the same key.
+    const sortedData = data && typeof data === 'object' ? JSON.stringify(Object.keys(data).sort().reduce((obj, key) => { (obj as any)[key] = data[key]; return obj; }, {})) : '';
+    const sortedParams = params && typeof params === 'object' ? JSON.stringify(Object.keys(params).sort().reduce((obj, key) => { (obj as any)[key] = params[key]; return obj; }, {})) : '';
+    return `${method.toUpperCase()}:${url}:${sortedData}:${sortedParams}`;
+  };
+
+  const requestWithDeduplication = <T>(
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+    url: string,
+    config: AxiosRequestConfig = {}
+  ) => {
+    const key = generateRequestKey(method, url, config);
+
+    if (pendingRequests.has(key)) {
+      // console.log(`[Deduplication] Found pending request for key: ${key}`);
+      return pendingRequests.get(key)! as Promise<import('axios').AxiosResponse<ApiResponse<T>>>;
+    }
+
+    const promise = apiClient
+      .request<ApiResponse<T>>({
+        method,
+        url,
+        ...config,
+      })
+      .finally(() => {
+        pendingRequests.delete(key);
+      });
+
+    pendingRequests.set(key, promise);
+    return promise;
+  };
+
+  // Simple wrapper functions with deduplication
   return {
-    get: <T>(url: string, params?: any, headers?: Record<string, string>) => {
-      return apiClient.get<ApiResponse<T>>(url, { params, headers });
+    get: <T>(url:string, params?: any, headers?: Record<string, string>) => {
+      return requestWithDeduplication<T>('get', url, { params, headers });
     },
     post: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-      return apiClient.post<ApiResponse<T>>(url, data, { headers });
+      return requestWithDeduplication<T>('post', url, { data, headers });
     },
     put: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-      return apiClient.put<ApiResponse<T>>(url, data, { headers });
+      return requestWithDeduplication<T>('put', url, { data, headers });
     },
     patch: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-      return apiClient.patch<ApiResponse<T>>(url, data, { headers });
+      return requestWithDeduplication<T>('patch', url, { data, headers });
     },
     delete: <T>(url: string, data?: any, headers?: Record<string, string>) => {
-      return apiClient.delete<ApiResponse<T>>(url, { data, headers });
+      return requestWithDeduplication<T>('delete', url, { data, headers });
     },
+
+    
     // Auth specific methods (using authClient)
     auth: {
       login: async (email: string, password: string) => {
