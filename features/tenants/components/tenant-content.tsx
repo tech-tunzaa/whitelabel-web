@@ -132,7 +132,7 @@ export function TenantContent() {
   
   // Show error card ONLY if there's an error AND we've never loaded data successfully
   // This prevents showing timeout errors after data is already displayed
-  if (storeError && !loading && !dataEverLoaded && tenants.length === 0) {
+  if (storeError && !loading && !tenants) {
     return (
       <ErrorCard
         title="Error loading tenants"

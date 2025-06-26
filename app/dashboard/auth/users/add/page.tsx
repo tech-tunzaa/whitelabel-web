@@ -46,7 +46,10 @@ export default function AddUserPage() {
         <Button variant="outline" size="icon" onClick={handleCancel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Add New User</h1>
+        <div className="flex flex-col items-center gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">Create User</h1>
+          <p className="text-foreground">Create a new user</p>
+        </div>
       </div>
       <Separator />
       

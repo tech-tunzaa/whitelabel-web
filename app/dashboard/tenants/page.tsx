@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { TenantContent } from "@/features/tenants/components/tenant-content"
+import { TenantContent } from "@/features/tenants/components/tenant-content";
+import { BillingStatsCards } from "@/features/tenants/components/billing-stats-cards";
 
 export default function TenantsPage() {
   const router = useRouter()
@@ -20,6 +21,8 @@ export default function TenantsPage() {
           Add Tenant
         </Button>
       </div>
+
+      <BillingStatsCards />
 
       <TenantContent />
     </div>

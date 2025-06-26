@@ -99,3 +99,60 @@ export type TenantFilter = {
 };
 
 export type TenantAction = 'fetch' | 'fetchList' | 'create' | 'update' | 'activate' | 'deactivate' | 'toggleModule';
+
+export type BillingConfig = {
+  config_id: string;
+  tenant_id: string;
+  flat_rate_amount: number;
+  currency: string;
+  billing_frequency: 'monthly' | 'annually';
+  billing_email: string;
+  auto_generate_invoices: boolean;
+  email_notifications: boolean;
+  billing_day_of_month: number;
+  payment_due_days: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Invoice = {
+  invoice_id: string;
+  tenant_id: string;
+  config_id: string;
+  invoice_number: string;
+  amount: number;
+  currency: string;
+  status: 'pending_payment' | 'paid' | 'failed' | 'overdue';
+  issue_date: string;
+  due_date: string;
+  paid_date: string | null;
+  billing_period_start: string;
+  billing_period_end: string;
+  description: string;
+  notes: string | null;
+  email_sent: boolean;
+  email_sent_at: string | null;
+  payment_reference: string | null;
+  payment_method: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvoiceListResponse = {
+  items: Invoice[];
+  total: number;
+  skip: number;
+  limit: number;
+};
+
+export type BillingDashboardMetrics = {
+  total_tenants: number;
+  active_billing_configs: number;
+  pending_invoices: number;
+  overdue_invoices: number;
+  total_pending_amount: number;
+  total_overdue_amount: number;
+  monthly_revenue: number;
+  currency: string;
+};

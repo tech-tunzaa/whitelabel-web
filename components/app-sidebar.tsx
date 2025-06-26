@@ -7,8 +7,6 @@ import {
   IconBell,
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents";
-import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -169,7 +167,6 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
-
       </SidebarFooter>
     </Sidebar>
   );
