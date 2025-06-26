@@ -47,6 +47,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { useRouter } from "next/navigation";
 
 interface AffiliateTableProps {
   affiliates: Affiliate[];
@@ -70,6 +71,8 @@ export function AffiliateTable({
   const [rejectAffiliateId, setRejectAffiliateId] = useState<string | null>(null);
   const [rejectionType, setRejectionType] = useState("incomplete_information"); // Default rejection type
   const [customReason, setCustomReason] = useState("");
+  const router = useRouter();
+  const [actionBeingProcessed, setActionBeingProcessed] = useState<string | null>(null);
 
   const handleLocalStatusChange = async (
     affiliateId: string | undefined,
@@ -223,44 +226,44 @@ export function AffiliateTable({
                         <DropdownMenuItem onClick={() => onAffiliateClick(affiliate)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/edit/${affiliate.id}`)}>
-                           {/* Ensure edit route is correct, might need affiliate.user_id or affiliate.id */}
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/${affiliate.user_id}/edit`)}>
+                           {/* Ensure edit route is correct, might need affiliate.user_id or affiliate.user_id */}
                           <FileEdit className="mr-2 h-4 w-4" /> Edit Affiliate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {affiliate.status === "pending" && (
-                          <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
-                            disabled={processingId === affiliate.id}
-                          >
-                            {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
-                              <Spinner size="sm" className="mr-2 h-4 w-4" />
-                            ) : (
-                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                            )}
-                            Approve
-                          </DropdownMenuItem>
-                        )}
-                        {affiliate.status !== "rejected" && (
-                          <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
-                            disabled={processingId === affiliate.id}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          >
-                            {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
-                              <Spinner size="sm" className="mr-2 h-4 w-4" />
-                            ) : (
-                              <XCircle className="mr-2 h-4 w-4" />
-                            )}
-                            Reject
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => handleLocalStatusChange(affiliate.user_id, 'approve')}
+                              disabled={processingId === affiliate.user_id}
+                            >
+                              {processingId === affiliate.user_id && actionBeingProcessed === 'approve' ? (
+                                <Spinner size="sm" className="mr-2 h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                              )}
+                              Approve
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleLocalStatusChange(affiliate.user_id, 'reject')}
+                              disabled={processingId === affiliate.user_id}
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            >
+                              {processingId === affiliate.user_id && actionBeingProcessed === 'reject' ? (
+                                <Spinner size="sm" className="mr-2 h-4 w-4" />
+                              ) : (
+                                <XCircle className="mr-2 h-4 w-4" />
+                              )}
+                              Reject
+                            </DropdownMenuItem>
+                          </>
                         )}
                         {affiliate.status === "approved" && affiliate.is_active && (
                           <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'deactivate')}
-                            disabled={processingId === affiliate.id}
+                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'deactivate')}
+                            disabled={processingId === affiliate.user_id}
                           >
-                            {processingId === affiliate.id && actionBeingProcessed === 'deactivate' ? (
+                            {processingId === affiliate.user_id && actionBeingProcessed === 'deactivate' ? (
                               <Spinner size="sm" className="mr-2 h-4 w-4" />
                             ) : (
                               <PowerOff className="mr-2 h-4 w-4" />
@@ -270,10 +273,10 @@ export function AffiliateTable({
                         )}
                         {affiliate.status === "approved" && !affiliate.is_active && (
                           <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'activate')}
-                            disabled={processingId === affiliate.id}
+                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'activate')}
+                            disabled={processingId === affiliate.user_id}
                           >
-                            {processingId === affiliate.id && actionBeingProcessed === 'activate' ? (
+                            {processingId === affiliate.user_id && actionBeingProcessed === 'activate' ? (
                               <Spinner size="sm" className="mr-2 h-4 w-4" />
                             ) : (
                               <Power className="mr-2 h-4 w-4 text-green-500" />

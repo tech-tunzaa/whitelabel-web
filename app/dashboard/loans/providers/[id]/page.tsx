@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-import { VerificationDocumentCard } from "@/components/ui/verification-document-card";
+import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 
 import { useLoanProviderStore } from "@/features/loans/providers/store";
 import { useLoanProductStore } from "@/features/loans/products/store";
@@ -611,33 +611,12 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {provider.verification_documents && provider.verification_documents.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-4">
-                    {provider.verification_documents.map((doc, index) => (
-                      <VerificationDocumentCard
-                        key={doc.document_id || index}
-                        document={doc}
-                        onApprove={handleDocumentApprove}
-                        onReject={handleDocumentReject}
-                        showActions={doc.verification_status !== "approved"}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center">
-                    <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                    <p className="text-sm text-muted-foreground">No documents uploaded</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-4"
-                      onClick={() => router.push(`/dashboard/loans/providers/${providerId}/edit`)}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Documents
-                    </Button>
-                  </div>
-                )}
+                <VerificationDocumentManager
+                  documents={provider?.verification_documents || []}
+                  onApprove={handleDocumentApprove}
+                  onReject={handleDocumentReject}
+                  showActions={true}
+                />
               </CardContent>
             </Card>
             

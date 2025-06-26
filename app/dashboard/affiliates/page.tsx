@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,53 +39,32 @@ export default function AffiliatesPage() {
 
   const tenantHeaders = tenantId ? { 'X-Tenant-ID': tenantId } : {};
 
-  const getFilters = (): AffiliateFilter => {
-    const baseFilter: AffiliateFilter = {
+  useEffect(() => {
+    const baseFilter: any = {
       skip: (currentPage - 1) * pageSize,
       limit: pageSize,
     };
-
     if (searchQuery) {
       baseFilter.search = searchQuery;
     }
-
+    let filters = baseFilter;
     switch (activeTab) {
       case "pending":
-        return { ...baseFilter, status: "pending" };
-      case "approved": // Assuming 'approved' means verified and active by default
-        return { ...baseFilter, status: "approved", is_active: true };
+        filters = { ...baseFilter, status: "pending" };
+        break;
+      case "approved":
+        filters = { ...baseFilter, status: "approved", is_active: true };
+        break;
       case "rejected":
-        return { ...baseFilter, status: "rejected" };
-      // Add cases for 'active' and 'inactive' if those tabs are added
-      // case "active":
-      //   return { ...baseFilter, status: "approved", is_active: true };
-      // case "inactive":
-      //   return { ...baseFilter, status: "approved", is_active: false };
-      default: // "all"
-        return baseFilter;
+        filters = { ...baseFilter, status: "rejected" };
+        break;
+      default:
+        filters = baseFilter;
     }
-  };
-
-  useEffect(() => {
-    const loadAffiliates = async () => {
-      if (!tenantId) {
-        // console.warn("Tenant ID not available yet, skipping fetch.");
-        return; // Or handle appropriately, maybe show a message
-      }
-      setIsTabLoading(true);
-      try {
-        const filters = getFilters();
-        await fetchAffiliates(filters, tenantHeaders);
-      } catch (err) {
-        console.error("Error fetching affiliates:", err);
-        // Error is already set in the store by fetchAffiliates
-      } finally {
-        setIsTabLoading(false);
-      }
-    };
-
-    loadAffiliates();
-  }, [fetchAffiliates, activeTab, currentPage, searchQuery, tenantId]); // Added tenantId dependency
+    if (tenantId) {
+      fetchAffiliates(filters, { 'X-Tenant-ID': tenantId });
+    }
+  }, [currentPage, pageSize, searchQuery, activeTab, tenantId, fetchAffiliates]);
 
   const handleAffiliateClick = (affiliate: Affiliate) => {
     router.push(`/dashboard/affiliates/${affiliate.user_id}`);
@@ -97,32 +77,34 @@ export default function AffiliatesPage() {
   ) => {
     if (!tenantId) {
       console.error("Tenant ID is missing, cannot update status.");
-      // Optionally, show a toast notification to the user
+      toast.error("Tenant ID is missing, cannot update status.");
       return;
     }
     try {
-      let statusData: Parameters<typeof updateAffiliateStatus>[1] = {};
+      let statusData: any = {};
       switch (action) {
         case 'approve':
-          statusData = { verification_status: 'approved', is_active: true }; // Approve and activate
+          statusData = { status: 'approved', is_active: true };
           break;
         case 'reject':
-          statusData = { verification_status: 'rejected', rejection_reason };
+          statusData = { status: 'rejected', rejection_reason: rejectionReason };
           break;
         case 'activate':
           statusData = { is_active: true };
           break;
         case 'deactivate':
-          statusData = { is_active: false };
+          statusData = { is_active: false, status: 'inactive' };
           break;
       }
-      await updateAffiliateStatus(affiliateId, statusData, tenantHeaders);
-      // Data will be re-fetched by the useEffect due to store update, or explicitly call fetchAffiliates:
-      // const filters = getFilters();
-      // await fetchAffiliates(filters, tenantHeaders);
+      const result = await updateAffiliateStatus(affiliateId, statusData, { 'X-Tenant-ID': tenantId });
+      if (result) {
+        toast.success(`Affiliate ${action}d successfully`);
+      } else {
+        toast.error(`Failed to ${action} affiliate`);
+      }
     } catch (error) {
       console.error("Failed to update affiliate status:", error);
-      // Error is typically handled and set in the store method
+      toast.error(`Failed to ${action} affiliate`);
     }
   };
 
@@ -158,7 +140,7 @@ export default function AffiliatesPage() {
           </Button>
         </div>
         <div className="flex items-center justify-center flex-grow">
-          <Spinner size="lg" />
+          <Spinner />
         </div>
       </div>
     );
@@ -184,7 +166,32 @@ export default function AffiliatesPage() {
               message: storeError.message || "An unexpected error occurred."
             }}
             buttonText="Retry"
-            buttonAction={() => fetchAffiliates(getFilters(), tenantHeaders)}
+            buttonAction={() => {
+              if (tenantId) {
+                const baseFilter: any = {
+                  skip: (currentPage - 1) * pageSize,
+                  limit: pageSize,
+                };
+                if (searchQuery) {
+                  baseFilter.search = searchQuery;
+                }
+                let filters = baseFilter;
+                switch (activeTab) {
+                  case "pending":
+                    filters = { ...baseFilter, status: "pending" };
+                    break;
+                  case "approved":
+                    filters = { ...baseFilter, status: "approved", is_active: true };
+                    break;
+                  case "rejected":
+                    filters = { ...baseFilter, status: "rejected" };
+                    break;
+                  default:
+                    filters = baseFilter;
+                }
+                fetchAffiliates(filters, { 'X-Tenant-ID': tenantId });
+              }
+            }}
             buttonIcon={RefreshCw}
           />
         </div>
@@ -234,7 +241,7 @@ export default function AffiliatesPage() {
           
           {isTabLoading || (loading && affiliates.length === 0) ? (
             <div className="flex items-center justify-center flex-grow py-10">
-              <Spinner size="lg" />
+              <Spinner />
             </div>
           ) : storeError && affiliates.length === 0 ? (
              <ErrorCard
@@ -244,7 +251,32 @@ export default function AffiliatesPage() {
                   message: storeError.message || "An unexpected error occurred."
                 }}
                 buttonText="Retry"
-                buttonAction={() => fetchAffiliates(getFilters(), tenantHeaders)}
+                buttonAction={() => {
+                  if (tenantId) {
+                    const baseFilter: any = {
+                      skip: (currentPage - 1) * pageSize,
+                      limit: pageSize,
+                    };
+                    if (searchQuery) {
+                      baseFilter.search = searchQuery;
+                    }
+                    let filters = baseFilter;
+                    switch (activeTab) {
+                      case "pending":
+                        filters = { ...baseFilter, status: "pending" };
+                        break;
+                      case "approved":
+                        filters = { ...baseFilter, status: "approved", is_active: true };
+                        break;
+                      case "rejected":
+                        filters = { ...baseFilter, status: "rejected" };
+                        break;
+                      default:
+                        filters = baseFilter;
+                    }
+                    fetchAffiliates(filters, { 'X-Tenant-ID': tenantId });
+                  }
+                }}
                 buttonIcon={RefreshCw}
               />
           ) : (

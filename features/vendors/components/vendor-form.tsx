@@ -66,7 +66,8 @@ import { useVendorStore } from "../store";
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { vendorFormSchema } from "../schema";
 import { cn } from "@/lib/utils";
-import StoreFormCard from "./store-form";
+import VendorStoreForm from "./vendor-store-fields";
+import { BankingInfoFields } from "@/components/ui/banking-info-fields";
 
 // Default values for the form, providing a clean slate for new vendors.
 const defaultValues: Partial<VendorFormValues> = {
@@ -179,6 +180,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
   const tabFlow = [
     "business",
+    "store",
     "address",
     "banking",
     "documents",
@@ -335,15 +337,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
   };
 
   const {
-    fields: bannerFields,
-    append: appendBanner,
-    remove: removeBanner,
-  } = useFieldArray({
-    control: form.control,
-    name: "stores.0.banners",
-  });
-
-  const {
     fields: documentFields,
     append: appendDocument,
     remove: removeDocument,
@@ -446,9 +439,12 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                   className="mt-2"
                   onValueChange={(value) => setActiveTab(value)}
                 >
-                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+                  <TabsList className="w-full">
                     <TabsTrigger value="business" className="text-center">
                       Business
+                    </TabsTrigger>
+                    <TabsTrigger value="store" className="text-center">
+                      Store
                     </TabsTrigger>
                     <TabsTrigger value="address" className="text-center">
                       Address
@@ -466,6 +462,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
                   <div className="mt-6">
                     <BusinessTab />
+                    <StoreTab />
                     <AddressTab />
                     <BankingTab />
                     <DocumentsTab />
@@ -519,21 +516,10 @@ export const VendorForm: React.FC<VendorFormProps> = ({
           </Form>
         </CardContent>
       </Card>
-
-      {/* StoreFormCard: Standalone card for editing store info */}
-      {initialData?.stores?.[0] && (
-        <StoreFormCard
-          store={initialData.stores[0]}
-          storeId={
-            initialData.stores[0].store_id ||
-            "4f9ad523-09bf-4053-8330-7c1ddf15f0ee"
-          }
-        />
-      )}
     </div>
   );
 
-  // Business Tab Component with first_name and last_name fields
+  // Business Tab Component
   function BusinessTab() {
     return (
       <TabsContent value="business" className="space-y-6 mt-4">
@@ -733,6 +719,27 @@ export const VendorForm: React.FC<VendorFormProps> = ({
               )}
             />
           </div>
+        </div>
+      </TabsContent>
+    );
+  }
+
+  // Store Tab Componnent
+  function StoreTab() {
+    return (
+      <TabsContent value="store" className="space-y-6 mt-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Store Information</h3>
+          <p className="text-sm text-muted-foreground">
+            Provide details about your online store.
+          </p>
+        </div>
+        <div className="space-y-4">
+          <VendorStoreForm
+            control={form.control}
+            fieldPrefix="stores.0"
+            categories={categories}
+          />
         </div>
       </TabsContent>
     );
@@ -950,98 +957,13 @@ export const VendorForm: React.FC<VendorFormProps> = ({
     return (
       <TabsContent value="banking" className="space-y-6 pt-4">
         <div className="space-y-4">
-          <h3 className="text-xl font-medium">Banking Information</h3>
+          <h3 className="text-lg font-medium">Banking Information</h3>
           <p className="text-sm text-muted-foreground">
             Provide your business banking details for payments.
           </p>
         </div>
-
         <div className="space-y-4">
-          {/* Bank Information */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="bank_account.bank_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Bank Name <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="CRDB Bank" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="bank_account.account_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Account Name <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Business name on the account"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="bank_account.account_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Account Number <RequiredField />
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="12345678901" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="bank_account.branch_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Branch Code</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="123" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="bank_account.swift_bic"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SWIFT/BIC Code</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="EXAMPLECODE" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <BankingInfoFields form={form} fieldPrefix="bank_account" />
         </div>
       </TabsContent>
     );
@@ -1321,24 +1243,24 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                     <dt className="font-medium text-muted-foreground">
                       Store Name
                     </dt>
-                    <dd>{reviewValues.store?.store_name || "-"}</dd>
+                    <dd>{reviewValues.stores?.[0]?.store_name || "-"}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Store Slug
                     </dt>
-                    <dd>{reviewValues.store?.store_slug || "-"}</dd>
+                    <dd>{reviewValues.stores?.[0]?.store_slug || "-"}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">
                       Description
                     </dt>
-                    <dd>{reviewValues.store?.description || "Not provided"}</dd>
+                    <dd>{reviewValues.stores?.[0]?.description || "Not provided"}</dd>
                   </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">Logo</dt>
                     <dd>
-                      {reviewValues.store?.logo_url
+                      {reviewValues.stores?.[0]?.branding?.logo_url
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
@@ -1348,10 +1270,13 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       Categories
                     </dt>
                     <dd>
-                      {reviewValues.store?.categories &&
-                      reviewValues.store.categories.length > 0
-                        ? reviewValues.store.categories
-                            .map((cat: any) => cat.label || cat.name)
+                      {reviewValues.stores?.[0]?.categories &&
+                      reviewValues.stores?.[0].categories.length > 0
+                        ? reviewValues.stores?.[0].categories
+                            .map((catId: string) => {
+                              const category = categories.find(c => c.category_id === catId);
+                              return category?.name || catId;
+                            })
                             .join(", ")
                         : "None selected"}
                     </dd>
@@ -1370,7 +1295,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       Return Policy
                     </dt>
                     <dd>
-                      {reviewValues.store?.return_policy
+                      {reviewValues.stores?.[0]?.return_policy
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
@@ -1380,7 +1305,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       Shipping Policy
                     </dt>
                     <dd>
-                      {reviewValues.store?.shipping_policy
+                      {reviewValues.stores?.[0]?.shipping_policy
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>
@@ -1390,7 +1315,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       Terms & Conditions
                     </dt>
                     <dd>
-                      {reviewValues.store?.general_policy
+                      {reviewValues.stores?.[0]?.general_policy
                         ? "Uploaded"
                         : "Not uploaded"}
                     </dd>

@@ -10,7 +10,7 @@ export const documentSchema = z.object({
   document_url: z.string().url().optional(), // Present for existing documents
   file_name: z.string().optional(), // Present for existing documents, or derived from File object
   file: z.instanceof(File).optional(), // For new uploads
-  expires_at: z.date().optional().nullable(),
+  expires_at: z.string().optional().nullable(),
   verification_status: z.string().optional(),
   rejection_reason: z.string().optional(),
   submitted_at: z.date().optional(),
