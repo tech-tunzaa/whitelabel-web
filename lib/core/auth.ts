@@ -64,19 +64,22 @@ export function mapApiRole(apiRole: string): "super" | "admin" | "sub_admin" | "
  * Extracts the role from the user data
  */
 export function extractUserRole(user: AuthUser): string {
-  if (user.active_profile_role) {
-    return user.active_profile_role;
+  // Per user request, the 'roles' array is the single source of truth.
+  // 'active_profile_role' and 'profiles' are ignored.
+  
+  // The 'super' role has the highest priority.
+  if (user.roles?.some(r => r.role === 'super')) {
+    return 'super';
   }
   
-  if (user.profiles && user.profiles.length > 0) {
-    return user.profiles[0].role;
-  }
-  
+  // If not 'super', and other roles exist, return the first one from the list.
+  // The order of roles in the API response now determines the fallback role.
   if (user.roles && user.roles.length > 0) {
     return user.roles[0].role;
   }
   
-  return 'admin'; // Default role
+  // Default fallback if no roles are assigned at all.
+  return 'admin';
 }
 
 /**
