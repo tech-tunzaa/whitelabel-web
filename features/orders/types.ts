@@ -76,12 +76,16 @@ export interface Address {
 }
 
 export interface PaymentDetails {
-  method: PaymentMethod;
+  payment_id: string;
+  method: PaymentMethod | string;
+  status: PaymentStatus;
   amount: number;
   currency: string;
-  payment_gateway?: string;
   transaction_id?: string;
+  payment_gateway?: string;
+  paid_at: string | null;
   notes?: string;
+  metadata?: Record<string, any> | null;
 }
 
 export interface PickupPoint {
@@ -106,12 +110,37 @@ export interface DeliveryDetails {
   tenant_id: string;
 }
 
+export interface Store {
+  store_id: string;
+  tenant_id: string;
+  vendor_id: string;
+  store_name: string;
+  store_slug: string;
+  description: string;
+}
+
+export interface Category {
+  category_id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  description: string;
+  parent_id: string | null;
+  image_url: string;
+  is_active: boolean;
+  is_featured: boolean;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OrderItem {
   item_id: string;
   product_id: string;
-  variant_id: string | null;
+  variant_id?: string | null;
   vendor_id: string;
   store_id: string;
+  store?: Store;
   name: string;
   sku: string;
   quantity: number;
@@ -120,16 +149,27 @@ export interface OrderItem {
   discount: number;
   tax: number;
   total: number;
-  commission_rate: string;
-  refunded_quantity: number;
-  refunded_amount: number;
+  commission_rate?: string;
+  refunded_quantity?: number;
+  refunded_amount?: number;
+  categories?: Category[];
+  metadata?: Record<string, any> | null;
 }
 
 export interface OrderTotals {
   subtotal: number;
   discount: number;
   tax: number;
+  shipping: number;
   total: number;
+}
+
+export interface RefundItem {
+  item_id: string;
+  product_id: string;
+  variant_id: string | null;
+  quantity: number;
+  amount: number;
 }
 
 export interface Refund {
@@ -137,13 +177,62 @@ export interface Refund {
   amount: number;
   reason: string;
   status: RefundStatus;
-  items: any[]; // Define specific type if needed
+  items: RefundItem[];
   issued_by: string;
+  transaction_id: string | null;
   created_at: string;
+  processed_at: string | null;
+  notes: string | null;
+}
+
+export interface VendorResponse {
+  status: 'pending' | 'accepted' | 'rejected';
+  responded_at: string | null;
+  notes: string | null;
+}
+
+export interface CustomerData {
+  customer_id: number;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  address: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Installment {
+  installment_id: number;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Plan {
+  plan_id: string;
+  tenant_id: string;
+  order_id: string;
+  customer_data: CustomerData;
+  name: string;
+  description: string;
+  total_amount: number;
+  paid_amount: number;
+  remaining_balance: number;
+  payment_frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  start_date: string;
+  end_date: string;
+  custom_interval?: number;
+  status: 'pending' | 'active' | 'completed' | 'cancelled' | 'defaulted';
+  installments: Installment[];
+  created_at: string;
+  updated_at: string;
+  metadata: Record<string, any>;
 }
 
 export interface Order {
-  _id: string;
   order_id: string;
   order_number: string;
   tenant_id: string;
@@ -153,15 +242,20 @@ export interface Order {
   totals: OrderTotals;
   currency: string;
   discount_code: string | null;
+  vendor_responses: Record<string, VendorResponse>;
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_details: PaymentDetails;
-  delivery_details?: DeliveryDetails;
   refunds: Refund[];
   created_at: string;
   updated_at: string;
-  notes?: string;
-  cancelled_at?: string;
+  paid_at: string | null;
+  fulfilled_at: string | null;
+  cancelled_at: string | null;
+  plan?: Plan;
+  notes: string;
+  metadata: Record<string, any>;
+  delivery_details?: DeliveryDetails;
 }
 
 export interface OrderListResponse {
@@ -226,6 +320,22 @@ export interface DeliveryStage {
     lat: number;
     lng: number;
   };
+}
+
+export interface Transaction {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  transaction_id: string;
+  reference: string;
+  amount: number;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  payment_date: string;
+  raw_request: Record<string, any>;
+  raw_response: Record<string, any>;
+  type: 'payment' | 'refund' | 'payout';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PickupPoint {

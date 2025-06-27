@@ -10,6 +10,7 @@ import {
   ApiResponse,
   DeliveryDetails,
   AssignDeliveryPayload,
+  Transaction,
 } from "./types";
 
 // Helper to safely unwrap API responses, handling multiple formats.
@@ -30,6 +31,7 @@ const unwrapApiResponse = <T>(response: any): T | null => {
 interface OrderStore {
   orders: OrderListResponse | null;
   order: Order | null;
+  transaction: Transaction | null;
   deliveryDetails: DeliveryDetails | null;
   loading: boolean;
   storeError: OrderError | null;
@@ -40,10 +42,16 @@ interface OrderStore {
   setLoading: (loading: boolean) => void;
   setStoreError: (error: OrderError | null) => void;
   setOrder: (order: Order | null) => void;
+  setTransaction: (transaction: Transaction | null) => void;
   setDeliveryDetails: (details: DeliveryDetails | null) => void;
   setOrders: (orders: OrderListResponse | null) => void;
+  clearStore: () => void;
 
   // Order API methods
+  fetchTransactionDetails: (
+    transactionId: string,
+    headers?: Record<string, string>
+  ) => Promise<Transaction | null>;
   fetchOrder: (id: string, headers?: Record<string, string>) => Promise<Order | null>;
   fetchOrderDeliveryDetails: (
     orderId: string,
@@ -75,6 +83,7 @@ interface OrderStore {
 export const useOrderStore = create<OrderStore>()((set, get) => ({
   orders: null,
   order: null,
+  transaction: null,
   deliveryDetails: null,
   loading: false,
   storeError: null,
@@ -85,8 +94,19 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setStoreError: (error) => set({ storeError: error }),
   setOrder: (order) => set({ order }),
+  setTransaction: (transaction) => set({ transaction }),
   setDeliveryDetails: (details) => set({ deliveryDetails: details }),
   setOrders: (orders) => set({ orders }),
+
+  clearStore: () =>
+    set({
+      order: null,
+      transaction: null,
+      deliveryDetails: null,
+      storeError: null,
+      loading: false,
+      activeAction: null,
+    }),
 
   // API Methods
   fetchOrders: async (
@@ -355,6 +375,34 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
     } catch (error: any) {
       console.error("Error assigning delivery partner:", error);
       throw error;
+    }
+  },
+
+  fetchTransactionDetails: async (transactionId, headers) => {
+    const { setLoading, setStoreError, setTransaction } = get();
+    try {
+      setLoading(true);
+      const response = await apiClient.get<ApiResponse<Transaction>>(
+        `/payments/${transactionId}`,
+        undefined,
+        headers
+      );
+      const transactionData = unwrapApiResponse<Transaction>(response);
+      if (transactionData) {
+        setTransaction(transactionData);
+        return transactionData;
+      }
+      return null;
+    } catch (error: any) {
+      console.error("Error fetching transaction details:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error.message ||
+        "Failed to fetch transaction details";
+      setStoreError({ message: errorMessage, status: error?.response?.status });
+      throw error;
+    } finally {
+      setLoading(false);
     }
   },
 

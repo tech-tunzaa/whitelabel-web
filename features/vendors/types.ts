@@ -4,10 +4,6 @@ export interface ApiResponse<T> {
     success: boolean;
     message?: string;
     data: T;
-    items?: T[];
-    total?: number;
-    skip?: number;
-    limit?: number;
 }
 
 // From user payload
