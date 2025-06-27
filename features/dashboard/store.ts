@@ -10,12 +10,14 @@ import {
     WeeklyGmvPerformanceData,
     MonthlyGmvPerformanceData,
     AverageOrderValueData,
+    NewVsReturningBuyersData,
+    CartAbandonmentRateData,
     ApiResponse,
 } from './types';
 
 interface DashboardState {
     // Data States
-    gmvData: GmvData[];
+    gmvData: GmvData | null;
     activeUsersData: ActiveUsersData | null;
     orderStatusDistributionData: OrderStatusDistributionData[];
     paymentSuccessRate: PaymentSuccessRateData[];
@@ -24,6 +26,8 @@ interface DashboardState {
     weeklyGmvPerformance: WeeklyGmvPerformanceData[];
     monthlyGmvPerformance: MonthlyGmvPerformanceData[];
     averageOrderValue: AverageOrderValueData[];
+    newVsReturningBuyers: NewVsReturningBuyersData[];
+    cartAbandonmentRate: CartAbandonmentRateData[];
 
     // Loading States
     loadingGmvData: boolean;
@@ -35,6 +39,8 @@ interface DashboardState {
     loadingWeeklyGmvPerformance: boolean;
     loadingMonthlyGmvPerformance: boolean;
     loadingAverageOrderValue: boolean;
+    loadingNewVsReturningBuyers: boolean;
+    loadingCartAbandonmentRate: boolean;
     
     error: string | null;
 
@@ -48,6 +54,8 @@ interface DashboardState {
     fetchWeeklyGmvPerformance: (tenantId: string) => Promise<void>;
     fetchMonthlyGmvPerformance: (tenantId: string) => Promise<void>;
     fetchAverageOrderValue: (tenantId: string) => Promise<void>;
+    fetchNewVsReturningBuyers: (tenantId: string) => Promise<void>;
+    fetchCartAbandonmentRate: (tenantId: string) => Promise<void>;
     fetchAllReports: (tenantId: string) => void;
 }
 
@@ -60,7 +68,7 @@ const createReportFetcher = <T>(set: any, endpoint: string, dataKey: keyof Dashb
 
         let dataToSet: T | null = null;
         if (response.data && response.data.data) {
-            if (dataKey === 'activeUsersData' && Array.isArray(response.data.data)) {
+            if ((dataKey === 'activeUsersData' || dataKey === 'gmvData') && Array.isArray(response.data.data)) {
                 dataToSet = (response.data.data[0] || null) as T;
             } else {
                 dataToSet = response.data.data as T;
@@ -70,7 +78,7 @@ const createReportFetcher = <T>(set: any, endpoint: string, dataKey: keyof Dashb
         const arrayKeys: (keyof DashboardState)[] = [
             'gmvData', 'orderStatusDistributionData', 'paymentSuccessRate',
             'topPerformingProducts', 'dailyGmvPerformance', 'weeklyGmvPerformance',
-            'monthlyGmvPerformance', 'averageOrderValue'
+            'monthlyGmvPerformance', 'averageOrderValue', 'newVsReturningBuyers', 'cartAbandonmentRate'
         ];
 
         if (arrayKeys.includes(dataKey) && !dataToSet) {
@@ -79,6 +87,10 @@ const createReportFetcher = <T>(set: any, endpoint: string, dataKey: keyof Dashb
 
         set({ [dataKey]: dataToSet, [loadingKey]: false });
     } catch (error: any) {
+        if (endpoint === 'gmv/tenant' || endpoint === 'active-users') {
+            console.log(`[Dashboard Store] Response for ${endpoint}:`, response.data.data);
+        }
+
         console.error(`Failed to fetch ${String(dataKey)}:`, error);
         set({ error: error.message || `Failed to fetch ${String(dataKey)}`, [loadingKey]: false });
     }
@@ -87,7 +99,7 @@ const createReportFetcher = <T>(set: any, endpoint: string, dataKey: keyof Dashb
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
     // Initial Data State
-    gmvData: [],
+    gmvData: null,
     activeUsersData: null,
     orderStatusDistributionData: [],
     paymentSuccessRate: [],
@@ -96,6 +108,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     weeklyGmvPerformance: [],
     monthlyGmvPerformance: [],
     averageOrderValue: [],
+    newVsReturningBuyers: [],
+    cartAbandonmentRate: [],
     
     // Initial Loading State
     loadingGmvData: false,
@@ -107,6 +121,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     loadingWeeklyGmvPerformance: false,
     loadingMonthlyGmvPerformance: false,
     loadingAverageOrderValue: false,
+    loadingNewVsReturningBuyers: false,
+    loadingCartAbandonmentRate: false,
     
     error: null,
 
@@ -120,6 +136,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     fetchWeeklyGmvPerformance: createReportFetcher(set, 'weekly-gmv-performance', 'weeklyGmvPerformance', 'loadingWeeklyGmvPerformance'),
     fetchMonthlyGmvPerformance: createReportFetcher(set, 'monthly-gmv-performance', 'monthlyGmvPerformance', 'loadingMonthlyGmvPerformance'),
     fetchAverageOrderValue: createReportFetcher(set, 'average-order-value', 'averageOrderValue', 'loadingAverageOrderValue'),
+    fetchNewVsReturningBuyers: createReportFetcher(set, 'new-vs-returning-buyers-ratio', 'newVsReturningBuyers', 'loadingNewVsReturningBuyers'),
+    fetchCartAbandonmentRate: createReportFetcher(set, 'cart-abandonment-rate', 'cartAbandonmentRate', 'loadingCartAbandonmentRate'),
 
     // Function to fetch all reports
     fetchAllReports: (tenantId: string) => {
@@ -133,5 +151,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         state.fetchWeeklyGmvPerformance(tenantId);
         state.fetchMonthlyGmvPerformance(tenantId);
         state.fetchAverageOrderValue(tenantId);
+        state.fetchNewVsReturningBuyers(tenantId);
+        state.fetchCartAbandonmentRate(tenantId);
     },
 }));

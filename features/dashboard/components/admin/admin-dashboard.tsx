@@ -12,6 +12,8 @@ import { TopPerformingProductsTable } from './top-performing-products-table';
 import { OrderStatusPieChart } from './order-status-pie-chart';
 import { PaymentSuccessRatePieChart } from './payment-success-rate-pie-chart';
 import { GmvPerformanceChart } from './gmv-performance-chart';
+import { NewVsReturningBuyersChart } from './new-vs-returning-buyers-chart';
+import { CartAbandonmentRateChart } from './cart-abandonment-rate-chart';
 
 export function AdminDashboard() {
   const { data: session } = useSession();
@@ -28,9 +30,11 @@ export function AdminDashboard() {
     state.loadingDailyGmvPerformance ||
     state.loadingWeeklyGmvPerformance ||
     state.loadingMonthlyGmvPerformance ||
-    state.loadingAverageOrderValue
+    state.loadingAverageOrderValue ||
+    state.loadingNewVsReturningBuyers ||
+    state.loadingCartAbandonmentRate
   );
-  const hasData = useDashboardStore((state) => state.gmvData.length > 0);
+  const hasData = useDashboardStore((state) => !!state.gmvData);
 
   useEffect(() => {
     if (tenantId) {
@@ -67,20 +71,29 @@ export function AdminDashboard() {
         <div className="p-4 pt-0 space-y-6">
           <DashboardStatCards />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-7">
+              <div className="lg:col-span-5">
                   <GmvPerformanceChart />
               </div>
-              <div className="lg:col-span-2">
-                  <TopPerformingProductsTable />
+              <div className="lg:col-span-2 flex flex-col">
+                  <OrderStatusPieChart />
               </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div>
-                  <OrderStatusPieChart />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+              <div className="lg:col-span-2">
+                  <TopPerformingProductsTable />
               </div>
-              <div>
+              <div className="lg:col-span-3">
+                  <NewVsReturningBuyersChart />
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-7">
+              <div className="lg:col-span-5">
+                  <CartAbandonmentRateChart />
+              </div>
+              <div className="lg:col-span-2">
                   <PaymentSuccessRatePieChart />
               </div>
           </div>

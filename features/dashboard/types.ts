@@ -91,3 +91,27 @@ export interface AverageOrderValueData {
     prev_day_aov: number | null;
     aov_growth_percent: number | null;
 }
+
+// New vs Returning Buyers
+export interface NewVsReturningBuyersData {
+    order_date: string;
+    new_buyers: number;
+    returning_buyers: number;
+    total_buyers: number;
+    new_buyer_revenue: number;
+    returning_buyer_revenue: number;
+    new_buyer_ratio: number;
+    returning_buyer_ratio: number;
+}
+
+// Cart Abandonment Rate
+export interface CartAbandonmentRateData {
+    cart_date: string;
+    total_carts: number;
+    carts_with_items: number;
+    converted_carts: number;
+    abandoned_carts: number;
+    conversion_rate: number;
+    abandonment_rate: number;
+    avg_cart_session_hours: number;
+}

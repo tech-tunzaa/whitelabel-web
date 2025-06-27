@@ -6,12 +6,35 @@ import { shallow } from 'zustand/shallow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { DailyGmvPerformanceData, WeeklyGmvPerformanceData, MonthlyGmvPerformanceData } from '@/features/dashboard/types';
 
-const formatCurrency = (amount: number) => {
+const chartConfig = {
+  revenue: {
+    label: "Revenue",
+    color: "hsl(var(--chart-1))",
+  },
+} satisfies ChartConfig;
+
+const formatCurrency = (amount: number, compact = false) => {
     if (typeof amount !== 'number') return 'TZS 0';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'TZS', minimumFractionDigits: 0 }).format(amount);
+    const options: Intl.NumberFormatOptions = {
+        style: 'currency',
+        currency: 'TZS',
+        minimumFractionDigits: 0,
+    };
+    if (compact) {
+        options.notation = 'compact';
+        options.compactDisplay = 'short';
+        options.maximumFractionDigits = 1;
+    }
+    return new Intl.NumberFormat('en-US', options).format(amount);
 };
 
 const formatDate = (dateString: string, range: 'daily' | 'weekly' | 'monthly') => {
@@ -46,31 +69,29 @@ export function GmvPerformanceChart() {
         }
     }, [timeRange, dailyGmvPerformance, weeklyGmvPerformance, monthlyGmvPerformance, loadingDaily, loadingWeekly, loadingMonthly]);
 
-    const chartData = useMemo(() => {
+        const chartData = useMemo(() => {
         if (!data) return [];
-
         const mappedData = data.map(item => {
-            let name = '';
+            let date = '';
             let revenue = 0;
 
-            if ('sales_date' in item) { // Daily
-                name = formatDate((item as DailyGmvPerformanceData).sales_date, 'daily');
+            if ('sales_date' in item) {
+                date = (item as DailyGmvPerformanceData).sales_date;
                 revenue = (item as DailyGmvPerformanceData).daily_gmv;
-            } else if ('week_start' in item) { // Weekly
-                name = formatDate((item as WeeklyGmvPerformanceData).week_start, 'weekly');
+            } else if ('week_start' in item) {
+                date = (item as WeeklyGmvPerformanceData).week_start;
                 revenue = (item as WeeklyGmvPerformanceData).weekly_gmv;
-            } else if ('month_start' in item) { // Monthly
-                name = formatDate((item as MonthlyGmvPerformanceData).month_start, 'monthly');
+            } else if ('month_start' in item) {
+                date = (item as MonthlyGmvPerformanceData).month_start;
                 revenue = (item as MonthlyGmvPerformanceData).monthly_gmv;
             }
-            return { name, revenue };
+            return { date, revenue };
         });
-
-        return mappedData.reverse(); // Reverse to show oldest first
-    }, [data, timeRange]);
+        return mappedData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [data]);
 
     return (
-        <Card className="dark:bg-card/60 bg-gradient-to-t from-primary/5 to-card shadow-xs h-full flex flex-col">
+        <Card className="@container/card h-full flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
@@ -84,27 +105,61 @@ export function GmvPerformanceChart() {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow flex items-center justify-center">
+            <CardContent className="flex-grow flex items-center justify-center px-2 pt-4 sm:px-6 sm:pt-6">
                  {isLoading ? (
-                    <Skeleton className="w-full h-full" />
+                    <Skeleton className="w-full h-[250px]" />
                 ) : chartData && chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
-                            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `TZS ${Number(value) / 1000}k`} />
-                            <Tooltip 
-                                cursor={{ fill: 'hsl(var(--muted))' }}
-                                contentStyle={{ 
-                                    background: 'hsl(var(--background))', 
-                                    borderColor: 'hsl(var(--border))' 
-                                }}
-                                formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                    <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+                        <AreaChart
+                            accessibilityLayer
+                            data={chartData}
+                            margin={{ left: 12, right: 12 }}
+                        >
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                                dataKey="date"
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                                tickFormatter={(value) => formatDate(value, timeRange)}
                             />
-                            <Legend />
-                            <Line type="monotone" dataKey="revenue" stroke="#000000" strokeWidth={2} dot={{ r: 4, fill: "#000000" }} activeDot={{ r: 8, fill: "#000000" }} connectNulls />
-                        </LineChart>
-                    </ResponsiveContainer>
+                            <YAxis
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                                tickFormatter={(value) => formatCurrency(Number(value), true)}
+                            />
+                            <ChartTooltip
+                                cursor
+                                content={<ChartTooltipContent 
+                                    indicator="dot"
+                                    formatter={(value) => formatCurrency(Number(value))}
+                                />}
+                            />
+                            <defs>
+                                <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop
+                                        offset="5%"
+                                        stopColor="hsl(var(--foreground))"
+                                        stopOpacity={1}
+                                    />
+                                    <stop
+                                        offset="95%"
+                                        stopColor="hsl(var(--foreground))"
+                                        stopOpacity={0.3}
+                                    />
+                                </linearGradient>
+                            </defs>
+                            <Area
+                                dataKey="revenue"
+                                type="natural"
+                                fill="url(#fillRevenue)"
+                                fillOpacity={0.4}
+                                stroke="var(--color-revenue)"
+                                strokeWidth={2}
+                            />
+                        </AreaChart>
+                    </ChartContainer>
                 ) : (
                     <div className="text-center text-muted-foreground">
                         No GMV data available for this range.

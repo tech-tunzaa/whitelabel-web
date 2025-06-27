@@ -49,10 +49,13 @@ export function DashboardStatCards() {
     const loadingGmvData = useDashboardStore((state) => state.loadingGmvData);
     const loadingActiveUsersData = useDashboardStore((state) => state.loadingActiveUsersData);
 
-    const totalRevenue = gmvData?.[0]?.total_revenue ?? 0;
-    const totalOrders = gmvData?.[0]?.order_count ?? 0;
-    const totalActiveUsers = activeUsersData?.total_active_users ?? 0;
-    const avgOrderValue = gmvData?.[0]?.avg_order_value ?? 0;
+    console.log('[DashboardStatCards] gmvData:', gmvData);
+    console.log('[DashboardStatCards] activeUsersData:', activeUsersData);
+
+    const totalRevenue = gmvData?.['orders.total_revenue'] ?? 0;
+    const totalOrders = gmvData?.['orders.count'] ?? 0;
+    const totalActiveUsers = activeUsersData?.['users.total_active_users'] ?? 0;
+    const avgOrderValue = gmvData?.['orders.avg_order_value'] ?? 0;
 
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

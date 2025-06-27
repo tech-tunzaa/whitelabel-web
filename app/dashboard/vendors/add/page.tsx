@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { VendorFormValues } from "@/features/vendors/types";
-import { VendorFormOld } from "@/features/vendors/components/vendor-form-old";
 
 export default function VendorAddPage() {
   const router = useRouter();
@@ -96,7 +95,7 @@ export default function VendorAddPage() {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
-        <VendorFormOld
+        <VendorForm
           onSubmit={handleCreateVendor}
           isSubmitting={isSubmitting}
           onCancel={() => router.push("/dashboard/vendors")}
