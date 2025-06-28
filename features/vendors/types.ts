@@ -126,7 +126,7 @@ export type VendorError = {
 };
 
 // Types for store actions and filters
-export type VendorAction = "fetchList" | "fetchOne" | "create" | "update" | "delete" | "updateStatus" | "fetchStore";
+export type VendorAction = "fetchList" | "fetchOne" | "create" | "update" | "delete" | "updateStatus" | "fetchStore" | "fetchPerformance";
 
 export interface VendorFilter {
     skip?: number;
@@ -146,3 +146,17 @@ export interface VendorListResponse {
 // Ensure VendorApiResponse is defined to match the expected structure from fetchVendors
 export type VendorApiResponse = VendorListResponse;
 
+
+// Vendor reports
+export interface VendorPerformanceData {
+    performance_date: string;
+    vendor_id: string;
+    business_name: string;
+    display_name: string;
+    order_count: number;
+    items_sold: number;
+    vendor_gmv: number | null;
+    avg_item_price: number | null;
+    daily_gmv_rank: number;
+    daily_order_rank: number;
+}

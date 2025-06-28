@@ -1,5 +1,13 @@
-export type ProductStatus = "active" | "draft" | "pending" | "approved" | "rejected";
+export type ProductStatus = "active" | "draft" | "pending" | "approved" | "rejected" | "suspended";
 export type StockStatus = "in_stock" | "out_of_stock" | "low_stock";
+
+export interface Category {
+  category_id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image_url?: string;
+}
 
 export interface ProductImage {
   url: string;
@@ -58,8 +66,9 @@ export interface Product {
   updated_at?: string | Date;
   approved_at?: string | Date;
   rejected_at?: string | Date;
-  verification_status?: "pending" | "approved" | "rejected"; // Added from original
-  rejection_reason?: string; // Added from original
+  verification_status?: "pending" | "approved" | "rejected" | "suspended";
+    rejection_reason?: string;
+  categories?: Category[];
   // Add any other fields that your backend `Product` model might have
   // For example:
   // brand_id?: string;
@@ -69,3 +78,28 @@ export interface Product {
 // Note: ProductFormValues will be inferred from productFormSchema in schema.ts.
 // Ensure the Product type here aligns with what your API expects/returns for a full product object,
 // and ProductFormValues (derived from schema) aligns with the fields managed directly by the form.
+
+export interface ProductFilter {
+  skip?: number;
+  limit?: number;
+  search?: string;
+  status?: ProductStatus;
+  verification_status?: "pending" | "approved" | "rejected" | "suspended";
+  is_active?: boolean;
+  categoryId?: string;
+  vendorId?: string;
+}
+
+export interface ProductListResponse {
+  items: Product[];
+  total: number;
+  skip?: number;
+  limit?: number;
+}
+
+export type ProductAction = 'fetchList' | 'fetchOne' | 'create' | 'update' | 'delete' | null;
+
+export interface ProductError {
+  message: string;
+  status?: number;
+}

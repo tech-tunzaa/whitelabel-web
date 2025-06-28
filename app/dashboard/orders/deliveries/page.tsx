@@ -131,6 +131,7 @@ export default function DeliveryPage() {
           <TabsList className="w-full">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="assigned">Assigned</TabsTrigger>
+            <TabsTrigger value="picked_up">Picked Up</TabsTrigger>
             <TabsTrigger value="in_transit">In Transit</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
           </TabsList>

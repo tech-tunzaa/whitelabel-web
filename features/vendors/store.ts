@@ -11,6 +11,7 @@ import {
   StoreBranding,
   StoreBanner,
   VendorApiResponse,
+  VendorPerformanceData,
 } from "./types";
 import { apiClient } from "@/lib/api/client";
 
@@ -60,6 +61,11 @@ interface VendorStore {
     data: Partial<Store>,
     headers?: Record<string, string>,
   ) => Promise<Store>;
+  vendorPerformanceReport: VendorPerformanceData[];
+  fetchVendorPerformanceReport: (
+    vendorId: string,
+    headers?: Record<string, string>
+  ) => Promise<void>;
 }
 
 export const useVendorStore = create<VendorStore>()((set, get) => ({
@@ -68,6 +74,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
   loading: true,
   error: null,
   activeAction: null,
+  vendorPerformanceReport: [],
 
   setActiveAction: (action) => set({ activeAction: action }),
   setLoading: (loading) => set({ loading }),
@@ -493,6 +500,32 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       setLoading(false);
       throw error;
     } finally {
+      setActiveAction(null);
+    }
+  },
+
+  fetchVendorPerformanceReport: async (
+    vendorId: string,
+    headers?: Record<string, string>
+  ): Promise<void> => {
+    const { setLoading, setError, setActiveAction } = get();
+    setLoading(true);
+    setActiveAction("fetchPerformance");
+    try {
+      const response = await apiClient.get<ApiResponse<VendorPerformanceData[]>>(
+        `/reports/vendor-performance?vendor_id=${vendorId}`,
+        undefined,
+        headers
+      );
+      const performanceData = (response.data.data as VendorPerformanceData[]) || [];
+      set({ vendorPerformanceReport: performanceData });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to fetch performance data";
+      setError({ message: errorMessage });
+      set({ vendorPerformanceReport: [] });
+    } finally {
+      setLoading(false);
       setActiveAction(null);
     }
   },

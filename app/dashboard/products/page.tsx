@@ -1,150 +1,175 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Plus, Search, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { Plus, Search, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+
+import { useProductStore } from "@/features/products/store";
+import { Product, ProductFilter } from "@/features/products/types";
+import { ProductTable } from "@/features/products/components/product-table";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import Pagination from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
-
-import { useProductStore } from "@/features/products/store";
-import { useCategoryStore } from "@/features/categories/store";
-import { Product } from "@/features/products/types";
-import { ProductTable } from "@/features/products/components/product-table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { loading, storeError, fetchProducts, deleteProduct } =
-    useProductStore();
-  const { fetchCategories } = useCategoryStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
   const { data: session } = useSession();
-  const tenantId = (session?.user as any)?.tenant_id || "";
-  const tenantHeaders = tenantId ? { "X-Tenant-ID": tenantId } : {};
+    const tenantId = (session?.user as any)?.tenant_id;
 
-  const loadProducts = async () => {
-    try {
-      setError(null);
-      const response = await fetchProducts(undefined, tenantHeaders);
-      setProducts(response.items || []);
+    const {
+    products: productData,
+    loading,
+    storeError: error,
+    fetchProducts,
+    updateProduct,
+    deleteProduct,
+  } = useProductStore();
 
-      const categoryResponse = await fetchCategories(undefined, tenantHeaders);
-      setCategories(categoryResponse.items || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      setError("Failed to load products. Please try again.");
+  console.log("DEBUG: Data from product store:", { productData, loading, error });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("all");
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const pageSize = 10;
+
+  const tenantHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+    return headers;
+  }, [tenantId]);
+
+  const getFilters = (): ProductFilter => {
+    const baseFilter: ProductFilter = {
+      skip: (currentPage - 1) * pageSize,
+      limit: pageSize,
+    };
+
+
+
+    switch (activeTab) {
+      case "published":
+        return { ...baseFilter, verification_status: "approved", is_active: true };
+      case "draft":
+        return { ...baseFilter, verification_status: "approved", is_active: false };
+      case "pending":
+        return { ...baseFilter, verification_status: "pending" };
+      case "rejected":
+        return { ...baseFilter, verification_status: "rejected" };
+      default:
+        return baseFilter;
     }
   };
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const fetchProductsData = async () => {
+      if (!tenantId) return;
+      setIsTabLoading(true);
+      try {
+        const filters = getFilters();
+        const response = await fetchProducts(filters, tenantHeaders);
+        if (response && typeof response.total === 'number') {
+          setTotalProducts(response.total);
+        }
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      } finally {
+        setIsTabLoading(false);
+      }
+    };
+    fetchProductsData();
+  }, [fetchProducts, activeTab, currentPage, tenantId]);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.vendorId
-        .toString()
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) {
+      return productData || [];
+    }
+    return (productData || []).filter(product =>
+      (product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [productData, searchQuery]);
 
-    const matchesStatus =
-      selectedStatus === "all" || product.status === selectedStatus;
-    const matchesCategory =
-      selectedCategory === "all" ||
-      (product.categoryIds &&
-        product.categoryIds.some((id) => id.toString() === selectedCategory)) ||
-      (product.categoryIds &&
-        product.categoryIds.some((id) => id.toString() === selectedCategory));
+  const handleProductClick = (product: Product) => {
+    router.push(`/dashboard/products/${product.product_id}`);
+  };
 
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
-
-  const pendingProducts = filteredProducts.filter(
-    (product) => product.status === "draft"
-  );
-  const activeProducts = filteredProducts.filter(
-    (product) => product.status === "active"
-  );
-
-  const handleDeleteProduct = async () => {
-    if (!productToDelete) return;
+  const handleUpdateProduct = async (productId: string, data: Partial<Product>) => {
     try {
-      await deleteProduct(productToDelete.product_id, tenantHeaders);
-      setIsDeleteDialogOpen(false);
-      setProductToDelete(null);
-      toast.success("Product deleted successfully");
-      loadProducts(); // Refresh the list
-    } catch (error) {
-      toast.error("Failed to delete product");
+      await updateProduct(productId, data, tenantHeaders);
+      toast.success("Product updated successfully.");
+      const filters = getFilters();
+      fetchProducts(filters, tenantHeaders);
+    } catch (err) {
+      toast.error("Failed to update product.");
+      console.error("Update error:", err);
     }
   };
 
-  const openDeleteDialog = (product: Product) => {
+  const handleDeleteRequest = (product: Product) => {
     setProductToDelete(product);
-    setIsDeleteDialogOpen(true);
   };
 
-  if (loading) {
-    return <Spinner />;
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+    try {
+      await deleteProduct(productToDelete.product_id, tenantHeaders);
+      toast.success(`Product "${productToDelete.name}" deleted successfully.`);
+      setProductToDelete(null);
+      const filters = getFilters();
+      fetchProducts(filters, tenantHeaders);
+    } catch (err) {
+      toast.error("Failed to delete product.");
+      console.error("Delete error:", err);
+      setProductToDelete(null);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setCurrentPage(1);
+  };
+
+  if (loading && !productData?.length) {
+    return (
+      <Spinner />
+    );
   }
 
-  if (error) {
+  if (error && !productData?.length) {
     return (
-      <>
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Products & Services
-            </h1>
-            <p className="text-muted-foreground">
-              Manage your marketplace products and services
-            </p>
-          </div>
-          <Button onClick={() => router.push("/dashboard/products/add")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
+      <div className="p-4">
         <ErrorCard
-          title="Error Loading Products"
+          title="Failed to load products"
           error={{
-            message: error,
-            status: "error",
+            status: error.status?.toString() || "Error",
+            message: error.message || "An unexpected error occurred.",
           }}
           buttonText="Retry"
-          buttonAction={() => loadProducts()}
+          buttonAction={() => fetchProducts(getFilters(), tenantHeaders)}
           buttonIcon={RefreshCw}
         />
-      </>
+      </div>
     );
   }
 
@@ -152,113 +177,77 @@ export default function ProductsPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Products & Services
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground">
-            Manage your marketplace products
+            Manage your products and their approval status.
           </p>
         </div>
         <Button onClick={() => router.push("/dashboard/products/add")}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Add Product
         </Button>
       </div>
 
       <div className="p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative w-full sm:w-72">
+        <div className="flex justify-between mb-4">
+          <div className="relative w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search products..."
-              className="pl-8 w-full"
+              className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem
-                    key={category.product_id}
-                    value={category.product_id}
-                  >
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
-          <TabsContent value="all">
-            <ProductTable
-              products={filteredProducts}
-              onEdit={(product) =>
-                router.push(`/dashboard/products/${product.product_id}`)
-              }
-              onProductClick={(product) =>
-                router.push(`/dashboard/products/${product.product_id}`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
-          <TabsContent value="active">
-            <ProductTable
-              products={activeProducts}
-              onEdit={(product) =>
-                router.push(`/dashboard/products/${product.product_id}`)
-              }
-              onProductClick={(product) =>
-                router.push(`/dashboard/products/${product.product_id}`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
-          <TabsContent value="draft">
-            <ProductTable
-              products={pendingProducts}
-              onProductClick={(product) =>
-                router.push(`/dashboard/products/${product.product_id}`)
-              }
-              onDelete={openDeleteDialog}
-            />
-          </TabsContent>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsTrigger value="all">All Products</TabsTrigger>
+            <TabsTrigger value="published">Published</TabsTrigger>
+            <TabsTrigger value="draft">Draft</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+
+          {isTabLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              <ProductTable
+                products={filteredProducts}
+                onProductClick={handleProductClick}
+                onUpdateProduct={handleUpdateProduct}
+                onDelete={handleDeleteRequest}
+              />
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalProducts}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </>
+          )}
         </Tabs>
       </div>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end space-x-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
-              Delete
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the product "{productToDelete?.name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

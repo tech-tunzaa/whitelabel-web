@@ -106,6 +106,8 @@ export const useProductStore = create<ProductStore>()(
         if (filter.limit) params.append('limit', filter.limit.toString());
         if (filter.search) params.append('search', filter.search);
         if (filter.status) params.append('status', filter.status);
+        if (filter.verification_status) params.append('verification_status', filter.verification_status);
+        if (filter.is_active !== undefined) params.append('is_active', String(filter.is_active));
         if (filter.categoryId) params.append('category_id', filter.categoryId);
         if (filter.vendorId) params.append('vendor_id', filter.vendorId);
 

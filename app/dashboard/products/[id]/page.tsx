@@ -2,25 +2,21 @@
 
 import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
+
+// Re-importing to resolve linter issues
 import {
   ArrowLeft,
   Check,
-  X,
   Edit,
+  ExternalLink,
   Store,
-  Package,
-  Tag,
-  AlertCircle,
-  Boxes,
-  ShoppingCart,
-  BarChart,
-  FileText,
-  CreditCard,
-  Settings,
-  Truck,
-  RefreshCw,
   Trash2,
-  ImageIcon,
+  Upload,
+  X,
+  Package,
+  Eye,
+  EyeOff,
+  Ban,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -29,10 +25,10 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -43,8 +39,8 @@ import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { toast } from "sonner";
 
 import { useProductStore } from "@/features/products/store";
-import { useCategoryStore } from "@/features/categories/store";
-import { useVendorStore } from "@/features/vendors/store";
+import { Product } from "@/features/products/types";
+
 
 import {
   AlertDialog,
@@ -59,10 +55,27 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
 }
+
+const InfoCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-lg">{title}</CardTitle>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
+
+const InfoItem = ({ label, value, children }: { label: string; value?: React.ReactNode; children?: React.ReactNode }) => (
+  <div className="flex justify-between items-start py-2 border-b border-border/50 last:border-b-0">
+    <span className="text-sm text-muted-foreground font-medium">{label}</span>
+    {value ? <span className="text-sm text-right">{value}</span> : children}
+  </div>
+);
 
 export default function ProductPage({ params }: ProductPageProps) {
   const router = useRouter();
@@ -71,16 +84,14 @@ export default function ProductPage({ params }: ProductPageProps) {
   const tenantId = (session?.user as any)?.tenant_id || "";
 
   // Stores
-  const { fetchProduct, updateProductStatus, deleteProduct } =
-    useProductStore();
-  const { categories, fetchCategories } = useCategoryStore();
-  const { vendors, fetchVendors } = useVendorStore();
-
-  // State
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const {
+    product,
+    loading: productLoading,
+    error: productError,
+    fetchProduct,
+    updateProduct,
+    deleteProduct,
+  } = useProductStore();
 
   // UI States
   const [isDeleting, setIsDeleting] = useState(false);
@@ -88,45 +99,21 @@ export default function ProductPage({ params }: ProductPageProps) {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionType, setRejectionType] = useState("product_quality");
   const [customReason, setCustomReason] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Image Preview States
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // File Preview States
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
 
   // Define tenant headers
   const tenantHeaders = {
-    "X-Tenant-ID": tenantId || "4c56d0c3-55d9-495b-ae26-0d922d430a42",
+    "X-Tenant-ID": tenantId,
   };
-
-  // Use ref to prevent duplicate API calls
-  const fetchRequestRef = useRef(false);
 
   useEffect(() => {
-    // Only fetch if not already fetched
-    if (!fetchRequestRef.current) {
-      fetchRequestRef.current = true;
-      loadData();
+    if (id && tenantId) {
+      fetchProduct(id, tenantHeaders);
     }
-  }, [id]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch product
-      const productData = await fetchProduct(id, tenantHeaders);
-      setProduct(productData);
-
-      // Fetch related data
-      fetchCategories(undefined, tenantHeaders);
-      fetchVendors(undefined, tenantHeaders);
-    } catch (err) {
-      console.error("Error fetching product:", err);
-      setError("Failed to load product details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, tenantId, fetchProduct]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -160,11 +147,9 @@ export default function ProductPage({ params }: ProductPageProps) {
   const productStatus =
     product?.verification_status || (product?.is_active ? "active" : "pending");
 
-  console.log("The vendors", vendors);
-  const productVendor =
-    vendors && vendors.length > 0
-      ? vendors.find((v) => v.vendor_id === product?.vendor_id)
-      : null;
+  
+  
+  const store = product?.store;
   const productImageUrl =
     product?.images?.[0]?.url || "/placeholder-product.svg";
 
@@ -179,48 +164,50 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   // Handle image preview
   const handlePreviewImage = (url: string) => {
-    setPreviewImage(url);
+    setPreviewFile(url);
   };
 
-  // Handle status change
-  const handleStatusChange = async (status: string) => {
-    try {
-      setIsUpdating(true);
-      await updateProductStatus(id, status, tenantHeaders);
-      toast.success(`Product status updated to ${status} successfully`);
-      // Refresh the product data
-      loadData();
-    } catch (error) {
-      toast.error("Failed to update product status");
-      console.error(error);
-    } finally {
-      setIsUpdating(false);
+  // Handle product updates
+  const handleUpdate = (updates: Partial<Product>) => {
+    if (!product?.product_id) {
+      toast.error("Product information is not available.");
+      return;
     }
+
+    const updateAction = async () => {
+      try {
+        await updateProduct(product.product_id, updates, tenantHeaders);
+        // Refetch product data to ensure UI is up-to-date
+        await fetchProduct(id, tenantHeaders);
+      } catch (err) {
+        // The error will be handled by toast.promise
+        console.error("Update failed:", err);
+        throw err;
+      }
+    };
+
+    toast.promise(updateAction(), {
+      loading: "Applying updates...",
+      success: "Product has been updated successfully!",
+      error: "Could not apply updates.",
+    });
   };
 
   // Handle rejection confirmation
-  const handleRejectConfirm = async () => {
-    try {
-      setIsUpdating(true);
-
-      // Prepare rejection reason
-      let finalReason =
-        rejectionType === "other"
-          ? customReason
-          : getRejectionReasonText(rejectionType);
-
-      await updateProductStatus(id, "rejected", tenantHeaders, finalReason);
-      toast.success("Product rejected successfully");
-      setShowRejectDialog(false);
-
-      // Refresh the product data
-      loadData();
-    } catch (error) {
-      toast.error("Failed to reject product");
-      console.error(error);
-    } finally {
-      setIsUpdating(false);
+  const handleRejectConfirm = () => {
+    if (rejectionType === "other" && !customReason.trim()) {
+      toast.error("Please provide a reason for rejection.");
+      return;
     }
+
+    const reason =
+      rejectionType === "other"
+        ? customReason
+        : getRejectionReasonText(rejectionType);
+
+    setShowRejectDialog(false);
+    handleUpdate({ verification_status: "rejected", rejection_reason: reason });
+    setCustomReason("");
   };
 
   // Helper to get rejection reason text based on type
@@ -241,52 +228,20 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   // Handle product delete
   const handleDeleteProduct = async () => {
+    if (!product?.product_id) return;
+
     try {
       setIsDeleting(true);
-      await deleteProduct(id, tenantHeaders);
-      toast.success("Product deleted successfully");
-
-      // Redirect back to products list
+      await deleteProduct(product.product_id, tenantHeaders);
+      toast.success(`Product "${product.name}" has been deleted.`);
       router.push("/dashboard/products");
-    } catch (error) {
-      toast.error("Failed to delete product");
-      console.error(error);
+    } catch (err) {
+      toast.error("Failed to delete the product.");
+      console.error("Deletion failed:", err);
     } finally {
       setIsDeleting(false);
       setConfirmDelete(false);
     }
-  };
-
-  const getCategoryNames = (categoryIds: string[]) => {
-    if (!categories || !categoryIds || !categoryIds.length) return "None";
-
-    return (
-      <div className="flex flex-wrap gap-2">
-        {categoryIds.map((id) => {
-          const category = categories.find(
-            (c) => c._id === id || c.category_id === id
-          );
-          if (!category) return null;
-
-          return (
-            <Badge
-              key={id}
-              variant="secondary"
-              className="hover:bg-secondary/80 cursor-pointer"
-              onClick={() =>
-                router.push(
-                  `/dashboard/categories/${
-                    category.category_id || category._id
-                  }`
-                )
-              }
-            >
-              {category.name || "Unknown"}
-            </Badge>
-          );
-        })}
-      </div>
-    );
   };
 
   const formatPrice = (price: number | undefined) => {
@@ -297,7 +252,29 @@ export default function ProductPage({ params }: ProductPageProps) {
     }).format(price);
   };
 
-  if (loading) {
+  const getStockStatus = (product: Product | null | undefined) => {
+    if (!product || !product.inventory_tracking) {
+      return { text: "Not Tracked", variant: "secondary" as const };
+    }
+
+    const { inventory_quantity: quantity, low_stock_threshold: threshold } = product;
+
+    if (typeof quantity !== "number") {
+      return { text: "N/A", variant: "secondary" as const };
+    }
+
+    if (quantity <= 0) {
+      return { text: "Out of Stock", variant: "destructive" as const };
+    }
+
+    if (typeof threshold === "number" && quantity <= threshold) {
+      return { text: "Low Stock", variant: "warning" as const };
+    }
+
+    return { text: "In Stock", variant: "success" as const };
+  };
+
+  if (productLoading) {
     return <Spinner />;
   }
 
@@ -305,7 +282,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     return (
       <ErrorCard
         title="Failed to load product"
-        error={error || { message: "Product not found", status: "404" }}
+        error={productError || { message: "Product not found", status: "404" }}
         buttonText="Back to Products"
         buttonAction={() => router.push("/dashboard/products")}
         buttonIcon={ArrowLeft}
@@ -337,19 +314,20 @@ export default function ProductPage({ params }: ProductPageProps) {
             </Avatar>
 
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {product.name}
-              </h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Badge
-                  variant={getStatusVariant(productStatus)}
-                  className={getBadgeStyles(productStatus)}
-                >
-                  {productStatus.charAt(0).toUpperCase() +
-                    productStatus.slice(1)}
-                </Badge>
-                <span>SKU: {product.sku}</span>
+              <div className="flex items-center gap-4 mb-1">
+                <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
+                <div className="flex items-center gap-2">
+                  <Badge variant={getStatusVariant(product.verification_status)}>
+                    {product.verification_status}
+                  </Badge>
+                  <Badge variant={product.is_active ? "success" : "secondary"}>
+                    {product.is_active ? "Published" : "Draft"}
+                  </Badge>
+                </div>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Product ID: {product.product_id}
+              </p>
             </div>
           </div>
         </div>
@@ -363,525 +341,379 @@ export default function ProductPage({ params }: ProductPageProps) {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          {product.verification_status === "approved" ? (
-            <>
-              {product.is_active ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange("inactive")}
-                  disabled={isUpdating}
-                  className="text-red-600 border-red-600"
-                >
-                  {isUpdating ? (
-                    <Spinner className="mr-2 h-4 w-4" />
-                  ) : (
-                    <X className="mr-2 h-4 w-4" />
-                  )}
-                  Deactivate
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange("active")}
-                  disabled={isUpdating}
-                  className="text-green-600 border-green-600"
-                >
-                  {isUpdating ? (
-                    <Spinner className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Check className="mr-2 h-4 w-4" />
-                  )}
-                  Activate
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusChange("pending")}
-                className="text-green-600 border-green-600"
-                disabled={isUpdating}
-              >
-                {isUpdating ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                Approve
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRejectDialog(true)}
-                disabled={isUpdating}
-                className="text-red-600 border-red-600"
-              >
-                {isUpdating ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <X className="mr-2 h-4 w-4" />
-                )}
-                Reject
-              </Button>
-            </>
-          )}
         </div>
       </div>
 
       {/* Content */}
       <div className="p-4 overflow-auto space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {/* Main details */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Basic Information Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Package className="h-5 w-5 mr-2" />
-                  Product Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Name
-                    </p>
-                    <p>{product.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      SKU
-                    </p>
-                    <p>{product.sku || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Categories
-                    </p>
-                    {getCategoryNames(product.category_ids)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Vendor
-                    </p>
-                    <p>{productVendor?.business_name || "Unknown Vendor"}</p>
-                  </div>
-                </div>
+          <div className="md:col-span-2 lg:col-span-3 space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="shipping">Shipping & Variants</TabsTrigger>
+              </TabsList>
 
-                <Separator />
-
-                {/* Description */}
-                <div>
-                  <h3 className="text-sm font-medium mb-3">Description</h3>
-                  <p className="text-sm">{product.description}</p>
-
+              <TabsContent value="overview" className="space-y-6 mt-6">
+                <InfoCard title="Product Details">
                   {product.short_description && (
-                    <div className="mt-4">
-                      <h3 className="text-sm font-medium mb-1">
-                        Short Description
-                      </h3>
-                      <p className="text-sm">{product.short_description}</p>
+                    <div className="mb-4 pb-4 border-b">
+                      <h4 className="font-semibold text-sm mb-2">Short Description</h4>
+                      <p className="text-sm text-muted-foreground">{product.short_description}</p>
                     </div>
                   )}
-                </div>
+                  <div
+                    className="prose prose-sm dark:prose-invert max-w-none mb-10"
+                    dangerouslySetInnerHTML={{ __html: product.description || "<p>No description provided.</p>" }}
+                  ></div>
 
-                <Separator />
-
-                {/* Pricing Information */}
-                <div>
-                  <h3 className="text-sm font-medium mb-3">Pricing</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Base Price
-                      </p>
-                      <p className="text-lg font-medium">
-                        {formatPrice(product.base_price)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Sale Price
-                      </p>
-                      <p className="text-lg font-medium">
-                        {formatPrice(product.sale_price)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Cost Price
-                      </p>
-                      <p className="text-lg font-medium">
-                        {formatPrice(product.cost_price)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Inventory and Shipping */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Boxes className="h-5 w-5 mr-2" />
-                  Inventory & Shipping
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Inventory Quantity
-                    </p>
-                    <p>{product.inventory_quantity}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Inventory Tracking
-                    </p>
-                    <Badge
-                      variant={
-                        product.inventory_tracking ? "default" : "outline"
-                      }
-                    >
-                      {product.inventory_tracking ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Low Stock Threshold
-                    </p>
-                    <p>{product.low_stock_threshold}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      Requires Shipping
-                    </p>
-                    <Badge
-                      variant={
-                        product.requires_shipping ? "default" : "outline"
-                      }
-                    >
-                      {product.requires_shipping ? "Yes" : "No"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Dimensions & Weight */}
-                <div>
-                  <h3 className="text-sm font-medium mb-3">
-                    Dimensions & Weight
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Weight
-                      </p>
-                      <p>{product.weight} g</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Length
-                      </p>
-                      <p>{product.dimensions?.length} cm</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Width
-                      </p>
-                      <p>{product.dimensions?.width} cm</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Height
-                      </p>
-                      <p>{product.dimensions?.height} cm</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Variants */}
-            {product.has_variants &&
-              product.variants &&
-              product.variants.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Tag className="h-5 w-5 mr-2" />
-                      Product Variants
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {product.variants.map((variant: any, index: number) => (
-                        <div
-                          key={variant._id || index}
-                          className="border rounded-md p-4"
+                  <InfoItem label="Categories">
+                    <div className="flex flex-wrap gap-2 justify-end max-w-xs">
+                      {product.categories?.map((cat: any) => (
+                        <Badge
+                          key={cat.category_id}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-muted"
+                          onClick={() => router.push(`/dashboard/categories/${cat.category_id}`)}
                         >
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="font-medium">{variant.name}</div>
-                            <Badge>{variant.sku}</Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">
-                                Attributes
-                              </p>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {Object.entries(variant.attributes || {}).map(
-                                  ([key, value]) =>
-                                    value ? (
-                                      <Badge
-                                        key={key}
-                                        variant="outline"
-                                        className="capitalize"
-                                      >
-                                        {key}: {value as string}
-                                      </Badge>
-                                    ) : null
-                                )}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">
-                                Price Adjustment
-                              </p>
-                              <p>
-                                {formatPrice(
-                                  variant.price + product.sale_price
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                          {cat.name}
+                        </Badge>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-          </div>
+                  </InfoItem>
+                  <InfoItem label="Tags">
+                    <div className="flex flex-wrap gap-2 justify-end max-w-xs">
+                      {product.tags?.map((tag: string, index: number) => (
+                        <Badge key={index} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </InfoItem>
+                </InfoCard>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Product Image Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Images</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  {product.images && product.images.length > 0 ? (
-                    product.images.map((image: any, index: number) => (
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoCard title="Pricing">
+                    <InfoItem label="Base Price" value={formatPrice(product.pricing.base_price)}/>
+                    <InfoItem label="Sale Price" value={formatPrice(product.pricing.sale_price)}/>
+                    <InfoItem label="Cost Price" value={formatPrice(product.cost_price)}/>
+                    <InfoItem label="Effective Price" value={formatPrice(product.pricing.effective_price)} />
+                    {product.pricing.has_discount && (
+                      <InfoItem label="Discount">
+                          <Badge variant="success">
+                            {product.pricing.discount_percentage}%
+                          </Badge>
+                      </InfoItem>
+                    )}
+                  </InfoCard>
+
+                  <InfoCard title="Inventory">
+                    <InfoItem label="SKU" value={product.sku || 'N/A'} />
+                    <InfoItem label="Barcode" value={product.barcode || 'N/A'} />
+                    <InfoItem label="Quantity" value={product.inventory_quantity} />
+                    {product.inventory_tracking && (
+                        <InfoItem label="Low Stock Threshold" value={product.low_stock_threshold} />
+                    )}
+                  </InfoCard>
+                </div>
+
+                <InfoCard title="Product Images">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    {product.images?.map((image: any, index: number) => (
                       <div
                         key={index}
-                        className="aspect-square rounded-md overflow-hidden border cursor-pointer"
+                        className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group"
                         onClick={() => handlePreviewImage(image.url)}
                       >
                         <img
                           src={image.url}
                           alt={image.alt || `Product image ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                         />
+                        {image.is_primary && (
+                          <div className="absolute top-1 right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                            Primary
+                          </div>
+                        )}
                       </div>
-                    ))
-                  ) : (
-                    <div className="col-span-2 aspect-square flex items-center justify-center border rounded-md bg-muted">
-                      <Package className="h-16 w-16 text-muted-foreground opacity-50" />
+                    ))}
+                  </div>
+                </InfoCard>
+              </TabsContent>
+
+              <TabsContent value="shipping" className="space-y-6 mt-6">
+                 <InfoCard title="Shipping">
+                    <InfoItem label="Requires Shipping" value={product.requires_shipping ? 'Yes' : 'No'} />
+                    <InfoItem label="Weight" value={`${product.weight || 0} kg`} />
+                    <InfoItem label="Dimensions (L x W x H)">
+                      {product.dimensions ? 
+                        `${product.dimensions.length} x ${product.dimensions.width} x ${product.dimensions.height} cm`
+                        : 'N/A'}
+                    </InfoItem>
+                 </InfoCard>
+
+                 <InfoCard title="Variants">
+                    <InfoItem label="Has Variants" value={product.has_variants ? 'Yes' : 'No'} />
+                    {product.has_variants && product.variants?.length > 0 && (
+                      <div className="mt-4">
+                        {product.variants.map((variant: any, index: number) => (
+                          <div key={index} className="p-3 border rounded-md mb-2">
+                            <p className="font-semibold">{variant.name}: {variant.value}</p>
+                            <p className="text-sm text-muted-foreground">Price: {formatPrice(variant.price)}</p>
+                            <p className="text-sm text-muted-foreground">SKU: {variant.sku || 'N/A'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                 </InfoCard>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Product Status Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Product Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Approval Status
+                    </span>
+                    <Badge variant={getStatusVariant(product.verification_status)}>
+                      {product.verification_status}
+                    </Badge>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Visibility
+                    </span>
+                    <Badge variant={product.is_active ? "success" : "secondary"}>
+                      {product.is_active ? "Published" : "Draft"}
+                    </Badge>
+                  </div>
+                  
+                  {product.inventory_tracking ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        Stock Status
+                      </span>
+                      <Badge variant={getStockStatus(product).variant}>
+                        {getStockStatus(product).text}
+                      </Badge>
                     </div>
-                  )}
+                  ) : null}
+
+                  <Separator />
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Created On
+                    </span>
+                    <span className="text-sm font-medium">
+                      {formatDate(product.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Last Updated
+                    </span>
+                    <span className="text-sm font-medium">
+                      {formatDate(product.updated_at)}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Product Details Card */}
+            {/* Vendor & Store Card */}
             <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div className="w-full flex justify-between text-sm">
-                    <span className="text-muted-foreground">Status:</span>
-                    <Badge
-                      variant={getStatusVariant(productStatus)}
-                      className={getBadgeStyles(productStatus)}
-                    >
-                      {productStatus.charAt(0).toUpperCase() +
-                        productStatus.slice(1)}
-                    </Badge>
-                  </div>
-                  <div className="w-full flex justify-between text-sm">
-                    <span className="text-muted-foreground">Created:</span>
-                    <span className="font-medium">
-                      {formatDate(product.createdAt || product.created_at)}
-                    </span>
-                  </div>
-                  <div className="w-full flex justify-between text-sm">
-                    <span className="text-muted-foreground">Last Updated:</span>
-                    <span className="font-medium">
-                      {formatDate(product.updatedAt || product.updated_at)}
-                    </span>
-                  </div>
-
-                  {product.approved_at && (
-                    <div className="w-full flex justify-between text-sm">
-                      <span className="text-muted-foreground">Approved:</span>
-                      <span className="font-medium">
-                        {formatDate(product.approved_at)}
-                      </span>
-                    </div>
-                  )}
-
-                  {product.is_featured && (
-                    <div className="w-full flex justify-between text-sm">
-                      <span className="text-muted-foreground">Featured:</span>
-                      <Badge
-                        variant="success"
-                        className="bg-amber-500 text-white"
-                      >
-                        Featured Product
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {/* Rejection reason if applicable */}
-                {product.rejection_reason && (
-                  <div className="mt-4 p-3 border border-red-200 rounded-md bg-red-50">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-red-800">
-                          Rejection Reason:
-                        </p>
-                        <p className="text-sm text-red-700 mt-1">
-                          {product.rejection_reason}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <Store className="h-5 w-5 mr-2" />
+                  Vendor & Store
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {store && (
+                  <>
+                    <InfoItem
+                      label="Store Name"
+                      value={store.store_name}
+                    />
+                    {store.general_policy && (
+                        <InfoItem label="General Policy">
+                            <Button variant="link" className="p-0 h-auto justify-end" onClick={() => store.general_policy && setPreviewFile(store.general_policy)}>
+                                View Policy
+                            </Button>
+                        </InfoItem>
+                    )}
+                    {store.return_policy && (
+                        <InfoItem label="Return Policy">
+                            <Button variant="link" className="p-0 h-auto justify-end" onClick={() => store.return_policy && setPreviewFile(store.return_policy)}>
+                                View Policy
+                            </Button>
+                        </InfoItem>
+                    )}
+                    {store.shipping_policy && (
+                        <InfoItem label="Shipping Policy">
+                            <Button variant="link" className="p-0 h-auto justify-end" onClick={() => store.shipping_policy && setPreviewFile(store.shipping_policy)}>
+                                View Policy
+                            </Button>
+                        </InfoItem>
+                    )}
+                  </>
                 )}
               </CardContent>
+              {product?.vendor_id && (
+                <CardFooter>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => router.push(`/dashboard/vendors/${product.vendor_id}`)}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Vendor Details
+                  </Button>
+                </CardFooter>
+              )}
             </Card>
 
             {/* Actions Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
+                <CardDescription>
+                  Manage product status and visibility.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {product.verification_status === "pending" ? (
+                {product.verification_status === "pending" && (
                   <>
                     <Button
-                      variant="success"
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      disabled={isUpdating}
-                      onClick={() => handleStatusChange("approved")}
+                      className="w-full"
+                      onClick={() =>
+                        handleUpdate({ verification_status: "approved" })
+                      }
+                      disabled={productLoading}
                     >
-                      {isUpdating ? (
-                        <Spinner className="h-4 w-4 mr-2" />
+                      {productLoading ? (
+                        <Spinner className="mr-2 h-4 w-4" />
                       ) : (
-                        <Check className="h-4 w-4 mr-2" />
+                        <Check className="mr-2 h-4 w-4" />
                       )}
-                      Approve Product
+                      Approve
                     </Button>
                     <Button
-                      variant="destructive"
                       className="w-full"
-                      disabled={isUpdating}
+                      variant="destructive"
                       onClick={() => setShowRejectDialog(true)}
+                      disabled={productLoading}
                     >
-                      {isUpdating ? (
-                        <Spinner className="h-4 w-4 mr-2" />
-                      ) : (
-                        <X className="h-4 w-4 mr-2" />
-                      )}
-                      Reject Product
+                      <X className="mr-2 h-4 w-4" /> Reject
                     </Button>
                   </>
-                ) : product.verification_status === "approved" ? (
-                  <Button
-                    variant={product.is_active ? "destructive" : "success"}
-                    className={`w-full ${
-                      !product.is_active
-                        ? "bg-green-600 hover:bg-green-700"
-                        : ""
-                    }`}
-                    disabled={isUpdating}
-                    onClick={() =>
-                      handleStatusChange(product.is_active ? "draft" : "active")
-                    }
-                  >
-                    {isUpdating ? (
-                      <Spinner className="h-4 w-4 mr-2" />
-                    ) : product.is_active ? (
-                      <>
-                        <X className="h-4 w-4 mr-2" />
-                        Unpublish (Draft)
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Publish Product
-                      </>
-                    )}
-                  </Button>
-                ) : null}
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => router.push(`/dashboard/products/${id}/edit`)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Product
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Product
-                </Button>
-
-                {/* Inline delete confirmation */}
-                {confirmDelete && (
-                  <div className="mt-4 p-3 border border-red-200 rounded-md bg-red-50">
-                    <p className="text-sm text-red-800 mb-2">
-                      Are you sure you want to delete this product? This action
-                      cannot be undone.
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setConfirmDelete(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteProduct}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
-                        Confirm Delete
-                      </Button>
-                    </div>
-                  </div>
                 )}
+
+                {product.verification_status === "approved" && (
+                  <>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() =>
+                        handleUpdate({ is_active: !product.is_active })
+                      }
+                      disabled={productLoading}
+                    >
+                      {productLoading ? (
+                        <Spinner className="mr-2 h-4 w-4" />
+                      ) : product.is_active ? (
+                        <EyeOff className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Eye className="mr-2 h-4 w-4" />
+                      )}
+                      {product.is_active ? "Unpublish" : "Publish"}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() =>
+                        handleUpdate({ verification_status: "suspended" })
+                      }
+                      disabled={productLoading}
+                    >
+                      {productLoading ? (
+                        <Spinner className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Ban className="mr-2 h-4 w-4" />
+                      )}
+                      Suspend
+                    </Button>
+                  </>
+                )}
+
+                {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      handleUpdate({ verification_status: "approved" })
+                    }
+                    disabled={productLoading}
+                  >
+                    {productLoading ? (
+                      <Spinner className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Check className="mr-2 h-4 w-4" />
+                    )}
+                    Re-approve
+                  </Button>
+                )}
+
+                <Separator className="my-3" />
+
+                <div className="space-y-2">
+                  {!confirmDelete ? (
+                    <Button
+                      variant="outline"
+                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Product
+                    </Button>
+                  ) : (
+                    <div className="p-3 border border-red-200 rounded-md bg-red-50">
+                      <p className="text-sm text-red-800 mb-3">
+                        Are you sure? This action cannot be undone.
+                      </p>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmDelete(false)}
+                          disabled={isDeleting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleDeleteProduct}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
+                          Confirm Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -890,10 +722,10 @@ export default function ProductPage({ params }: ProductPageProps) {
 
       {/* Image Preview Modal */}
       <FilePreviewModal
-        src={previewImage || ""}
-        alt="Product Image"
-        isOpen={!!previewImage}
-        onClose={() => setPreviewImage(null)}
+        src={previewFile || ""}
+        alt="File Preview"
+        isOpen={!!previewFile}
+        onClose={() => setPreviewFile(null)}
       />
 
       {/* Rejection Dialog */}
@@ -965,7 +797,7 @@ export default function ProductPage({ params }: ProductPageProps) {
               }}
               disabled={rejectionType === "other" && !customReason.trim()}
             >
-              {isUpdating ? <Spinner className="mr-2 h-4 w-4" /> : null}
+              {productLoading ? <Spinner className="mr-2 h-4 w-4" /> : null}
               Reject Product
             </AlertDialogAction>
           </AlertDialogFooter>

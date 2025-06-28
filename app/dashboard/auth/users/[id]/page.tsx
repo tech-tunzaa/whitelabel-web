@@ -235,32 +235,6 @@ const UserPage = ({ params }: UserPageProps) => {
                   <Power className="mr-2 h-4 w-4" /> {user.is_active ? "Deactivate" : "Activate"} User
                 </Button>
               </div>
-              <Separator />
-              <div className="flex flex-col space-y-2">
-                <h4 className="font-semibold">Delete User</h4>
-                <p className="text-sm text-muted-foreground">This will permanently delete the user.</p>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" className="w-full">
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete User
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the user account.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-                        {isDeleting ? "Deleting..." : "Delete"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
             </CardContent>
           </Card>
         </div>

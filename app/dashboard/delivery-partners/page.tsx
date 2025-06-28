@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Plus, RefreshCw, Search } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import Pagination from "@/components/ui/pagination"
+import { toast } from "sonner"
 
 const getStatusChangeMessage = (status: string) => {
     switch (status) {
@@ -66,29 +67,31 @@ export default function DeliveryPartnersPage() {
             case "active":
                 return {
                     ...baseFilter,
-                    kyc_verified: true,
+                    // kyc_verified: true,
                     is_active: true
                 }
             case "inactive":
                 return {
                     ...baseFilter,
-                    kyc_verified: true,
+                    // kyc_verified: true,
                     is_active: false
                 }
             case "individual":
                 return {
                     ...baseFilter,
+                    // kyc_verified: true,
                     partner_type: "individual"
                 }
             case "businesses":
                 return {
                     ...baseFilter,
+                    // kyc_verified: true,
                     partner_type: "business"
                 }
             case "pickup_points":
                 return {
                     ...baseFilter,
-                    kyc_verified: true,
+                    // kyc_verified: true,
                     partner_type: "pickup_point"
                 }
             case "un_verified":

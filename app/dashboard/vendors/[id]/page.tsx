@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
@@ -15,30 +15,19 @@ import {
   Globe,
   MapPin,
   FileText,
-  CreditCard,
-  AlertCircle,
   Building,
-  User,
   Landmark,
-  Calendar,
-  Tag,
-  Percent,
   Star,
-  CheckCircle2,
-  XCircle,
   Trash2,
-  FileSymlink,
   Image as ImageIcon,
   Truck,
   FileTerminal,
   DollarSign,
-  TrendingUp,
   ShoppingCart,
   RefreshCw,
-  Info,
-  Link,
-  UserCog,
-  Eye,
+  UserRoundPlus,
+  Package,
+  Percent,
   Search,
   Plus,
 } from "lucide-react";
@@ -51,7 +40,6 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -64,9 +52,7 @@ import { Input } from "@/components/ui/input";
 
 import { useVendorStore } from "@/features/vendors/store";
 import { useCategoryStore } from "@/features/categories/store";
-import { storeStore } from "@/features/store/store";
 import {
-  Vendor,
   VerificationDocument,
   Store as VendorStore,
 } from "@/features/vendors/types";
@@ -132,8 +118,7 @@ function AffiliatesTab({ vendorId, tenantId }: AffiliatesTabProps) {
     const headers: Record<string, string> = {};
     if (tenantId) headers["X-Tenant-ID"] = tenantId;
     const payload: any = { verification_status: status };
-    if (status === "rejected")
-      payload.rejection_reason = reason || "Rejected";
+    if (status === "rejected") payload.rejection_reason = reason || "Rejected";
     await updateAffiliateStatus(affiliateId, payload, headers);
     // refresh list
     fetchAffiliates(getFilters(), headers);
@@ -169,7 +154,9 @@ function AffiliatesTab({ vendorId, tenantId }: AffiliatesTabProps) {
         ) : (
           <AffiliateTable
             affiliates={affiliates}
-            onAffiliateClick={(affiliate) => router.push(`/dashboard/affiliates/${affiliate.id}`)}
+            onAffiliateClick={(affiliate) =>
+              router.push(`/dashboard/affiliates/${affiliate.id}`)
+            }
             onStatusChange={handleStatusChange}
             activeTab={activeTab}
           />
@@ -189,12 +176,14 @@ export default function VendorPage({ params }: VendorPageProps) {
   const {
     vendor,
     loading,
-    storeError,
+    error,
     fetchVendor,
     updateVendorStatus,
     fetchStoreByVendor,
     updateStore,
-    deleteStoreBanner,
+    vendorPerformanceReport,
+    fetchVendorPerformanceReport,
+    activeAction,
   } = useVendorStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [storeData, setStoreData] = useState<VendorStore[] | null>(null);
@@ -309,6 +298,80 @@ export default function VendorPage({ params }: VendorPageProps) {
         });
     }
   }, [id, fetchVendor, fetchStoreByVendor]);
+
+  useEffect(() => {
+    if (id && tenant_id) {
+      const headers = { 'X-Tenant-ID': tenant_id };
+      fetchVendorPerformanceReport(id as string, headers);
+    }
+  }, [id, tenant_id, fetchVendorPerformanceReport]);
+
+  const performanceStats = useMemo(() => {
+    if (!vendorPerformanceReport || vendorPerformanceReport.length === 0) {
+      return {
+        totalRevenue: { value: 0, change: 0 },
+        totalOrders: { value: 0, change: 0 },
+        totalItemsSold: { value: 0, change: 0 },
+      };
+    }
+
+    const sortedReports = [...vendorPerformanceReport].sort(
+      (a, b) =>
+        new Date(b.performance_date).getTime() -
+        new Date(a.performance_date).getTime()
+    );
+
+    const calculateTotals = (reports: VendorPerformanceData[]) => {
+      return reports.reduce(
+        (acc, report) => {
+          acc.revenue += report.vendor_gmv || 0;
+          acc.orders += report.order_count || 0;
+          acc.itemsSold += report.items_sold || 0;
+          return acc;
+        },
+        { revenue: 0, orders: 0, itemsSold: 0 }
+      );
+    };
+
+    const allTimeTotals = calculateTotals(sortedReports);
+
+    const currentPeriodData = sortedReports.slice(0, 7);
+    const previousPeriodData = sortedReports.slice(7, 14);
+
+    const currentPeriodTotals = calculateTotals(currentPeriodData);
+    const previousPeriodTotals = calculateTotals(previousPeriodData);
+
+    const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return ((current - previous) / previous) * 100;
+    };
+
+    return {
+      totalRevenue: {
+        value: allTimeTotals.revenue,
+        change: calculateChange(
+          currentPeriodTotals.revenue,
+          previousPeriodTotals.revenue
+        ),
+      },
+      totalOrders: {
+        value: allTimeTotals.orders,
+        change: calculateChange(
+          currentPeriodTotals.orders,
+          previousPeriodTotals.orders
+        ),
+      },
+      totalItemsSold: {
+        value: allTimeTotals.itemsSold,
+        change: calculateChange(
+          currentPeriodTotals.itemsSold,
+          previousPeriodTotals.itemsSold
+        ),
+      },
+    };
+  }, [vendorPerformanceReport]);
 
   // Get badge variant for status based on vendor status
   const getStatusVariant = (
@@ -523,11 +586,11 @@ export default function VendorPage({ params }: VendorPageProps) {
     return <Spinner />;
   }
 
-  if (!vendor) {
+  if (!vendor && error) {
     return (
       <ErrorCard
         title="Failed to load vendor"
-        error={storeError || { message: "Vendor not found", status: "404" }}
+        error={error || { message: "Vendor not found", status: "404" }}
         buttonText="Back to Vendors"
         buttonAction={() => router.push("/dashboard/vendors")}
         buttonIcon={ArrowLeft}
@@ -537,7 +600,7 @@ export default function VendorPage({ params }: VendorPageProps) {
 
   const canManageVendor = true;
 
-  return (
+  return vendor ? (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
@@ -570,6 +633,12 @@ export default function VendorPage({ params }: VendorPageProps) {
                   className={`${getBadgeStyles(vendorStatus)}`}
                 >
                   {vendorStatus.charAt(0).toUpperCase() + vendorStatus.slice(1)}
+                </Badge>
+                <Badge
+                  variant={vendor.is_active ? "success" : "secondary"}
+                  className={vendor.is_active ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-700 border-gray-200"}
+                >
+                  {vendor.is_active ? "Active" : "Inactive"}
                 </Badge>
                 {vendor.website && (
                   <a
@@ -620,7 +689,7 @@ export default function VendorPage({ params }: VendorPageProps) {
                   value="affiliate"
                   className="flex items-center gap-2"
                 >
-                  <UserCog className="h-4 w-4" /> Affiliates
+                  <UserRoundPlus className="h-4 w-4" /> Affiliates
                 </TabsTrigger>
               </TabsList>
 
@@ -640,7 +709,6 @@ export default function VendorPage({ params }: VendorPageProps) {
         </div>
       </div>
 
-
       {/* File Preview Modal for Verification Documents */}
       <FilePreviewModal
         isOpen={isPreviewOpen}
@@ -649,49 +717,76 @@ export default function VendorPage({ params }: VendorPageProps) {
         alt="Verification document preview"
       />
     </div>
-  );
+  ) : null;
 
   function VendorInfoTab() {
+    const StatCard = ({ title, value, icon: Icon, change, changePeriod = "from last week" }) => {
+      const changeType = change >= 0 ? "increase" : "decrease";
+      const formattedChange = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+  
+      return (
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">{value}</div>
+                  <p className={`text-xs ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className="font-semibold">{formattedChange}</span>
+                      <span className="text-muted-foreground ml-1">{changePeriod}</span>
+                  </p>
+              </CardContent>
+          </Card>
+      );
+    }
+
     return (
       <TabsContent value="vendor" className="space-y-4 mt-4">
-        {/* Revenue Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Vendor Performance Report Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading && activeAction === 'fetchPerformance' ? (
+            <>
+              <div className="h-28 w-full bg-muted rounded-lg animate-pulse" />
+              <div className="h-28 w-full bg-muted rounded-lg animate-pulse" />
+              <div className="h-28 w-full bg-muted rounded-lg animate-pulse" />
+            </>
+          ) : (
+            <>
+              <StatCard 
+                title="Total Revenue"
+                value={`TZS ${performanceStats.totalRevenue.value.toLocaleString()}`}
+                icon={DollarSign}
+                change={performanceStats.totalRevenue.change}
+              />
+              <StatCard 
+                title="Total Orders"
+                value={performanceStats.totalOrders.value.toLocaleString()}
+                icon={ShoppingCart}
+                change={performanceStats.totalOrders.change}
+              />
+              <StatCard 
+                title="Items Sold"
+                value={performanceStats.totalItemsSold.value.toLocaleString()}
+                icon={Package}
+                change={performanceStats.totalItemsSold.change}
+              />
+            </>
+          )}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col space-y-1.5">
-                <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                  <DollarSign className="h-4 w-4" /> Total Revenue
-                </p>
-                <p className="text-2xl font-bold">
-                  TZS {(vendor?.revenue || 0).toLocaleString()}
-                </p>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
+                <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {typeof vendor?.commission_rate === "number"
+                  ? `${vendor.commission_rate}%`
+                  : vendor?.commission_rate
+                  ? `${vendor.commission_rate}`
+                  : "0%"}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col space-y-1.5">
-                <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                  <ShoppingCart className="h-4 w-4" /> Total Orders
-                </p>
-                <p className="text-2xl font-bold">{vendor?.order_count || 0}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col space-y-1.5">
-                <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                  <TrendingUp className="h-4 w-4" /> Commission Rate
-                </p>
-                <p className="text-2xl font-bold">
-                  {typeof vendor?.commission_rate === "number"
-                    ? `${vendor.commission_rate}%`
-                    : vendor?.commission_rate
-                    ? `${vendor.commission_rate}`
-                    : "0%"}
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">Current rate</p>
             </CardContent>
           </Card>
         </div>
@@ -993,86 +1088,28 @@ export default function VendorPage({ params }: VendorPageProps) {
                       <p className="text-muted-foreground text-sm">
                         No banners found.
                       </p>
-                      {canManageVendor && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3"
-                          onClick={() => {
-                            // Implement banner add functionality
-                            router.push(
-                              `/dashboard/vendors/${id}/edit?tab=store`
-                            );
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Banners
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => {
+                          // Implement banner add functionality
+                          router.push(
+                            `/dashboard/vendors/${id}/edit?tab=store`
+                          );
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Banners
+                      </Button>
                     </div>
                   ) : (
                     <BannerEditor
                       banners={storeData[0].banners}
-                      onChange={async (updatedBanners) => {
-                        // Handle the updates for store banners
-                        if (storeData[0]?.id && vendor?.id) {
-                          try {
-                            await updateStore(
-                              vendor.id,
-                              storeData[0].id,
-                              { banners: updatedBanners },
-                              tenantHeaders as Record<string, string>
-                            );
-                            // Refresh vendor data
-                            fetchVendor(id, tenantHeaders);
-                            toast.success("Store banners updated successfully");
-                          } catch (error) {
-                            console.error(
-                              "Failed to update store banners:",
-                              error
-                            );
-                            toast.error("Failed to update store banners");
-                          }
-                        }
-                      }}
-                      resourceId={storeData[0].id}
-                      entityId={vendor?.id}
-                      readOnly={!canManageVendor}
-                      onDeleteBanner={async (resourceId, bannerId) => {
-                        if (!resourceId || !bannerId) return;
-                        try {
-                          await deleteStoreBanner(
-                            resourceId,
-                            bannerId,
-                            tenantHeaders as Record<string, string>
-                          );
-                          toast.success("Banner deleted successfully");
-                          // Refresh vendor data
-                          fetchVendor(id, tenantHeaders);
-                        } catch (error) {
-                          console.error("Failed to delete banner:", error);
-                          toast.error("Failed to delete banner");
-                          throw error;
-                        }
-                      }}
-                      onUpdateResource={async (resourceId, entityId, data) => {
-                        if (!resourceId || !entityId)
-                          return Promise.reject("Missing required parameters");
-                        try {
-                          await updateStore(
-                            entityId,
-                            resourceId,
-                            data,
-                            tenantHeaders as Record<string, string>
-                          );
-                          toast.success("Banner updated successfully");
-                          return Promise.resolve();
-                        } catch (error) {
-                          console.error("Failed to update banner:", error);
-                          toast.error("Failed to update banner");
-                          return Promise.reject(error);
-                        }
-                      }}
+                      resourceId={storeData[0].store_id}
+                      entityId={vendor?.vendor_id}
+                      readOnly={true}
+                      onChange={() => {}}
                       className="max-h-[500px] overflow-y-auto"
                     />
                   )}
