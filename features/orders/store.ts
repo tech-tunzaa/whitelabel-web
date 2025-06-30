@@ -357,12 +357,12 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   assignDeliveryPartner: async (payload, headers) => {
     const { setOrder, setOrders, orders } = get();
     try {
-      const response = await apiClient.post<ApiResponse<Order>>(
+      const response = await apiClient.post<ApiResponse<DeliveryDetails>>(
         `/deliveries/`,
         payload,
         headers
       );
-      const updatedOrder = unwrapApiResponse<Order>(response);
+      const updatedOrder = unwrapApiResponse<DeliveryDetails>(response);
       if (updatedOrder) {
         setOrder(updatedOrder);
         if (orders) {
@@ -372,10 +372,16 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
           setOrders({ ...orders, items: updatedItems });
         }
         return updatedOrder;
+      } else {
+        console.log("[assignDeliveryPartner] No updated order returned");
+        return null;
       }
-      return null;
     } catch (error: any) {
-      console.error("Error assigning delivery partner:", error);
+      console.error("[assignDeliveryPartner] Error assigning delivery partner:", {
+        error,
+        message: error?.message,
+        response: error?.response?.data
+      });
       throw error;
     }
   },

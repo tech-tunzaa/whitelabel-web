@@ -315,7 +315,7 @@ const OrderPage = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {order?.items.map((item, index) => (
+                      {order?.items?.map((item, index) => (
                         <React.Fragment key={index}>
                           <TableRow
                             className="relative cursor-pointer hover:bg-muted/50"
@@ -620,13 +620,13 @@ const OrderPage = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span className="font-medium text-destructive">
-                      -{formatPrice(order.totals.discount) || "TZS 0.00"}
+                      -{formatPrice(order?.totals?.discount) || "TZS 0.00"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
                     <span className="font-medium">
-                      {formatPrice(order.totals.tax) || "TZS 0.00"}
+                      {formatPrice(order?.totals?.tax) || "TZS 0.00"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">

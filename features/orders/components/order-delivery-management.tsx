@@ -29,14 +29,15 @@ import {
   XCircle,
   Clock,
   Package,
-  Warehouse,
+  MapPin,
   Mail,
   Phone,
   User,
   AlertTriangle,
 } from "lucide-react";
+import { Copy } from "@/components/ui/copy";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTime, formatPartnerId } from "@/lib/utils";
 import { Order, DeliveryDetails, DeliveryStage } from "@/features/orders/types";
 import { useOrderStore } from "@/features/orders/store";
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
@@ -48,13 +49,10 @@ interface DeliveryManagementProps {
 }
 
 const stageIcons: { [key: string]: React.ElementType } = {
-  pending: Package,
-  processing: Warehouse,
   assigned: Clock,
-  out_for_delivery: Truck,
-  in_transit: Truck,
+  picked_up: Truck,
+  in_transit: MapPin,
   delivered: CheckCircle,
-  failed: XCircle,
   default: Clock,
 };
 
@@ -78,17 +76,33 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
 
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(initialDeliveryDetails);
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isFetchingDelivery, setIsFetchingDelivery] = useState(false);
+  const [currentPartnerId, setCurrentPartnerId] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch delivery details when component mounts
     if (order?.order_id && user?.tenant_id) {
+      setIsFetchingDelivery(true);
       fetchOrderDeliveryDetails(order.order_id, { "X-Tenant-ID": user.tenant_id })
         .then((details) => {
           setDeliveryDetails(details);
         })
         .catch((error) => {
           console.error("Error fetching delivery details:", error);
-          setDeliveryError("Failed to fetch delivery details");
+          // Only show error if it's not a 404 (not found)
+          const status = error?.response?.status;
+          if (status !== 404) {
+            setDeliveryError("Failed to fetch delivery details");
+            setErrorStatus(status);
+          } else {
+            setDeliveryDetails(null); // Clear delivery details if not found
+            setDeliveryError(null); // Clear error state for 404
+            setErrorStatus(404);
+          }
+        })
+        .finally(() => {
+          setIsFetchingDelivery(false);
         });
     }
   }, [order?.order_id, user?.tenant_id]);
@@ -142,7 +156,6 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
 
     setAssigningPartnerId(partnerId);
     try {
-
       const now = new Date().toISOString();
       const payload = {
         order_id: order.order_id,
@@ -165,28 +178,20 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
         updated_at: now,
       };
 
-      await assignDeliveryPartner(payload, { "X-Tenant-ID": user.tenant_id });
+      const result = await assignDeliveryPartner(payload, { "X-Tenant-ID": user.tenant_id });
 
-      // Fetch updated delivery details
-      await fetchOrderDeliveryDetails(order.order_id, {
-        "X-Tenant-ID": user.tenant_id,
-      });
+      setDeliveryDetails(result);
       setAssignDialogOpen(false);
       toast.success("Delivery partner assigned successfully.");
     } catch (error: any) {
-      console.error("Error details:", {
-        error,
-        message: error?.message,
-        response: error?.response?.data,
-      });
-      toast.error("Failed to assign delivery partner.");
+      toast.error(error?.message || "Failed to assign delivery partner.");
     } finally {
       setAssigningPartnerId(null);
     }
   };
 
   return (
-    <>
+    <>    
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -204,18 +209,17 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {deliveryError ? (
+          {!deliveryDetails && deliveryError && errorStatus !== 404 ? (
             <div className="text-center py-6">
               <AlertTriangle className="mx-auto h-6 w-6 text-destructive" />
               <p className="mt-2 text-sm text-destructive">
                 Failed to fetch delivery details. Please try again later.
               </p>
             </div>
-          ) : deliveryDetails && deliveryDetails.stages.length > 0 ? (
-            <div>
+          ) : deliveryDetails?.stages?.length > 0 ? (
               <div className="space-y-6">
                 {deliveryDetails?.stages?.map((stage, index) => {
-                  const Icon = stageIcons[stage.stage] || stageIcons.default;
+                  const Icon = stageIcons[stage.stage] || stageIcons["default"];
                   return (
                     <div key={index} className="flex items-start gap-4">
                       <div className="flex flex-col items-center">
@@ -231,23 +235,34 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                           {stage.stage.replace(/_/g, " ")}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(stage.timestamp)}
+                          {formatDate(stage.timestamp)} at {formatTime(stage.timestamp)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Partner: {stage.partner_id}
-                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>Partner:</span>
+                          <span className="font-mono">{formatPartnerId(stage.partner_id)}</span>
+                          <Copy text={stage.partner_id} size={14} className="ml-auto" />
+                        </div>
+                        {deliveryDetails?.current_stage === "assigned" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => {
+                              setCurrentPartnerId(stage.partner_id);
+                              setAssignDialogOpen(true);
+                            }}
+                          >
+                            Reassign Delivery
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <Button className="w-full mt-6" disabled>
-                Update Delivery Status
-              </Button>
-            </div>
           ) : (
             <div className="text-center py-6">
-              {deliveryDetails === null ? (
+              {isFetchingDelivery ? (
                 <Spinner className="mx-auto h-6 w-6" />
               ) : (
                 <>
@@ -271,9 +286,12 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
       <Dialog open={isAssignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent className="md:max-w-[750px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Assign Delivery Partner</DialogTitle>
+            <DialogTitle>{currentPartnerId ? 'Reassign Delivery Partner' : 'Assign Delivery Partner'}</DialogTitle>
             <DialogDescription>
-              Select a delivery partner to handle this order.
+              {currentPartnerId 
+                ? 'Select a new delivery partner to handle this order.'
+                : 'Select a delivery partner to handle this order.'
+              }
             </DialogDescription>
           </DialogHeader>
 

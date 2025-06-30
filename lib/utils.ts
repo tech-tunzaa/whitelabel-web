@@ -48,11 +48,30 @@ export function formatDate(date: string | Date, format: 'short' | 'medium' | 'lo
   
   if (format === 'long') {
     options.hour = 'numeric';
-    options.minute = 'numeric';
-    options.hour12 = true;
   }
-  
-  return new Intl.DateTimeFormat('en-US', options).format(dateObj);
+
+  return dateObj.toLocaleDateString('en-US', options);
+}
+
+/**
+ * Formats a timestamp to display time in HH:MM format
+ * @param dateString The date string to format
+ * @returns Formatted time string
+ */
+export function formatTime(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Formats a partner ID to show first and last parts with middle part truncated
+ * @param id The partner ID to format
+ * @returns Formatted partner ID string
+ */
+export function formatPartnerId(id: string): string {
+  if (!id) return "-";
+  const [first, middle, last] = id.split('-');
+  return `${first}-${middle.slice(0, 3)}-${last}`;
 }
 
 /**
