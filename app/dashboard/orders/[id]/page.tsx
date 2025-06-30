@@ -614,27 +614,31 @@ const OrderPage = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(order?.payment_details?.amount)}
+                      {formatPrice(order?.totals?.subtotal)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span className="font-medium text-destructive">
+                      -{formatPrice(order.totals.discount) || "TZS 0.00"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span className="font-medium">
+                      {formatPrice(order.totals.tax) || "TZS 0.00"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">
-                      {formatPrice(order?.payment_details?.amount)}
+                      {formatPrice(order?.totals?.shipping) || "TZS 0.00"}
                     </span>
                   </div>
-                  {order?.payment_details?.amount && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Discount</span>
-                      <span className="font-medium text-destructive">
-                        -{formatPrice(order.payment_details.amount)}
-                      </span>
-                    </div>
-                  )}
                   <div className="flex items-center justify-between border-t pt-4">
                     <span className="text-lg font-medium">Total</span>
                     <span className="text-lg font-bold">
-                      {formatPrice(order?.payment_details?.amount)}
+                      {formatPrice(order?.totals?.total)}
                     </span>
                   </div>
                 </div>
