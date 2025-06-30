@@ -95,8 +95,42 @@ export interface PickupPoint {
 
 export interface DeliveryStage {
   partner_id: string;
-  stage: "delivered" | "failed" | "assigned" | "in_transit";
+  stage: "delivered" | "failed" | "assigned" | "in_transit" | "pending" | "processing" | "out_for_delivery";
   timestamp: string;
+}
+
+export interface DeliveryDetails {
+  current_stage: string;
+  stages: DeliveryStage[];
+}
+
+export interface Order {
+  order_id: string;
+  items: OrderItem[];
+  status: OrderStatus;
+  payment_details: PaymentDetails;
+  shipping_address: Address;
+  delivery_details?: DeliveryDetails | null;
+  vendor_responses?: Record<string, VendorResponse>;
+  plan?: any;
+  refunds?: any[];
+}
+
+export interface OrderItem {
+  item_id: string;
+  product_id: string;
+  vendor_id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface VendorResponse {
+  status: string;
+  notes?: string;
+  responded_at?: string;
 }
 
 export interface DeliveryDetails {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ClipboardCopy, Package } from 'lucide-react';
+import { ArrowLeft, Copy, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Order } from '@/features/orders/types';
@@ -42,14 +42,8 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({ order }) => {
               className="h-6 w-6"
               onClick={() => copyToClipboard(order.order_number, 'Order Number')}
             >
-              <ClipboardCopy className="h-3.5 w-3.5" />
+              <Copy className="h-3.5 w-3.5" />
             </Button>
-          </div>
-
-          <div className="text-sm text-muted-foreground">
-            <time dateTime={order.created_at}>
-              {formatDate(order.created_at)}
-            </time>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>ID: {order.order_id}</span>
@@ -59,8 +53,13 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({ order }) => {
               className="h-5 w-5"
               onClick={() => copyToClipboard(order.order_id, 'Order ID')}
             >
-              <ClipboardCopy className="h-3 w-3" />
+              <Copy className="h-3 w-3" />
             </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <time dateTime={order.created_at}>
+              {formatDate(order.created_at)}
+            </time>
           </div>
         </div>
       </div>

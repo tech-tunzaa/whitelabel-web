@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDashboardStore } from '@/features/dashboard/store';
-import { shallow } from 'zustand/shallow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Separator }  from '@/components/ui/separator';
@@ -19,7 +18,7 @@ export function AdminDashboard() {
   const { data: session } = useSession();
   const tenantId = session?.user?.tenant_id;
 
-        const fetchAllReports = useDashboardStore((state) => state.fetchAllReports);
+  const fetchAllReports = useDashboardStore((state) => state.fetchAllReports);
   const error = useDashboardStore((state) => state.error);
   const isLoading = useDashboardStore((state) => 
     state.loadingGmvData ||
@@ -61,9 +60,9 @@ export function AdminDashboard() {
   return (
     <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1 p-4 pb-0">
-            <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold tracking-tight">MarketPlace Dashboard</h1>
             <p className="text-muted-foreground">
-                An overview of your tenant's performance.
+                An overview of your marketplace performance.
             </p>
         </div>
         <Separator />

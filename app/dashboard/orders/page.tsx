@@ -12,20 +12,13 @@ import { RefreshCw, Search, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 import { OrderTable } from "@/features/orders/components/order-table";
 import { useOrderStore } from "@/features/orders/store";
 import type { Order, OrderStatus, OrderFilter } from "@/features/orders/types";
-import { cn } from "@/lib/utils";
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -189,7 +182,7 @@ export default function OrdersPage() {
     );
   }
 
-  if (storeError && orders.length === 0 && !isTabLoading) {
+  if (storeError && orders?.length === 0 && !isTabLoading) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -226,13 +219,12 @@ export default function OrdersPage() {
           </p>
         </div>
       </div>
-
       <div className="p-4 space-y-4">
         {/* Search and Date Filter */}
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="relative w-full md:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <div className="items-center gap-2 flex">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
@@ -240,7 +232,7 @@ export default function OrdersPage() {
                 title="Refresh orders"
                 className="relative"
               >
-                <RefreshCw  />
+                <RefreshCw />
               </Button>
               <Input
                 placeholder="Search orders..."
@@ -253,50 +245,13 @@ export default function OrdersPage() {
               />
             </div>
           </div>
-
           <div className="flex space-x-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "justify-start text-left font-normal",
-                    !dateRange?.from && !dateRange?.to && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange?.to ? (
-                      <>
-                        {format(dateRange.from, "LLL dd, y")} -{" "}
-                        {format(dateRange.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(dateRange.from, "LLL dd, y")
-                    )
-                  ) : (
-                    "Filter by date"
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-            {(dateRange?.from || dateRange?.to) && (
-              <Button
-                variant="ghost"
-                onClick={() => setDateRange(undefined)}
-              >
-                Reset
-              </Button>
-            )}
+            <DateRangePicker
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              placeholder="Filter by date"
+              className="w-[250px]"
+            />
           </div>
         </div>
 
@@ -305,36 +260,17 @@ export default function OrdersPage() {
           onValueChange={handleTabChange}
         >
           <TabsList className="mb-4 w-full">
-            <TabsTrigger value="all">
-              All
-            </TabsTrigger>
-            <TabsTrigger value="pending">
-              Pending
-            </TabsTrigger>
-            <TabsTrigger value="processing">
-              Processing
-            </TabsTrigger>
-            <TabsTrigger value="confirmed">
-              Confirmed
-            </TabsTrigger>
-            <TabsTrigger value="shipped">
-              Shipped
-            </TabsTrigger>
-            <TabsTrigger value="delivered">
-              Delivered
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed
-            </TabsTrigger>
-            <TabsTrigger value="cancelled">
-              Cancelled
-            </TabsTrigger>
-            <TabsTrigger value="refunded">
-              Refunded
-            </TabsTrigger>
-            <TabsTrigger value="partially_refunded">
-              Partial Refund
-            </TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
+            <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+            <TabsTrigger value="shipped">Shipped</TabsTrigger>
+            <TabsTrigger value="delivered">Delivered</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            <TabsTrigger value="requested_refund">Pending Refunds</TabsTrigger>
+            <TabsTrigger value="partially_refunded">Partial Refunds</TabsTrigger>
+            <TabsTrigger value="refunded">Refunded</TabsTrigger>
           </TabsList>
 
           <Card>
@@ -355,5 +291,5 @@ export default function OrdersPage() {
         </Tabs>
       </div>
     </div>
-  );
+  )
 }

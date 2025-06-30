@@ -34,6 +34,7 @@ interface OrderStore {
   transaction: Transaction | null;
   deliveryDetails: DeliveryDetails | null;
   loading: boolean;
+  error: OrderError | null;
   storeError: OrderError | null;
   activeAction: string | null;
 
@@ -86,6 +87,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   transaction: null,
   deliveryDetails: null,
   loading: false,
+  error: null,
   storeError: null,
   activeAction: null,
 
