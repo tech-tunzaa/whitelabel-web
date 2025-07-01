@@ -62,9 +62,7 @@ interface DashboardState {
 const createReportFetcher = <T>(set: any, endpoint: string, dataKey: keyof DashboardState, loadingKey: keyof DashboardState) => async (tenantId: string) => {
     set({ [loadingKey]: true, error: null });
     try {
-        const response = await apiClient.get<ApiResponse<T>>(`/reports/${endpoint}`, {
-            params: { tenant_id: tenantId },
-        });
+        const response = await apiClient.get<ApiResponse<T>>(`/reports/${endpoint}`, undefined, { 'X-Tenant-ID': tenantId });
 
         let dataToSet: T | null = null;
         if (response.data && response.data.data) {
