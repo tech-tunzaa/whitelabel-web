@@ -51,7 +51,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import {
   DOCUMENT_TYPES,
   DocumentTypeOption,
-} from "@/features/settings/data/document-types";
+} from "@/features/configurations/data/document-types";
 import {
   VendorFormValues,
   VerificationDocument as VendorVerificationDocument,
@@ -309,6 +309,14 @@ export const VendorForm: React.FC<VendorFormProps> = ({
           const { file, ...docWithoutFile } = doc;
           return docWithoutFile;
         });
+    }
+
+    // Convert [lat,long] tuple to { lat, long } object if necessary
+    if (dataToSubmit.location && Array.isArray(dataToSubmit.location)) {
+      dataToSubmit.location = {
+        lat: dataToSubmit.location[0],
+        long: dataToSubmit.location[1],
+      };
     }
 
     // Pass the cleaned data to the parent component's submit handler
@@ -752,7 +760,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       address_line1?: string;
       city?: string;
       state_province?: string;
-      postal_code?: string;
       country?: string;
     }) => {
       // Update form fields with the geocoded address data
@@ -768,12 +775,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
       if (addressData.state_province) {
         form.setValue("state_province", addressData.state_province, {
-          shouldValidate: true,
-        });
-      }
-
-      if (addressData.postal_code) {
-        form.setValue("postal_code", addressData.postal_code, {
           shouldValidate: true,
         });
       }
@@ -799,7 +800,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Address Line 1 <RequiredField />
+                  Address <RequiredField />
                 </FormLabel>
                 <FormControl>
                   <Input
@@ -815,26 +816,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
           <FormField
             control={form.control}
-            name="address_line2"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address Line 2</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="Apartment, suite, unit, building, floor, etc."
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
             name="city"
             render={({ field }) => (
               <FormItem>
@@ -848,7 +829,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
               </FormItem>
             )}
           />
+        </div>
 
+        <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="state_province"
@@ -862,28 +845,6 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                     {...field}
                     className="mt-2"
                     placeholder="State, province, region"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="postal_code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Postal Code <RequiredField />
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="mt-2"
-                    placeholder="Postal code"
                   />
                 </FormControl>
                 <FormMessage />
@@ -904,7 +865,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="mt-2">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a country" />
                     </SelectTrigger>
                   </FormControl>
@@ -926,26 +887,45 @@ export const VendorForm: React.FC<VendorFormProps> = ({
         <div className="md:col-span-2 mt-4">
           <FormField
             control={form.control}
-            name="coordinates"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location Coordinates</FormLabel>
-                <FormControl>
-                  <MapPicker
-                    value={field.value as [number, number] | null}
-                    onChange={field.onChange}
-                    onAddressFound={handleAddressFound}
-                    height="350px"
-                    className="mt-2"
-                  />
-                </FormControl>
-                <FormDescription className="text-sm text-muted-foreground mt-2">
-                  Click on the map to set your business location or use the "Use
-                  Current Location" button.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
+            name="location"
+            render={({ field }) => {
+              let mapValue: [number, number] | null = null;
+              if (field.value) {
+                if (Array.isArray(field.value)) {
+                  mapValue = field.value as [number, number];
+                } else if (
+                  typeof field.value === "object" &&
+                  field.value !== null &&
+                  "lat" in field.value &&
+                  "long" in field.value
+                ) {
+                  const loc = field.value as { lat: number; long: number };
+                  mapValue = [loc.lat, loc.long];
+                } else {
+                  mapValue = [0, 0]; // default to [0, 0] if not in expected format
+                }
+              }
+
+              return (
+                <FormItem>
+                  <FormLabel>Location on Map</FormLabel>
+                  <FormControl>
+                    <MapPicker
+                      value={mapValue}
+                      onChange={field.onChange}
+                      onAddressFound={handleAddressFound}
+                      height="350px"
+                      className="mt-2"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground mt-2">
+                    Click on the map to set your business location or use the
+                    "Use Current Location" button.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         </div>
       </TabsContent>
@@ -1255,7 +1235,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                     <dt className="font-medium text-muted-foreground">
                       Description
                     </dt>
-                    <dd>{reviewValues.stores?.[0]?.description || "Not provided"}</dd>
+                    <dd>
+                      {reviewValues.stores?.[0]?.description || "Not provided"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="font-medium text-muted-foreground">Logo</dt>
@@ -1274,7 +1256,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       reviewValues.stores?.[0].categories.length > 0
                         ? reviewValues.stores?.[0].categories
                             .map((catId: string) => {
-                              const category = categories.find(c => c.category_id === catId);
+                              const category = categories.find(
+                                (c) => c.category_id === catId
+                              );
                               return category?.name || catId;
                             })
                             .join(", ")
@@ -1335,7 +1319,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                       {reviewValues.verification_documents.map(
                         (doc: any, index: number) => (
                           <li key={index}>
-                            {doc.document_type}: {doc.file_name}
+                            {doc.document_type_name}: {doc.file_name}
                             {doc.expiry_date && (
                               <span className="ml-2 text-muted-foreground">
                                 Expires: {doc.expiry_date}

@@ -31,9 +31,40 @@ export default function VendorAddPage() {
 
       // The form data is now in the unified format, including the 'stores' array.
       // We just pass it directly to the store's create method.
+
+      const randomSlug = Math.random().toString(36).substring(2, 10); // TODO: temp
       const payload: VendorFormValues = {
         ...data,
         tenant_id: tenantId,
+        stores: [
+          {
+            ...data.store?.[0],
+            store_slug: randomSlug,
+            branding: {
+                "colors": {
+                    "primary": "#4285F4",
+                    "secondary": "#34A853",
+                    "accent": "#FBBC05",
+                    "text": "#333333",
+                    "background": "#FFFFFF"
+                }
+            },
+          },
+          ...data.store?.slice(1) ?? [],
+        ],
+        store: {
+          ...data.stores?.[0],
+          store_slug: randomSlug,
+          branding: {
+              "colors": {
+                  "primary": "#4285F4",
+                  "secondary": "#34A853",
+                  "accent": "#FBBC05",
+                  "text": "#333333",
+                  "background": "#FFFFFF"
+              }
+          },
+        }
       };
 
       console.log("Creating vendor with unified payload:", payload);

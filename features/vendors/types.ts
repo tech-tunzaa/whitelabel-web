@@ -28,15 +28,11 @@ export type VerificationDocument = {
     document_type_name?: string;
     document_type_description?: string;
 
-    // --- Fields for local form state ---
-    // 'id' is used for React keys in lists
-    id?: string;
-    // 'document_type' is used by the form before we have an id
-    document_type?: string;
-    // 'file_name' is for display in the UI
-    file_name?: string;
-    // 'expiry_date' is a common alias used in forms
-    expiry_date?: string;
+    // --- Fields for verification document status update response ---
+    message?: string,
+    vendor_id?: string,
+    overall_vendor_status?: string,
+    updated_at?: string
 };
 
 // From user payload
@@ -69,7 +65,6 @@ export type Store = {
     tenant_id?: string;
     vendor_id?: string;
     store_name: string;
-    store_slug: string;
     description?: string;
     branding?: StoreBranding;
     banners?: StoreBanner[];
@@ -86,6 +81,11 @@ export type User = {
     last_name: string;
     email: string;
     phone_number: string;
+};
+
+export type Location = {
+    lat: number;
+    long: number;
 };
 
 // Main Vendor type, combining everything
@@ -114,6 +114,7 @@ export type Vendor = {
     commission_rate?: string;
     stores?: Store[];
     user?: User;
+    location?: Location | [number, number] | null;
 };
 
 // The type for the form will be very similar to the Vendor type

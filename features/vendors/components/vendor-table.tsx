@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Check, Edit, Eye, MoreHorizontal, RefreshCw, XCircle, AlertTriangle } from "lucide-react";
+import { Check, Edit, Eye, MoreHorizontal, RefreshCw, XCircle, AlertTriangle, Power } from "lucide-react";
+import { VendorRejectionModal } from "./vendor-rejection-modal";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,11 +62,8 @@ export function VendorTable({
 }: VendorTableProps) {
   const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectVendorId, setRejectVendorId] = useState<string | null>(null);
-  const [rejectionType, setRejectionType] = useState("incomplete_documents");
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [customReason, setCustomReason] = useState("");
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   // Filter vendors by various status combinations
   const allApprovedVendors = vendors.filter(
@@ -94,9 +92,6 @@ export function VendorTable({
     // For rejection, show the dialog instead of immediate action
     if (action === 'reject') {
       setRejectVendorId(vendorId);
-      setRejectionType("incomplete_documents");
-      setCustomReason("");
-      setRejectionReason("");
       setShowRejectDialog(true);
       return;
     }
@@ -134,28 +129,18 @@ export function VendorTable({
   };
 
   // Handle the rejection confirmation
-  const handleRejectConfirm = async () => {
+  const handleRejectConfirm = ({ type, customReason }: { type: string; customReason?: string }) => {
     if (!rejectVendorId || !onStatusChange) return;
-    
-    try {
-      setProcessingId(rejectVendorId);
-      
-      // Prepare rejection reason
-      let finalReason = rejectionType === "other" 
-        ? customReason 
-        : getRejectionReasonText(rejectionType);
-      
-      setRejectionReason(finalReason);
-      
-      // Pass the rejection reason to the onStatusChange function
-      // API expects: status: "rejected", rejection_reason: "....", is_active: false
-      await onStatusChange(rejectVendorId, "rejected", finalReason);
-      setShowRejectDialog(false);
-    } catch (error) {
-      console.error("Error rejecting vendor:", error);
-    } finally {
-      setProcessingId(null);
+
+    const reason = type === 'other' ? customReason : type;
+    if (!reason) {
+      console.error("Rejection reason is missing.");
+      return;
     }
+    
+    onStatusChange(rejectVendorId, "rejected", reason);
+    setShowRejectDialog(false);
+    setRejectVendorId(null);
   };
 
   // Helper to get rejection reason text based on type
@@ -247,8 +232,9 @@ export function VendorTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Business</TableHead>
-                <TableHead className="hidden md:table-cell">Email</TableHead>
-                <TableHead className="hidden md:table-cell">Category</TableHead>
+                <TableHead className="hidden md:table-cell">Contact</TableHead>
+                <TableHead className="hidden md:table-cell">City</TableHead>
+                <TableHead>Approval Status</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Registered</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -258,7 +244,7 @@ export function VendorTable({
               {vendorList.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center py-6 text-muted-foreground"
                   >
                     No vendors found
@@ -286,43 +272,63 @@ export function VendorTable({
                         </Avatar>
                         <div>
                           <div>{vendor.business_name}</div>
-                          <div className="text-xs text-muted-foreground md:hidden">
-                            {vendor.contact_email}
-                          </div>
+                          <div className="text-xs text-muted-foreground">Vendor ID: {vendor.vendor_id}</div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {vendor.contact_email}
+                      <div className="flex flex-col">
+                        <a
+                          href={`mailto:${vendor.contact_email}`}
+                          className="hover:underline w-fit"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {vendor.contact_email}
+                        </a>
+                        {vendor.contact_phone && (
+                          <a
+                            href={`tel:${vendor.contact_phone}`}
+                            className="text-xs text-muted-foreground hover:underline w-fit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {vendor.contact_phone}
+                          </a>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {"N/A"}
+                      {vendor.city || "N/A"}
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={getStatusBadgeVariant(
-                          vendor.verification_status || "pending",
-                          vendor.is_active
-                        ) as any}
                         className={`${
-                          vendor.verification_status === "approved" && vendor.is_active
-                            ? "bg-green-500 hover:bg-green-600 text-white"
-                            : vendor.verification_status === "approved" && !vendor.is_active
-                            ? "bg-slate-200 text-slate-800 border-slate-400"
+                          vendor.verification_status === "approved"
+                            ? "bg-green-200 text-green-800"
                             : vendor.verification_status === "pending"
-                            ? "bg-amber-500 hover:bg-amber-600 text-white"
+                            ? "bg-amber-200 text-amber-800"
                             : vendor.verification_status === "rejected"
-                            ? "bg-red-500 hover:bg-red-600 text-white"
-                            : ""
+                            ? "bg-red-200 text-red-800"
+                            : "bg-slate-200 text-slate-800"
                         }`}
                       >
-                        {getStatusDisplayText(vendor)}
+                        {vendor.verification_status.charAt(0).toUpperCase() + vendor.verification_status.slice(1)}
                       </Badge>
                       {vendor.verification_status === "rejected" && vendor.rejection_reason && (
                         <div className="hidden group-hover:block absolute mt-1 bg-white p-2 rounded shadow-md text-xs max-w-xs z-10">
                           {vendor.rejection_reason}
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={`${
+                          vendor.is_active
+                            ? "bg-green-200 text-green-800"
+                            : "bg-slate-200 text-slate-800"
+                        }`}
+                      >
+                        {vendor.is_active ? "Active" : "Inactive"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {formatDate(vendor.created_at)}
@@ -369,10 +375,13 @@ export function VendorTable({
                           {/* Status-specific actions */}
                           {onStatusChange && (
                             <>
-                              {/* For pending vendors */}
-                              {vendor.verification_status === "pending" && (
-                                <>
-                                  <DropdownMenuItem 
+                              {/* Approval / Rejection */}
+                              {vendor.verification_status !== "approved" &&
+                                vendor.verification_documents?.length > 0 &&
+                                vendor.verification_documents.every(
+                                  (doc: any) => doc.verification_status === "verified"
+                                ) && (
+                                  <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleStatusChange(
@@ -389,34 +398,14 @@ export function VendorTable({
                                     )}
                                     Approve
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleStatusChange(
-                                        vendor.vendor_id,
-                                        "reject"
-                                      );
-                                    }}
-                                    disabled={processingId === vendor.vendor_id}
-                                  >
-                                    {processingId === vendor.vendor_id ? (
-                                      <Spinner size="sm" className="mr-2 h-4 w-4" />
-                                    ) : (
-                                      <XCircle className="h-4 w-4 mr-2" />
-                                    )}
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              
-                              {/* For rejected vendors */}
-                              {vendor.verification_status === "rejected" && (
-                                <DropdownMenuItem 
+                                )}
+                              {vendor.verification_status !== "rejected" && (
+                                <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleStatusChange(
                                       vendor.vendor_id,
-                                      "approve"
+                                      "reject"
                                     );
                                   }}
                                   disabled={processingId === vendor.vendor_id}
@@ -424,12 +413,11 @@ export function VendorTable({
                                   {processingId === vendor.vendor_id ? (
                                     <Spinner size="sm" className="mr-2 h-4 w-4" />
                                   ) : (
-                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    <XCircle className="h-4 w-4 mr-2" />
                                   )}
-                                  Reconsider
+                                  Reject
                                 </DropdownMenuItem>
                               )}
-                              
                               {/* For approved vendors */}
                               {vendor.verification_status === "approved" && (
                                 <DropdownMenuItem 
@@ -444,10 +432,8 @@ export function VendorTable({
                                 >
                                   {processingId === vendor.vendor_id ? (
                                     <Spinner size="sm" className="mr-2 h-4 w-4" />
-                                  ) : vendor.is_active ? (
-                                    <XCircle className="h-4 w-4 mr-2" />
                                   ) : (
-                                    <Check className="h-4 w-4 mr-2" />
+                                    <Power className="h-4 w-4 mr-2" />
                                   )}
                                   {vendor.is_active ? "Deactivate" : "Activate"}
                                 </DropdownMenuItem>
@@ -472,86 +458,12 @@ export function VendorTable({
       {renderTable()}
 
       {/* Rejection Dialog */}
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Vendor</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please select a reason for rejecting this vendor. This will be visible to the vendor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <RadioGroup value={rejectionType} onValueChange={setRejectionType} className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="incomplete_documents" id="incomplete_documents" />
-                <Label htmlFor="incomplete_documents" className="flex flex-col font-normal">
-                  <div className="font-medium me-auto">Incomplete Documents</div>
-                  <div className="text-sm text-muted-foreground">Required verification documents are missing</div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="invalid_documents" id="invalid_documents" />
-                <Label htmlFor="invalid_documents" className="flex flex-col font-normal">
-                  <div className="font-medium me-auto">Invalid Documents</div>
-                  <div className="text-sm text-muted-foreground">Provided documents are invalid or expired</div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="business_information" id="business_information" />
-                <Label htmlFor="business_information" className="flex flex-col font-normal">
-                  <div className="font-medium me-auto">Business Information Issues</div>
-                  <div className="text-sm text-muted-foreground">Inconsistent or incomplete business information</div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="policy_violation" id="policy_violation" />
-                <Label htmlFor="policy_violation" className="flex flex-col font-normal">
-                  <div className="font-medium me-auto">Policy Violation</div>
-                  <div className="text-sm text-muted-foreground">Vendor does not comply with platform policies</div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="other" />
-                <Label htmlFor="other" className="flex flex-col font-normal">
-                  <div className="font-medium me-auto">Other Reason</div>
-                  <div className="text-sm text-muted-foreground">Provide a custom reason for rejection</div>
-                </Label>
-              </div>
-            </RadioGroup>
-
-            {rejectionType === "other" && (
-              <div className="mt-4">
-                <Label htmlFor="custom-reason">Custom Reason</Label>
-                <Textarea
-                  id="custom-reason"
-                  placeholder="Please provide a detailed reason for rejecting this vendor"
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processingId === rejectVendorId}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleRejectConfirm();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={processingId === rejectVendorId || (rejectionType === "other" && !customReason.trim())}
-            >
-              {processingId === rejectVendorId ? (
-                <Spinner size="sm" className="mr-2 h-4 w-4" />
-              ) : (
-                <AlertTriangle className="mr-2 h-4 w-4" />
-              )}
-              Reject Vendor
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <VendorRejectionModal
+        isOpen={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        onConfirm={handleRejectConfirm}
+        isProcessing={processingId === rejectVendorId}
+      />
     </div>
   );
 }

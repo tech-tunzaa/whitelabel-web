@@ -61,6 +61,15 @@ interface VendorStore {
     data: Partial<Store>,
     headers?: Record<string, string>,
   ) => Promise<Store>;
+  updateVendorDocumentStatus: (
+    vendorId: string,
+    payload: {
+      document_type_id: string;
+      verification_status: "verified" | "rejected";
+      rejection_reason?: string;
+    },
+    headers?: Record<string, string>
+  ) => Promise<VerificationDocument>;
   vendorPerformanceReport: VendorPerformanceData[];
   fetchVendorPerformanceReport: (
     vendorId: string,
@@ -120,6 +129,16 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         if (!vendorData.vendor_id && vendorData._id) {
           vendorData.vendor_id = vendorData._id;
         }
+
+        // Clean up verification status to be lowercase
+        if (
+          vendorData.verification_status &&
+          typeof vendorData.verification_status === "string"
+        ) {
+          vendorData.verification_status =
+            vendorData.verification_status.toLowerCase();
+        }
+
         setVendor(vendorData as Vendor);
         setLoading(false);
         return vendorData as Vendor;
@@ -171,9 +190,24 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       const responseData = response.data;
 
       if (responseData && responseData.items) {
-        setVendors(responseData);
+        const cleanedItems = responseData.items.map((vendor: Vendor) => ({
+          ...vendor,
+          verification_status:
+            vendor.verification_status &&
+            typeof vendor.verification_status === "string"
+              ? vendor.verification_status.toLowerCase()
+              : vendor.verification_status,
+        }));
+
+        const cleanedResponseData = {
+          ...responseData,
+          items: cleanedItems,
+          vendors: cleanedItems, // Ensuring compatibility with components that might use .vendors
+        };
+
+        setVendors(cleanedResponseData);
         setLoading(false);
-        return responseData;
+        return cleanedResponseData;
       }
 
       const emptyResult: VendorListResponse = {
@@ -223,7 +257,16 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       }
 
       if (vendorData) {
-        setLoading(false);
+        // Clean up verification status to be lowercase
+        if (
+          vendorData.verification_status &&
+          typeof vendorData.verification_status === "string"
+        ) {
+          vendorData.verification_status =
+            vendorData.verification_status.toLowerCase();
+        }
+        // Refetch vendors list to include the new one
+        get().fetchVendors({}, headers);
         return vendorData as Vendor;
       }
 
@@ -269,6 +312,14 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       if (vendorData && (vendorData.vendor_id || vendorData._id || vendorData.id)) {
         if (!vendorData.vendor_id && (vendorData._id || vendorData.id)) {
           vendorData.vendor_id = vendorData._id || vendorData.id;
+        }
+        // Clean up verification status to be lowercase
+        if (
+          vendorData.verification_status &&
+          typeof vendorData.verification_status === "string"
+        ) {
+          vendorData.verification_status =
+            vendorData.verification_status.toLowerCase();
         }
         setVendor(vendorData as Vendor);
         setLoading(false);
@@ -524,6 +575,93 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         error instanceof Error ? error.message : "Failed to fetch performance data";
       setError({ message: errorMessage });
       set({ vendorPerformanceReport: [] });
+    } finally {
+      setLoading(false);
+      setActiveAction(null);
+    }
+  },
+
+  updateVendorDocumentStatus: async (
+    vendorId: string,
+    payload: {
+      document_type_id: string;
+      verification_status: "verified" | "rejected";
+      rejection_reason?: string;
+    },
+    headers?: Record<string, string>
+  ): Promise<VerificationDocument> => {
+    const { setActiveAction, setLoading, setError, setVendor, vendor } = get();
+    setActiveAction("updateDocumentStatus");
+    setLoading(true);
+
+    try {
+      const { document_type_id, ...apiPayload } = payload;
+
+      const response = await apiClient.put<ApiResponse<VerificationDocument>>(
+        `/marketplace/vendors/${vendorId}/documents/${document_type_id}/status`,
+        apiPayload,
+        headers
+      );
+
+      const updatedDocument = response.data?.data as VerificationDocument | undefined;
+
+      // Determine if the call succeeded purely from HTTP status.
+      const isSuccess = response.status >= 200 && response.status < 300;
+
+      if (!isSuccess) {
+        throw new Error(
+          response.data?.message || "Failed to update document status"
+        );
+      }
+
+      // Build a document object even if backend did not send one.
+      let finalDoc: VerificationDocument | undefined = updatedDocument;
+      if (!finalDoc && vendor && vendor.verification_documents) {
+        const existing = vendor.verification_documents.find(
+          (d) => d.document_type_id === payload.document_type_id
+        );
+        if (existing) {
+          finalDoc = {
+            ...existing,
+            verification_status: payload.verification_status,
+            rejection_reason: payload.rejection_reason ?? null,
+          };
+        }
+      }
+
+      // Update local cache for immediate UI feedback.
+      if (vendor && vendor.verification_documents) {
+        const patched = vendor.verification_documents.map((d) =>
+          d.document_type_id === payload.document_type_id
+            ? {
+                ...d,
+                ...(finalDoc || {}),
+                verification_status: payload.verification_status,
+                rejection_reason: payload.rejection_reason ?? null,
+              }
+            : d
+        );
+        setVendor({ ...vendor, verification_documents: patched });
+      }
+
+      // Fallback minimal object so caller resolves successfully.
+      if (!finalDoc) {
+        finalDoc = {
+          document_type_id: payload.document_type_id,
+          document_url: "",
+          verification_status: payload.verification_status,
+          rejection_reason: payload.rejection_reason ?? null,
+        } as VerificationDocument;
+      }
+
+      return finalDoc;
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "An unknown error occurred";
+      setError({ message: errorMessage, status: error.response?.status });
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
       setActiveAction(null);

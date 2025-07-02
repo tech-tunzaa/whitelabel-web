@@ -14,37 +14,29 @@ export const verificationDocumentSchema = z.object({
   document_id: z.string().optional(),
   document_type_id: z.string().optional(),
   document_url: z.string().min(1, "Document URL is required"),
-  verification_status: z.enum(["pending", "approved", "rejected"]).optional(),
+  verification_status: z.enum(["pending", "verified", "rejected"]).optional(),
   rejection_reason: z.string().optional().nullable(),
   submitted_at: z.string().optional(),
   expires_at: z.string().optional().nullable(),
-  // Local form state fields
-  id: z.string().optional(),
-  file_name: z.string().optional(),
-  expiry_date: z.string().optional(),
 });
 
-// Corresponds to StoreBrandingColors type
-export const storeBrandingColorsSchema = z.object({
-  primary: z.string(),
-  secondary: z.string(),
-  accent: z.string(),
-  text: z.string(),
-  background: z.string(),
+// Corresponds to Location type
+export const locationSchema = z.object({
+  lat: z.number(),
+  long: z.number(),
 });
 
 // Corresponds to StoreBranding type
 export const storeBrandingSchema = z.object({
   logo_url: z.string().optional().nullable(),
   favicon_url: z.string().optional(),
-  colors: storeBrandingColorsSchema,
 }).optional();
 
 // Corresponds to StoreBanner type
 export const storeBannerSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  image_url: z.string().min(1, "Image URL is required"),
-  alt_text: z.string().min(1, "Alt text is required"),
+  title: z.string().min(1, "Banner Title is required"),
+  image_url: z.string().min(1, "Banner Image is required"),
+  alt_text: z.string().nullable(),
   display_order: z.number(),
 });
 
@@ -54,7 +46,6 @@ export const storeSchema = z.object({
   tenant_id: z.string().optional(),
   vendor_id: z.string().optional(),
   store_name: z.string().min(2, "Store name must be at least 2 characters"),
-  store_slug: z.string().min(2, "Store slug must be at least 2 characters"),
   description: z.string().optional(),
   branding: storeBrandingSchema,
   banners: z.array(storeBannerSchema).optional(),
@@ -92,15 +83,19 @@ export const vendorFormSchema = z.object({
   address_line2: z.string().optional().nullable(),
   city: z.string().min(1, "City is required"),
   state_province: z.string().min(1, "State/Province is required"),
-  postal_code: z.string().nullable(),
   country: z.string().min(1, "Country is required"),
   tax_id: z.string().optional().nullable(),
   commission_rate: z.string().optional(),
   verification_status: z.string().optional(),
   is_active: z.boolean().optional(),
   policy: z.string().optional().nullable(),
-  website: z.string().url("Website must be a valid URL").or(z.literal(""))
-    .optional().nullable(), // Changed from just optional to nullable
+  website: z.string().url("Website must be a valid URL").or(z.literal("")).optional().nullable(),
+
+  // Location can be either tuple from MapPicker or final object form
+  location: z.union([
+    z.tuple([z.number(), z.number()]), // [lat, long] from MapPicker
+    locationSchema, // { lat, long }
+  ]).optional().nullable(),
 
   // Nested objects and arrays
   bank_account: bankAccountSchema,

@@ -20,6 +20,14 @@ import {
   Star,
   Trash2,
   Image as ImageIcon,
+  Briefcase,
+  LinkIcon,
+  Clock,
+  Download,
+  Upload,
+  Power,
+  Ban,
+  PlayCircle,
   Truck,
   FileTerminal,
   DollarSign,
@@ -57,8 +65,9 @@ import {
   Store as VendorStore,
 } from "@/features/vendors/types";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
+import { VerificationDocumentManager, VerificationActionPayload } from "@/components/ui/verification-document-manager";
 import { BannerEditor } from "@/components/ui/banner-editor";
+import { VendorRejectionModal } from "@/features/vendors/components/vendor-rejection-modal";
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { AffiliateTable } from "@/features/affiliates/components/affiliate-table";
 
@@ -71,99 +80,6 @@ interface VendorPageProps {
 interface AffiliatesTabProps {
   vendorId: string;
   tenantId?: string;
-}
-
-function AffiliatesTab({ vendorId, tenantId }: AffiliatesTabProps) {
-  const router = useRouter();
-  const { fetchAffiliates, updateAffiliateStatus, affiliates, loading } =
-    useAffiliateStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
-  const [activeTab, setActiveTab] = useState("all");
-
-  // Debounce search query
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500); // 500ms delay
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
-
-  // Define filter based on active tab
-  const getFilters = useCallback(() => {
-    const base: any = {
-      skip: 0,
-      limit: 10,
-      vendor_id: vendorId,
-    };
-    if (debouncedSearchQuery) base.search = debouncedSearchQuery;
-    if (activeTab !== "all") base.status = activeTab;
-    return base;
-  }, [vendorId, debouncedSearchQuery, activeTab]);
-
-  useEffect(() => {
-    const headers: Record<string, string> = {};
-    if (tenantId) headers["X-Tenant-ID"] = tenantId;
-    fetchAffiliates(getFilters(), headers);
-  }, [getFilters, tenantId, fetchAffiliates]);
-
-  const handleStatusChange = async (
-    affiliateId: string,
-    status: string,
-    reason?: string
-  ) => {
-    const headers: Record<string, string> = {};
-    if (tenantId) headers["X-Tenant-ID"] = tenantId;
-    const payload: any = { verification_status: status };
-    if (status === "rejected") payload.rejection_reason = reason || "Rejected";
-    await updateAffiliateStatus(affiliateId, payload, headers);
-    // refresh list
-    fetchAffiliates(getFilters(), headers);
-  };
-
-  return (
-    <TabsContent value="affiliate" className="space-y-4 mt-4">
-      <div className="flex justify-between mb-4">
-        <div className="relative w-[300px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search affiliates..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 mb-4">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Spinner />
-          </div>
-        ) : (
-          <AffiliateTable
-            affiliates={affiliates}
-            onAffiliateClick={(affiliate) =>
-              router.push(`/dashboard/affiliates/${affiliate.id}`)
-            }
-            onStatusChange={handleStatusChange}
-            activeTab={activeTab}
-          />
-        )}
-      </Tabs>
-    </TabsContent>
-  );
 }
 
 export default function VendorPage({ params }: VendorPageProps) {
@@ -179,6 +95,7 @@ export default function VendorPage({ params }: VendorPageProps) {
     error,
     fetchVendor,
     updateVendorStatus,
+    updateVendorDocumentStatus,
     fetchStoreByVendor,
     updateStore,
     vendorPerformanceReport,
@@ -188,36 +105,19 @@ export default function VendorPage({ params }: VendorPageProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [storeData, setStoreData] = useState<VendorStore[] | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   // UI States
+  const [rejectProcessing, setRejectProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Image Preview States
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  // Document Verification States
-  const [verificationDoc, setVerificationDoc] =
-    useState<VerificationDocument | null>(null);
-
-  // Verification modal states
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [verificationDocumentData, setVerificationDocumentData] =
-    useState<VerificationDocument | null>(null);
-
   // File preview state for the new VerificationDocumentCard
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [policyDocUrl, setPolicyDocUrl] = useState("");
 
   // Define tenant headers
-  const tenantHeaders = {
-    "X-Tenant-ID": tenant_id,
-  };
-
-  // Category state
-  const [categories, setCategories] = useState<any[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [policyDocUrl, setPolicyDocUrl] = useState("");
-  const [isPolicyDocOpen, setIsPolicyDocOpen] = useState(false);
+  const tenantHeaders = tenant_id ? { "X-Tenant-ID": tenant_id } : undefined;
 
   // Use ref to prevent duplicate API calls
   const fetchRequestRef = useRef(false);
@@ -258,12 +158,6 @@ export default function VendorPage({ params }: VendorPageProps) {
 
     // Return the name if found, otherwise return the ID
     return category ? category.name : categoryId;
-  };
-
-  // Handler for policy document preview
-  const handlePolicyDocPreview = (url: string) => {
-    setPolicyDocUrl(url);
-    setIsPolicyDocOpen(true);
   };
 
   useEffect(() => {
@@ -415,18 +309,11 @@ export default function VendorPage({ params }: VendorPageProps) {
 
   // Helper to safely access vendor properties with appropriate fallbacks
   const categoriesStore = useCategoryStore();
-  const vendorStatus =
-    vendor?.verification_status || (vendor?.is_active ? "active" : "pending");
+  const vendorStatus = vendor?.verification_status || (vendor?.is_active ? "active" : "pending");
   const vendorEmail = vendor?.contact_email || vendor?.email || "";
   // Get the first store from the array if available
   const firstStore = storeData && storeData.length > 0 ? storeData[0] : null;
-  const vendorLogo =
-    firstStore?.branding?.logo_url ||
-    vendor?.store?.branding?.logo_url ||
-    vendor?.logo ||
-    "/placeholder.svg";
-  const vendorDocuments = vendor?.verification_documents || [];
-  const rejectionReason = vendor?.rejection_reason || "";
+  const vendorLogo = firstStore?.branding?.logo_url || vendor?.store?.branding?.logo_url ||  vendor?.logo || "/placeholder.svg";
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not specified";
@@ -435,15 +322,6 @@ export default function VendorPage({ params }: VendorPageProps) {
     } catch (e) {
       return "Invalid date";
     }
-  };
-
-  // Handle document preview
-  const handlePreviewDocument = (url: string) => {
-    if (!url) {
-      toast.error("No document URL available");
-      return;
-    }
-    setPreviewImage(url);
   };
 
   // Handle status change
@@ -484,85 +362,57 @@ export default function VendorPage({ params }: VendorPageProps) {
   };
 
   // Handle document verification
-  const handleVerifyDocument = (doc: VerificationDocument) => {
-    if (!doc) {
-      toast.error("No document provided for verification");
+  const handleDocumentVerification = useCallback(async (payload: VerificationActionPayload) => {
+    if (!vendor) {
+      console.error("[VendorPage] Verification failed: vendor object is missing.", { vendor });
+      toast.error("Verification failed: Vendor data not available.");
+      return;
+    }
+    if (!tenant_id) {
+      console.error("[VendorPage] Verification failed: tenant_id is missing.", { session });
+      toast.error("Verification failed: User session is invalid.");
       return;
     }
 
-    // Handle document verification flow
-    setVerificationDoc(doc);
-    // Make sure we're using the right properties for the verification dialog
-    setVerificationDocumentData(doc);
-    setIsVerificationModalOpen(true);
+    setIsUpdating(true);
+    const action = payload.verification_status === 'verified' ? 'Approving' : 'Rejecting';
+    const toastId = toast.loading(`${action} document...`);
 
-    // Log for debugging
-    console.log("Opening verification modal for document:", doc);
-  };
-
-  // Handle document approve
-  const handleDocumentApprove = async (
-    documentId: string,
-    expiryDate?: string
-  ) => {
-    // This would connect to your API
     try {
-      console.log("Approving document:", { documentId, expiryDate });
-
-      // Ensure we're passing the expiry date in the right format
-      // This handles both field naming conventions (expires_at and expiry_date)
-      const formattedExpiryDate = expiryDate
-        ? new Date(expiryDate).toISOString()
-        : undefined;
-
-      toast.success("Document approved successfully");
-      // Simulate an API call for demo purposes
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // In a real app, you would make an API call here
-      // await approveDocument(documentId, formattedExpiryDate);
-
-      // Refresh vendor data to get updated document statuses
-      fetchVendor(id, tenantHeaders);
-      return Promise.resolve();
+      await updateVendorDocumentStatus(
+        vendor.vendor_id,
+        payload,
+        { "X-Tenant-ID": tenant_id }
+      );
+      toast.success(`Document ${payload.verification_status === 'verified' ? 'approved' : 'rejected'} successfully.`, { id: toastId });
     } catch (error) {
-      console.error("Error approving document:", error);
-      toast.error("Failed to approve document");
-      return Promise.reject(error);
+      toast.error(`Failed to ${action.toLowerCase()} document.`, { id: toastId });
+    } finally {
+      setIsUpdating(false);
     }
+  }, [vendor, tenant_id, updateVendorDocumentStatus]);
+
+  // Handle the rejection confirmation similar to vendor-table
+  const handleRejectConfirm = ({ type, customReason }: { type: string; customReason?: string }) => {
+    if (!vendor) return;
+    const reason = type === 'other' ? customReason : type;
+    if (!reason) {
+      toast.error("Rejection reason required");
+      return;
+    }
+    setRejectProcessing(true);
+    updateVendorStatus(vendor.id || vendor.vendor_id!, 'rejected', tenantHeaders, reason)
+      .then(() => {
+        toast.success("Vendor rejected successfully");
+        setShowRejectDialog(false);
+        
+        // Refresh vendor data
+        fetchVendor(id, tenantHeaders);
+      })
+      .catch(() => toast.error("Failed to reject vendor"))
+      .finally(() => setRejectProcessing(false));
   };
 
-  // Handle document reject
-  const handleDocumentReject = async (documentId: string, reason: string) => {
-    // This would connect to your API
-    try {
-      console.log("Rejecting document:", { documentId, reason });
-
-      // Validate rejection reason is provided
-      if (!reason) {
-        toast.error("Rejection reason is required");
-        return Promise.reject(new Error("Rejection reason is required"));
-      }
-
-      toast.success("Document rejected");
-      // Simulate an API call for demo purposes
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // In a real app, you would make an API call here
-      // await rejectDocument(documentId, reason);
-
-      // Reset verification doc
-      setVerificationDoc(null);
-
-      // Refresh vendor data to get updated document statuses
-      fetchVendor(id, tenantHeaders);
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error rejecting document:", error);
-      toast.error("Failed to reject document");
-      return Promise.reject(error);
-    }
-  };
-
-  // Handle vendor delete
   const handleDeleteVendor = async () => {
     try {
       setIsDeleting(true);
@@ -582,7 +432,7 @@ export default function VendorPage({ params }: VendorPageProps) {
     }
   };
 
-  if (loading) {
+  if (loading && !vendor) {
     return <Spinner />;
   }
 
@@ -715,6 +565,14 @@ export default function VendorPage({ params }: VendorPageProps) {
         onClose={() => setIsPreviewOpen(false)}
         src={policyDocUrl}
         alt="Verification document preview"
+      />
+
+      
+      {/* Rejection Dialog */}
+      <VendorRejectionModal
+        isOpen={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        onConfirm={handleRejectConfirm}
       />
     </div>
   ) : null;
@@ -1136,6 +994,99 @@ export default function VendorPage({ params }: VendorPageProps) {
     );
   }
 
+  function AffiliatesTab({ vendorId, tenantId }: AffiliatesTabProps) {
+    const router = useRouter();
+    const { fetchAffiliates, updateAffiliateStatus, affiliates, loading } =
+      useAffiliateStore();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+    const [activeTab, setActiveTab] = useState("all");
+  
+    // Debounce search query
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedSearchQuery(searchQuery);
+      }, 500); // 500ms delay
+  
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [searchQuery]);
+  
+    // Define filter based on active tab
+    const getFilters = useCallback(() => {
+      const base: any = {
+        skip: 0,
+        limit: 10,
+        vendor_id: vendorId,
+      };
+      if (debouncedSearchQuery) base.search = debouncedSearchQuery;
+      if (activeTab !== "all") base.status = activeTab;
+      return base;
+    }, [vendorId, debouncedSearchQuery, activeTab]);
+  
+    useEffect(() => {
+      const headers: Record<string, string> = {};
+      if (tenantId) headers["X-Tenant-ID"] = tenantId;
+      fetchAffiliates(getFilters(), headers);
+    }, [getFilters, tenantId, fetchAffiliates]);
+  
+    const handleStatusChange = async (
+      affiliateId: string,
+      status: string,
+      reason?: string
+    ) => {
+      const headers: Record<string, string> = {};
+      if (tenantId) headers["X-Tenant-ID"] = tenantId;
+      const payload: any = { verification_status: status };
+      if (status === "rejected") payload.rejection_reason = reason || "Rejected";
+      await updateAffiliateStatus(affiliateId, payload, headers);
+      // refresh list
+      fetchAffiliates(getFilters(), headers);
+    };
+  
+    return (
+      <TabsContent value="affiliate" className="space-y-4 mt-4">
+        <div className="flex justify-between mb-4">
+          <div className="relative w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search affiliates..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+  
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+  
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <Spinner />
+            </div>
+          ) : (
+            <AffiliateTable
+              affiliates={affiliates}
+              onAffiliateClick={(affiliate) =>
+                router.push(`/dashboard/affiliates/${affiliate.id}`)
+              }
+              onStatusChange={handleStatusChange}
+              activeTab={activeTab}
+            />
+          )}
+        </Tabs>
+      </TabsContent>
+    );
+  }
+
   function Sidebar() {
     return (
       <div className="md:col-span-2 space-y-6">
@@ -1197,9 +1148,9 @@ export default function VendorPage({ params }: VendorPageProps) {
           <div className="rounded-lg p-4 border shadow-sm">
             <VerificationDocumentManager
               documents={vendor?.verification_documents || []}
-              onApprove={handleDocumentApprove}
-              onReject={handleDocumentReject}
+              onDocumentVerification={handleDocumentVerification}
               showActions={true}
+              isProcessing={isUpdating}
             />
           </div>
         </div>
@@ -1210,9 +1161,12 @@ export default function VendorPage({ params }: VendorPageProps) {
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Show different actions based on vendor status */}
-            {vendorStatus === "pending" && (
-              <>
+            {/* Approve */}
+            {vendorStatus !== "approved" &&
+              vendor.verification_documents?.length > 0 &&
+              vendor.verification_documents.every(
+                (doc: any) => doc.verification_status === "verified"
+              ) && (
                 <Button
                   variant="outline"
                   className="w-full text-green-600"
@@ -1220,81 +1174,64 @@ export default function VendorPage({ params }: VendorPageProps) {
                   onClick={() => handleStatusChange("approved")}
                 >
                   {isUpdating ? (
-                    <Spinner className="h-4 w-4 mr-2" color="white" />
+                    <Spinner size="sm" color="white" />
                   ) : (
                     <Check className="h-4 w-4 mr-2" />
                   )}
                   Approve Vendor
                 </Button>
-                <Button
+            )}
+
+            {/* Reject */}
+            {vendorStatus !== "rejected" && (
+              <Button
                   variant="outline"
                   className="w-full text-red-600"
                   disabled={isUpdating}
-                  onClick={() => handleStatusChange("rejected")}
+                  onClick={() => setShowRejectDialog(true)}
                 >
                   {isUpdating ? (
-                    <Spinner className="h-4 w-4 mr-2" color="white" />
+                    <Spinner size="sm" color="white" />
                   ) : (
-                    <X className="h-4 w-4 mr-2" />
+                    <Ban className="h-4 w-4 mr-2" />
                   )}
                   Reject Vendor
                 </Button>
-              </>
             )}
 
-            {vendorStatus === "rejected" && (
+            {/* Activate/Deactivate Buttons */}
+            {vendorStatus === "approved" && vendor.is_active && (
               <Button
                 variant="outline"
-                className="w-full text-green-600"
+                className="w-full text-orange-600 hover:bg-orange-50 hover:text-orange-700"
                 disabled={isUpdating}
-                onClick={() => handleStatusChange("approved")}
+                onClick={() => handleStatusChange("inactive")}
               >
                 {isUpdating ? (
-                  <Spinner className="h-4 w-4 mr-2" color="white" />
+                  <Spinner size="sm" />
                 ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <Power className="h-4 w-4 mr-2" />
                 )}
-                Reconsider Vendor
+                Deactivate Vendor
+              </Button>
+            )}
+            {vendorStatus === "approved" && !vendor.is_active && (
+              <Button
+                variant="outline"
+                className="w-full text-green-600 hover:bg-green-50 hover:text-green-700"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange("active")}
+              >
+                {isUpdating ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Power className="h-4 w-4 mr-2" />
+                )}
+                Activate Vendor
               </Button>
             )}
 
-            {vendorStatus === "approved" && (
-              <Button
-                variant="outline"
-                className={`w-full ${
-                  !vendor.is_active ? "text-green-600" : "text-red-600"
-                }`}
-                disabled={isUpdating}
-                onClick={() =>
-                  handleStatusChange(vendor.is_active ? "inactive" : "active")
-                }
-              >
-                {isUpdating ? (
-                  <Spinner className="h-4 w-4 mr-2" color="white" />
-                ) : vendor.is_active ? (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    Deactivate Vendor
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Activate Vendor
-                  </>
-                )}
-              </Button>
-            )}
-
-            {/* Show rejection reason if rejected */}
-            {vendorStatus === "rejected" && rejectionReason && (
-              <div className="mt-2 p-3 bg-red-50 rounded-md">
-                <p className="text-sm text-red-800">
-                  <span className="font-medium">Rejection Reason:</span>{" "}
-                  {rejectionReason}
-                </p>
-              </div>
-            )}
-
+            <Separator />
             <Button
               variant="outline"
               className="w-full"

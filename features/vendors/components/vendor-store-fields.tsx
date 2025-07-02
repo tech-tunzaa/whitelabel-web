@@ -59,28 +59,6 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
             </FormItem>
           )}
         />
-        <FormField
-          control={control}
-          name={`${fieldPrefix}.store_slug`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Store URL <RequiredField />
-              </FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  placeholder="your-store"
-                  value={field.value || ""}
-                />
-              </FormControl>
-              <FormDescription>
-                The URL for your store is derived from the store name.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
       <div className="space-y-4">
         <FormField
