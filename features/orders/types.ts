@@ -385,6 +385,12 @@ export interface AssignDeliveryPayload {
   estimated_delivery_time?: string;
 }
 
+// Payload used when adding a new delivery stage to an existing delivery (e.g., reassigning a delivery partner)
+export interface AddDeliveryStagePayload {
+  partner_id: string;
+  stage: 'assigned' | 'in_transit' | 'delivered' | 'failed';
+}
+
 export interface Delivery {
   _id: string;
   order_id: string;

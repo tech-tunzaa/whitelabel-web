@@ -1,9 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { Upload, Loader, File, Calendar, Plus, Trash, Eye, AlertTriangle } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 
-import { Upload, Loader, File, Calendar, Plus, Trash, Eye } from "lucide-react"
+import { useConfigurationStore } from "@/features/configurations/store"
+import { DocumentType } from "@/features/configurations/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,17 +19,10 @@ import { FilePreviewModal } from "@/components/ui/file-preview-modal"
 import { uploadFile } from "@/lib/services/file-upload.service"
 
 // Type definitions
-export type DocumentType = {
-  id: string
-  name: string
-  required?: boolean
-  description?: string
-}
-
 export interface DocumentWithMeta {
   id?: string
   document_id?: string
-  document_type: string
+  document_type: string // This will now be document_type_id
   file_name?: string
   expires_at?: string
   document_url?: string
@@ -37,8 +34,8 @@ export interface DocumentWithMeta {
 }
 
 export interface DocumentUploadProps {
+  entityName: string; // e.g., 'delivery-partner', 'vendor'
   documents?: DocumentWithMeta[];
-  documentTypes: DocumentType[];
   onUploadComplete?: (document: DocumentWithMeta) => void;
   onDelete?: (index: number) => void;
   label?: string;
@@ -48,8 +45,8 @@ export interface DocumentUploadProps {
 }
 
 export function DocumentUpload({
+  entityName,
   documents = [],
-  documentTypes,
   onUploadComplete,
   onDelete,
   label = "Upload Documents",
@@ -60,6 +57,16 @@ export function DocumentUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAddingDocument, setIsAddingDocument] = useState(false);
+  const { data: session } = useSession();
+  const tenantId = session?.user?.tenant_id;
+
+  const {
+    configurations,
+    loading: configLoading,
+    error: configError,
+    fetchEntityConfiguration,
+  } = useConfigurationStore();
+
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>("");
   const [expires_at, setExpires_at] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +145,25 @@ export function DocumentUpload({
     onDelete?.(index);
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setIsAddingDocument(isOpen);
+    console.log('Dialog open state changed:', isOpen);
+
+    // Fetch configuration only when dialog is opened and data is not already available
+    if (isOpen && entityName && tenantId && !configurations[entityName]) {
+      console.log(`Fetching configuration for entity: ${entityName}, tenant: ${tenantId}`);
+      fetchEntityConfiguration(entityName, tenantId);
+    } else if (isOpen) {
+      console.log('Did not fetch. Conditions:', {
+        entityName: !!entityName,
+        tenantId: !!tenantId,
+        configExists: !!configurations[entityName],
+      });
+    }
+  };
+
+  const documentTypes = configurations[entityName]?.document_types || [];
+
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex justify-between items-center mb-2">
@@ -145,7 +171,7 @@ export function DocumentUpload({
           {label && <Label>{label}</Label>}
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        <Dialog open={isAddingDocument} onOpenChange={setIsAddingDocument}>
+        <Dialog open={isAddingDocument} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button
               variant="outline"
@@ -183,14 +209,29 @@ export function DocumentUpload({
                   onValueChange={setSelectedDocumentType}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select document type" />
+                    <SelectValue placeholder={configLoading ? "Loading types..." : "Select document type"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {documentTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
+                    {configLoading ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Spinner size="sm" />
+                      </div>
+                    ) : configError ? (
+                      <div className="p-2 text-sm text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>Error loading types.</span>
+                      </div>
+                    ) : documentTypes.length === 0 ? (
+                      <SelectItem value="no-types" disabled>
+                        No document types found.
                       </SelectItem>
-                    ))}
+                    ) : (
+                      documentTypes.map((type) => (
+                        <SelectItem key={type.document_type_id} value={type.document_type_id}>
+                          {type.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -246,7 +287,7 @@ export function DocumentUpload({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium flex items-center gap-1">
-                          {documentTypes.find((t) => t.id === doc.document_type)?.name || doc.document_type}
+                          {documentTypes.find((t) => t.document_type_id === doc.document_type)?.name || doc.document_type}
                           {!doc.document_id && (
                             <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">New</span>
                           )}

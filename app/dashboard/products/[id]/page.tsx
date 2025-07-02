@@ -17,6 +17,7 @@ import {
   Eye,
   EyeOff,
   Ban,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -42,19 +43,7 @@ import { useProductStore } from "@/features/products/store";
 import { Product } from "@/features/products/types";
 
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { ProductRejectionDialog } from "@/features/products/components/product-rejection-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProductPageProps {
@@ -89,16 +78,14 @@ export default function ProductPage({ params }: ProductPageProps) {
     loading: productLoading,
     error: productError,
     fetchProduct,
-    updateProduct,
+    updateProductStatus,
     deleteProduct,
   } = useProductStore();
 
   // UI States
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectionType, setRejectionType] = useState("product_quality");
-  const [customReason, setCustomReason] = useState("");
+  const [productToReject, setProductToReject] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // File Preview States
@@ -143,12 +130,49 @@ export default function ProductPage({ params }: ProductPageProps) {
     }
   };
 
+  // Light badge props based on status
+  const getLightBadgeProps = (status: string) => {
+    switch (status) {
+      case "approved":
+        return {
+          classes: "bg-green-100 text-green-800 border-green-200",
+          icon: <Check className="h-3 w-3 mr-1" />,
+        };
+      case "pending":
+        return {
+          classes: "bg-amber-100 text-amber-800 border-amber-200",
+          icon: <AlertTriangle className="h-3 w-3 mr-1" />,
+        };
+      case "rejected":
+      case "suspended":
+        return {
+          classes: "bg-red-100 text-red-800 border-red-200",
+          icon: <Ban className="h-3 w-3 mr-1" />,
+        };
+      default:
+        return {
+          classes: "bg-gray-100 text-gray-800 border-gray-200",
+          icon: null,
+        };
+    }
+  };
+
+  // Render a status badge using the light style
+  const renderStatusBadge = (status: string) => {
+    const { classes, icon } = getLightBadgeProps(status);
+    return (
+      <Badge className={`capitalize ${classes}`}>
+        {icon}
+        {status || "pending"}
+      </Badge>
+    );
+  };
+
   // Helper to safely access product properties with appropriate fallbacks
   const productStatus =
     product?.verification_status || (product?.is_active ? "active" : "pending");
 
-  
-  
+  // Product store
   const store = product?.store;
   const productImageUrl =
     product?.images?.[0]?.url || "/placeholder-product.svg";
@@ -176,7 +200,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
     const updateAction = async () => {
       try {
-        await updateProduct(product.product_id, updates, tenantHeaders);
+        await updateProductStatus(product.product_id, updates, tenantHeaders);
         // Refetch product data to ensure UI is up-to-date
         await fetchProduct(id, tenantHeaders);
       } catch (err) {
@@ -193,37 +217,18 @@ export default function ProductPage({ params }: ProductPageProps) {
     });
   };
 
-  // Handle rejection confirmation
-  const handleRejectConfirm = () => {
-    if (rejectionType === "other" && !customReason.trim()) {
-      toast.error("Please provide a reason for rejection.");
-      return;
-    }
-
-    const reason =
-      rejectionType === "other"
-        ? customReason
-        : getRejectionReasonText(rejectionType);
-
-    setShowRejectDialog(false);
-    handleUpdate({ verification_status: "rejected", rejection_reason: reason });
-    setCustomReason("");
-  };
-
-  // Helper to get rejection reason text based on type
-  const getRejectionReasonText = (type: string) => {
-    switch (type) {
-      case "product_quality":
-        return "Product quality does not meet our standards";
-      case "inadequate_information":
-        return "Product information is incomplete or incorrect";
-      case "pricing_issues":
-        return "Product pricing issues need to be resolved";
-      case "policy_violation":
-        return "Product violates our marketplace policies";
-      default:
-        return customReason;
-    }
+  // Handle reject or suspend action
+  const handleRejectOrSuspend = async (
+    productId: string,
+    reason: string,
+    customReason?: string
+  ) => {
+    const finalReason = customReason || reason;
+    await handleUpdate({
+      status: "rejected",
+      rejection_reason: finalReason,
+    });
+    setProductToReject(null);
   };
 
   // Handle product delete
@@ -317,12 +322,30 @@ export default function ProductPage({ params }: ProductPageProps) {
               <div className="flex items-center gap-4 mb-1">
                 <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
                 <div className="flex items-center gap-2">
-                  <Badge variant={getStatusVariant(product.verification_status)}>
-                    {product.verification_status}
-                  </Badge>
-                  <Badge variant={product.is_active ? "success" : "secondary"}>
-                    {product.is_active ? "Published" : "Draft"}
-                  </Badge>
+                  {product.verification_status === "approved" ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                      <Check className="h-3 w-3 mr-1" />
+                      Approved
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-red-100 text-red-800 border-red-200">
+                      <X className="h-3 w-3 mr-1" />
+                      Not Approved
+                    </Badge>
+                  )}
+                  {product.verification_status === "approved" && (
+                    product.is_active ? (
+                      <Badge className="bg-green-100 text-green-800 border-green-200">
+                        <Eye className="h-3 w-3 mr-1" />
+                        Published
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                        <EyeOff className="h-3 w-3 mr-1" />
+                        Draft
+                      </Badge>
+                    )
+                  )}
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -484,18 +507,24 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <span className="text-sm text-muted-foreground">
                       Approval Status
                     </span>
-                    <Badge variant={getStatusVariant(product.verification_status)}>
-                      {product.verification_status}
-                    </Badge>
+                    {renderStatusBadge(product.verification_status || "pending")}
                   </div>
 
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">
                       Visibility
                     </span>
-                    <Badge variant={product.is_active ? "success" : "secondary"}>
-                      {product.is_active ? "Published" : "Draft"}
-                    </Badge>
+                    {product.verification_status === "approved" && product.is_active ? (
+                      <Badge className="bg-green-100 text-green-800 border-green-200">
+                        <Eye className="h-3 w-3 mr-1" />
+                        Published
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                        <EyeOff className="h-3 w-3 mr-1" />
+                        Draft
+                      </Badge>
+                    )}
                   </div>
                   
                   {product.inventory_tracking ? (
@@ -503,9 +532,24 @@ export default function ProductPage({ params }: ProductPageProps) {
                       <span className="text-sm text-muted-foreground">
                         Stock Status
                       </span>
-                      <Badge variant={getStockStatus(product).variant}>
-                        {getStockStatus(product).text}
-                      </Badge>
+                      {(() => {
+                        const { text, variant } = getStockStatus(product);
+                        const mapVariant =
+                          variant === "success"
+                            ? "approved"
+                            : variant === "warning"
+                            ? "pending"
+                            : variant === "destructive"
+                            ? "rejected"
+                            : "default";
+                        const { classes, icon } = getLightBadgeProps(mapVariant);
+                        return (
+                          <Badge className={classes}>
+                            {icon}
+                            {text}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   ) : null}
 
@@ -599,7 +643,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <Button
                       className="w-full"
                       onClick={() =>
-                        handleUpdate({ verification_status: "approved" })
+                        handleUpdate({ status: "approved" })
                       }
                       disabled={productLoading}
                     >
@@ -613,10 +657,12 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <Button
                       className="w-full"
                       variant="destructive"
-                      onClick={() => setShowRejectDialog(true)}
+                      size="sm"
+                      onClick={() => setProductToReject(product)}
                       disabled={productLoading}
                     >
-                      <X className="mr-2 h-4 w-4" /> Reject
+                      <Ban className="mr-2 h-3 w-3" />
+                      Reject
                     </Button>
                   </>
                 )}
@@ -641,18 +687,19 @@ export default function ProductPage({ params }: ProductPageProps) {
                       {product.is_active ? "Unpublish" : "Publish"}
                     </Button>
                     <Button
-                      className="w-full"
                       variant="outline"
-                      onClick={() =>
-                        handleUpdate({ verification_status: "suspended" })
-                      }
-                      disabled={productLoading}
+                      size="sm"
+                      onClick={() => handleUpdate({ verification_status: "approved" })}
                     >
-                      {productLoading ? (
-                        <Spinner className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Ban className="mr-2 h-4 w-4" />
-                      )}
+                      <Check className="mr-2 h-3 w-3" />
+                      Re-Approve
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setProductToReject(product)}
+                    >
+                      <Ban className="mr-2 h-3 w-3" />
                       Suspend
                     </Button>
                   </>
@@ -728,81 +775,13 @@ export default function ProductPage({ params }: ProductPageProps) {
         onClose={() => setPreviewFile(null)}
       />
 
-      {/* Rejection Dialog */}
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Product</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please provide a reason for rejecting this product. This will be
-              visible to the vendor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="py-4">
-            <RadioGroup value={rejectionType} onValueChange={setRejectionType}>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="product_quality"
-                    id="product_quality"
-                  />
-                  <Label htmlFor="product_quality">
-                    Product quality issues
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="inadequate_information"
-                    id="inadequate_information"
-                  />
-                  <Label htmlFor="inadequate_information">
-                    Inadequate product information
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="pricing_issues" id="pricing_issues" />
-                  <Label htmlFor="pricing_issues">Pricing issues</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="policy_violation"
-                    id="policy_violation"
-                  />
-                  <Label htmlFor="policy_violation">Policy violation</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="other" id="other" />
-                  <Label htmlFor="other">Other (specify below)</Label>
-                </div>
-
-                {rejectionType === "other" && (
-                  <Textarea
-                    value={customReason}
-                    onChange={(e) => setCustomReason(e.target.value)}
-                    placeholder="Please provide specific reason for rejection..."
-                    className="mt-2"
-                  />
-                )}
-              </div>
-            </RadioGroup>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleRejectConfirm();
-              }}
-              disabled={rejectionType === "other" && !customReason.trim()}
-            >
-              {productLoading ? <Spinner className="mr-2 h-4 w-4" /> : null}
-              Reject Product
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ProductRejectionDialog
+        product={productToReject}
+        isOpen={!!productToReject}
+        onClose={() => setProductToReject(null)}
+        onConfirm={handleRejectOrSuspend}
+        loading={productLoading}
+      />
     </div>
   );
 }

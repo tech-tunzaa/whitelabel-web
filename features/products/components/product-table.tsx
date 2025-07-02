@@ -32,18 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -57,6 +46,7 @@ interface ProductTableProps {
     data: Partial<Product>
   ) => Promise<void>;
   onDelete: (product: Product) => void;
+  onReject: (product: Product) => void;
 }
 
 export function ProductTable({
@@ -64,17 +54,15 @@ export function ProductTable({
   onProductClick,
   onUpdateProduct,
   onDelete,
+  onReject,
 }: ProductTableProps) {
   const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [productToReject, setProductToReject] = useState<Product | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
 
   const handleApprove = async (productId: string) => {
     setProcessingId(productId);
     try {
-      await onUpdateProduct(productId, { verification_status: "approved" });
+      await onUpdateProduct(productId, { status: "approved" });
     } catch (error) {
       // Error is handled in the parent component's toast
     } finally {
@@ -82,32 +70,7 @@ export function ProductTable({
     }
   };
 
-  const handleSuspend = async (productId: string) => {
-    setProcessingId(productId);
-    try {
-      await onUpdateProduct(productId, { verification_status: "suspended" });
-    } catch (error) {
-      // Error is handled in the parent component's toast
-    } finally {
-      setProcessingId(null);
-    }
-  };
 
-  const handleReject = (product: Product) => {
-    setProductToReject(product);
-    setShowRejectDialog(true);
-  };
-
-  const handleRejectConfirm = async () => {
-    if (!productToReject) return;
-    await onUpdateProduct(productToReject.product_id, {
-      verification_status: "rejected",
-      rejection_reason: rejectionReason,
-    });
-    setShowRejectDialog(false);
-    setRejectionReason("");
-    setProductToReject(null);
-  };
 
   const handleToggleIsActive = (product: Product) => {
     onUpdateProduct(product.product_id, { is_active: !product.is_active });
@@ -250,7 +213,7 @@ export function ProductTable({
                                     Approve
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={() => handleReject(product)}
+                                    onClick={() => onReject(product)}
                                   >
                                     <XCircle className="mr-2 h-4 w-4 text-red-500" />
                                     Reject
@@ -275,7 +238,7 @@ export function ProductTable({
                                     )}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={() => handleSuspend(product.product_id)}
+                                    onClick={() => onReject(product)}
                                   >
                                     <XCircle className="mr-2 h-4 w-4 text-yellow-500" />
                                     Suspend
@@ -309,36 +272,7 @@ export function ProductTable({
         </CardContent>
       </Card>
 
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Product</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please provide a reason for rejecting "
-              {productToReject?.name}". This will be visible to the vendor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="grid gap-2">
-            <Label htmlFor="rejection-reason">Rejection Reason</Label>
-            <Textarea
-              id="rejection-reason"
-              placeholder="e.g., Images are low quality, description is incomplete, etc."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRejectConfirm}
-              disabled={!rejectionReason.trim() || !!processingId}
-            >
-              {processingId === productToReject?.product_id ? <Spinner size="sm" className="mr-2"/> : null}
-              Confirm Rejection
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
     </>
   );
 }

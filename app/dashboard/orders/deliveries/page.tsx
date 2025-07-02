@@ -10,6 +10,8 @@ import { Spinner } from "@/components/ui/spinner";
 import Pagination from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 import { useDeliveryStore } from "@/features/orders/deliveries/store";
 import { Delivery, DeliveryListResponse } from "@/features/orders/deliveries/types";
@@ -27,6 +29,7 @@ export default function DeliveryPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
   const pageSize = 10;
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   // Define tenant headers
   const tenantHeaders = {
@@ -112,21 +115,46 @@ export default function DeliveryPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => fetchDeliveries(getFilters(), tenantHeaders)}
+            onClick={() => router.push('/dashboard/orders')}
+            title="Go to Orders"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+            Go to Orders
           </Button>
         </div>
       </div>
-
       <div className="p-4 space-y-4">
-        <Input
-          placeholder="Search deliveries..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="relative w-full md:w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fetchDeliveries(getFilters(), tenantHeaders)}
+                title="Refresh deliveries"
+                className="relative"
+              >
+                <RefreshCw />
+              </Button>
+              <Input
+                placeholder="Search deliveries..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                }}
+                className="w-[250px]"
+              />
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <DateRangePicker
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              placeholder="Filter by date"
+              className="w-[250px]"
+            />
+          </div>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full">
             <TabsTrigger value="all">All</TabsTrigger>

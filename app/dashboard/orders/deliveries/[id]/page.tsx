@@ -6,10 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useDeliveryStore } from '@/features/orders/deliveries/store';
 import { useOrderStore } from '@/features/orders/store';
 import { format } from 'date-fns';
-import { ArrowLeft, Package, User, MapPin, Phone, Calendar, Clock, CheckCircle, XCircle, Truck, Info, ListOrdered, PackageCheck, Hourglass, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, Phone, Calendar, Clock, CheckCircle, XCircle, Truck, Info, ListOrdered, PackageCheck, Hourglass, AlertCircle, ExternalLink } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
@@ -238,6 +238,16 @@ export default function DeliveryDetailsPage() {
                 </div>
               )}
             </CardContent>
+            <CardFooter>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/dashboard/orders/${delivery.order_id}`)}
+                className="w-full"
+              >
+                <ExternalLink/>
+                View Order Details
+              </Button>
+            </CardFooter>
           </Card>
 
           {delivery.deliveryPartner && (

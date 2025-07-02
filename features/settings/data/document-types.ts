@@ -2,113 +2,88 @@
  * Document types for verification
  */
 export interface DocumentTypeOption {
-  id: string;
-  label: string;
-  category: 'identity' | 'business' | 'financial' | 'other';
+  slug: string;
+  name: string;
   description?: string;
 }
 
 export const DOCUMENT_TYPES: DocumentTypeOption[] = [
   // Identity documents
   {
-    id: 'nida',
-    label: 'NIDA (National ID)',
-    category: 'identity',
+    slug: 'nida',
+    name: 'NIDA (National ID)',
     description: 'National Identification Authority ID card'
   },
   {
-    id: 'passport',
-    label: 'Passport',
-    category: 'identity',
+    slug: 'passport',
+    name: 'Passport',
     description: 'International passport'
   },
   {
-    id: 'drivers_license',
-    label: 'Driver\'s License',
-    category: 'identity',
+    slug: 'drivers_license',
+    name: 'Driver\'s License',
     description: 'Government issued driver\'s license'
   },
   {
-    id: 'voter_id',
-    label: 'Voter ID',
-    category: 'identity',
+    slug: 'voter_id',
+    name: 'Voter ID',
     description: 'Voter identification card'
   },
   
   // Business documents
   {
-    id: 'business_registration',
-    label: 'Business Registration Certificate',
-    category: 'business',
+    slug: 'business_registration',
+    name: 'Business Registration Certificate',
     description: 'Official business registration certificate'
   },
   {
-    id: 'business_license',
-    label: 'Business License',
-    category: 'business',
+    slug: 'business_license',
+    name: 'Business License',
     description: 'Current business operating license'
   },
   {
-    id: 'tax_clearance',
-    label: 'Tax Clearance Certificate',
-    category: 'business',
+    slug: 'tax_clearance',
+    name: 'Tax Clearance Certificate',
     description: 'Certificate of tax compliance'
   },
   {
-    id: 'trademark_certificate',
-    label: 'Trademark Certificate',
-    category: 'business',
+    slug: 'trademark_certificate',
+    name: 'Trademark Certificate',
     description: 'Proof of trademark registration'
   },
   
   // Financial documents
   {
-    id: 'financial_statement',
-    label: 'Financial Statement',
-    category: 'financial',
+    slug: 'financial_statement',
+    name: 'Financial Statement',
     description: 'Audited financial statements'
   },
   {
-    id: 'bank_statement',
-    label: 'Bank Statement',
-    category: 'financial',
+    slug: 'bank_statement',
+    name: 'Bank Statement',
     description: 'Recent bank statements'
   },
   {
-    id: 'tax_returns',
-    label: 'Tax Returns',
-    category: 'financial',
+    slug: 'tax_returns',
+    name: 'Tax Returns',
     description: 'Recent tax return filings'
   },
   
   // Other documents
   {
-    id: 'utility_bill',
-    label: 'Utility Bill',
-    category: 'other',
+    slug: 'utility_bill',
+    name: 'Utility Bill',
     description: 'Recent utility bill for address verification'
   },
   {
-    id: 'lease_agreement',
-    label: 'Lease Agreement',
-    category: 'other',
+    slug: 'lease_agreement',
+    name: 'Lease Agreement',
     description: 'Business premises lease agreement'
   },
   {
-    id: 'other',
-    label: 'Other Document',
-    category: 'other',
+    slug: 'other',
+    name: 'Other Document',
     description: 'Any other relevant document'
   }
 ];
 
-// Helper function to get document types by category
-export function getDocumentTypesByCategory(category: 'identity' | 'business' | 'financial' | 'other' | 'all' = 'all'): DocumentTypeOption[] {
-  if (category === 'all') return DOCUMENT_TYPES;
-  return DOCUMENT_TYPES.filter(doc => doc.category === category);
-}
-
-// Helper function to get a document type by ID
-export function getDocumentTypeById(id: string): DocumentTypeOption | undefined {
-  return DOCUMENT_TYPES.find(doc => doc.id === id);
-}

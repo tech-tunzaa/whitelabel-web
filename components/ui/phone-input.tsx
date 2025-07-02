@@ -55,7 +55,7 @@ export interface PhoneInputProps
 }
 
 const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ countryCode: initialCountryCode = "+255", onChange, value = "", onBlur, ...props }, ref) => {
+  ({ countryCode: initialCountryCode = "+255", onChange, value, onBlur, ...props }, ref) => {
     // Parse the initial value if it's a complete phone number with country code
     const parseInitialValue = () => {
       // Handle null, undefined, and non-string values

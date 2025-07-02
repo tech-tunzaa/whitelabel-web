@@ -150,10 +150,10 @@ export function VerificationDocumentManager({
         </div>
       )}
       {documents.map((document, index) => {
-        const documentName = document.file_name || document.document_type?.replace(/_/g, " ") || document.id || "Unnamed Document";
-        const isPending = document.status === "pending";
-        const isRejected = document.status === "rejected";
-        const isApproved = document.status === "approved";
+        const documentName = document.document_type_name || document.document_type_id || "Unnamed Document";
+        const isPending = document.verification_status === "pending";
+        const isRejected = document.verification_status === "rejected";
+        const isApproved = document.verification_status === "approved";
         return (
           <Card key={document.id || index} className="w-full mb-4">
             <CardContent className="p-4">
@@ -164,10 +164,10 @@ export function VerificationDocumentManager({
                 <div className="flex-grow min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="font-semibold truncate">{documentName}</h3>
-                    {getStatusBadge(document.status || "pending")}
+                    {getStatusBadge(document.verification_status || "pending")}
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">
-                    {document.document_type ? document.document_type.replace(/_/g, " ") : "N/A"}
+                    {document.document_type_description ? document.document_type_description : "N/A"}
                   </p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                     {document.expires_at && (
@@ -235,7 +235,7 @@ export function VerificationDocumentManager({
       )}
       {/* Verification Dialog */}
       <Dialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <UIDialogHeader>
             <UIDialogTitle className="text-xl">Verify Document</UIDialogTitle>
             <DialogDescription>
@@ -249,9 +249,9 @@ export function VerificationDocumentManager({
                   <FileText className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-medium">{selectedDoc.file_name || selectedDoc.document_type?.replace(/_/g, " ") || selectedDoc.id}</h3>
+                  <h3 className="font-medium">{selectedDoc.document_type_name || selectedDoc.document_type_id}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Type: {selectedDoc.document_type ? selectedDoc.document_type.replace(/_/g, " ") : "N/A"}
+                    Type: {selectedDoc.document_type_name ? selectedDoc.document_type_name : "N/A"}
                   </p>
                 </div>
               </div>

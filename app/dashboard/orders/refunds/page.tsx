@@ -213,11 +213,19 @@ export default function OrdersPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Order Refunds</h1>
           <p className="text-muted-foreground">
-            Manage and track customer orders
+            Manage and track customer order refunds
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/dashboard/orders')}
+          title="Goto Orders"
+          className="relative"
+        >
+          Go to Orders
+        </Button>
       </div>
       <div className="p-4 space-y-4">
         {/* Search and Date Filter */}
@@ -239,7 +247,6 @@ export default function OrdersPage() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
                 }}
                 className="w-[250px]"
               />

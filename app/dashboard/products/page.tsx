@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner";
 import Pagination from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProductRejectionDialog } from "@/features/products/components/product-rejection-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +38,7 @@ export default function ProductsPage() {
     loading,
     storeError: error,
     fetchProducts,
-    updateProduct,
+    updateProductStatus,
     deleteProduct,
   } = useProductStore();
 
@@ -48,6 +49,7 @@ export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [productToReject, setProductToReject] = useState<Product | null>(null);
   const [totalProducts, setTotalProducts] = useState(0);
   const pageSize = 10;
 
@@ -116,14 +118,27 @@ export default function ProductsPage() {
 
   const handleUpdateProduct = async (productId: string, data: Partial<Product>) => {
     try {
-      await updateProduct(productId, data, tenantHeaders);
-      toast.success("Product updated successfully.");
+      await updateProductStatus(productId, data, tenantHeaders);
+      toast.success("Product status updated successfully.");
       const filters = getFilters();
       fetchProducts(filters, tenantHeaders);
     } catch (err) {
       toast.error("Failed to update product.");
       console.error("Update error:", err);
     }
+  };
+
+  const handleRejectOrSuspend = async (
+    productId: string,
+    reason: string,
+    customReason?: string
+  ) => {
+    const reasonText = customReason || reason;
+    await handleUpdateProduct(productId, {
+      status: "rejected",
+      rejection_reason: reasonText,
+    });
+    setProductToReject(null);
   };
 
   const handleDeleteRequest = (product: Product) => {
@@ -222,6 +237,7 @@ export default function ProductsPage() {
                 onProductClick={handleProductClick}
                 onUpdateProduct={handleUpdateProduct}
                 onDelete={handleDeleteRequest}
+                onReject={setProductToReject}
               />
               <Pagination
                 currentPage={currentPage}
@@ -234,7 +250,7 @@ export default function ProductsPage() {
         </Tabs>
       </div>
 
-      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+            <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -248,6 +264,14 @@ export default function ProductsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProductRejectionDialog
+        product={productToReject}
+        isOpen={!!productToReject}
+        onClose={() => setProductToReject(null)}
+        onConfirm={handleRejectOrSuspend}
+        loading={loading}
+      />
     </div>
   );
 }

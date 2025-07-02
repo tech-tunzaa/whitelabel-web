@@ -1078,8 +1078,8 @@ export const VendorForm: React.FC<VendorFormProps> = ({
             ownership
           </p>
           <DocumentUpload
+            entityName="vendor"
             documents={documentFields as DocumentWithMeta[]}
-            documentTypes={mappedDocumentTypes}
             onUploadComplete={handleUploadComplete}
             onDelete={handleDeleteDocument}
             disabled={isSubmitting}

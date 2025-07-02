@@ -166,7 +166,7 @@ export function DeliveryTable({
                     <DeliveryStatusBadge status={delivery.current_stage} />
                   </TableCell>
                   <TableCell>
-                    {format(new Date(delivery.created_at), "dd MMM, yyyy")}
+                    {format(new Date(delivery.created_at), "dd MMM, yyyy HH:mm:ss")}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>

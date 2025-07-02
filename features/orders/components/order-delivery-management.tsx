@@ -70,6 +70,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
   const {
     fetchOrder,
     assignDeliveryPartner,
+    addDeliveryStage,
     fetchOrderDeliveryDetails,
     activeAction,
   } = useOrderStore();
@@ -156,33 +157,54 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
 
     setAssigningPartnerId(partnerId);
     try {
-      const now = new Date().toISOString();
-      const payload = {
-        order_id: order.order_id,
-        partner_id: partnerId,
-        pickup_points: [
-          {
-            partner_id: partnerId,
-            timestamp: now,
-          },
-        ],
-        stages: [
-          {
-            partner_id: partnerId,
-            stage: "assigned" as DeliveryStage["stage"],
-            timestamp: now,
-          },
-        ],
-        current_stage: "assigned" as DeliveryStage["stage"],
-        created_at: now,
-        updated_at: now,
-      };
+      let result: DeliveryDetails | null = null;
 
-      const result = await assignDeliveryPartner(payload, { "X-Tenant-ID": user.tenant_id });
+      if (deliveryDetails?.id) {
+        // Reassigning an existing delivery – add a new stage via /deliveries/{id}/stages
+        const payload = {
+          partner_id: partnerId,
+          stage: "assigned" as DeliveryStage["stage"],
+        };
+        result = await addDeliveryStage(deliveryDetails.id, payload, {
+          "X-Tenant-ID": user.tenant_id,
+        });
+      } else {
+        // First-time assignment – create delivery via /deliveries
+        const now = new Date().toISOString();
+        const payload = {
+          order_id: order.order_id,
+          partner_id: partnerId,
+          pickup_points: [
+            {
+              partner_id: partnerId,
+              timestamp: now,
+            },
+          ],
+          stages: [
+            {
+              partner_id: partnerId,
+              stage: "assigned" as DeliveryStage["stage"],
+              timestamp: now,
+            },
+          ],
+          current_stage: "assigned" as DeliveryStage["stage"],
+          created_at: now,
+          updated_at: now,
+        };
+        result = await assignDeliveryPartner(payload, {
+          "X-Tenant-ID": user.tenant_id,
+        });
+      }
 
-      setDeliveryDetails(result);
-      setAssignDialogOpen(false);
-      toast.success("Delivery partner assigned successfully.");
+      if (result) {
+        setDeliveryDetails(result);
+        setAssignDialogOpen(false);
+        toast.success(
+          deliveryDetails?.id
+            ? "Delivery partner reassigned successfully."
+            : "Delivery partner assigned successfully."
+        );
+      }
     } catch (error: any) {
       toast.error(error?.message || "Failed to assign delivery partner.");
     } finally {

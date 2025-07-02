@@ -10,6 +10,7 @@ import {
   ApiResponse,
   DeliveryDetails,
   AssignDeliveryPayload,
+  AddDeliveryStagePayload,
   Transaction,
 } from "./types";
 
@@ -78,7 +79,12 @@ interface OrderStore {
   assignDeliveryPartner: (
     payload: AssignDeliveryPayload,
     headers?: Record<string, string>
-  ) => Promise<Order | null>;
+  ) => Promise<DeliveryDetails | null>;
+  addDeliveryStage: (
+    deliveryId: string,
+    payload: AddDeliveryStagePayload,
+    headers?: Record<string, string>
+  ) => Promise<DeliveryDetails | null>;
 }
 
 export const useOrderStore = create<OrderStore>()((set, get) => ({
@@ -362,18 +368,12 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
         payload,
         headers
       );
-      const updatedOrder = unwrapApiResponse<DeliveryDetails>(response);
-      if (updatedOrder) {
-        setOrder(updatedOrder);
-        if (orders) {
-          const updatedItems = orders.items.map((o) =>
-            o.order_id === payload.order_id ? updatedOrder : o
-          );
-          setOrders({ ...orders, items: updatedItems });
-        }
-        return updatedOrder;
+      const details = unwrapApiResponse<DeliveryDetails>(response);
+      if (details) {
+        setDeliveryDetails(details);
+        return details;
       } else {
-        console.log("[assignDeliveryPartner] No updated order returned");
+        console.log("[assignDeliveryPartner] No delivery details returned");
         return null;
       }
     } catch (error: any) {
@@ -382,6 +382,26 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
         message: error?.message,
         response: error?.response?.data
       });
+      throw error;
+    }
+  },
+
+  addDeliveryStage: async (deliveryId, payload, headers) => {
+    const { setDeliveryDetails } = get();
+    try {
+      const response = await apiClient.post<ApiResponse<DeliveryDetails>>(
+        `/deliveries/${deliveryId}/stages`,
+        payload,
+        headers
+      );
+      const details = unwrapApiResponse<DeliveryDetails>(response);
+      if (details) {
+        setDeliveryDetails(details);
+        return details;
+      }
+      return null;
+    } catch (error: any) {
+      console.error("[addDeliveryStage] Error updating delivery stage:", error);
       throw error;
     }
   },

@@ -26,6 +26,7 @@ interface ProductStore {
   fetchProducts: (filter?: ProductFilter, headers?: Record<string, string>) => Promise<any>;
   createProduct: (data: any, headers?: Record<string, string>) => Promise<any>;
   updateProduct: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
+  updateProductStatus: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
   deleteProduct: (id: string, headers?: Record<string, string>) => Promise<any>;
 }
 
@@ -209,6 +210,38 @@ export const useProductStore = create<ProductStore>()(
         return productData;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    updateProductStatus: async (id: string, data: any, headers?: Record<string, string>) => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('update');
+        setLoading(true);
+        
+        const response = await apiClient.put<ApiResponse<any>>(`/products/${id}/status`, data, headers);
+        
+        let productData = null;
+        
+        if (response.data && response.data.data) {
+          productData = response.data.data;
+        } else if (response.data) {
+          productData = response.data;
+        }
+        
+        setLoading(false);
+        return productData;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update product status';
         const errorStatus = (error as any)?.response?.status;
         setStoreError({
           message: errorMessage,

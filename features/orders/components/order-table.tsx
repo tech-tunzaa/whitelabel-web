@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { 
   MoreHorizontal, 
   Edit, 
@@ -14,7 +15,6 @@ import {
   Ban
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -53,16 +53,12 @@ import { Order, OrderStatus } from "../types";
 
 interface OrderTableProps {
   orders: Order[];
-  onEdit?: (order: Order) => void;
-  onDelete?: (order: Order) => void;
   onViewDetails?: (order: Order) => void;
   onStatusChange?: (orderId: string, status: OrderStatus) => void;
 }
 
 export function OrderTable({
   orders,
-  onEdit,
-  onDelete,
   onViewDetails,
   onStatusChange,
 }: OrderTableProps) {
@@ -233,13 +229,18 @@ export function OrderTable({
               onClick={() => onViewDetails(order)}
             >
               <TableCell className="font-medium">
-                <div className="flex items-center gap-1">
-                  <span>#{order.order_number}</span>
-                  {((order as any).flagged || (order as any).is_flagged) && (
-                    <Badge variant="destructive" className="ml-1">
-                      Issue
-                    </Badge>
-                  )}
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <span>#{order.order_number}</span>
+                    {((order as any).flagged || (order as any).is_flagged) && (
+                      <Badge variant="destructive" className="ml-1">
+                        Issue
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Order ID: {order.order_id}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
@@ -257,11 +258,11 @@ export function OrderTable({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger className="cursor-default">
-                      {order.created_at}
+                      {format(new Date(order.created_at), "dd MMM, yyyy HH:mm")}
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Order placed: {order.created_at}</p>
-                      {order.updated_at && <p>Last update: {order.updated_at}</p>}
+                      <p>Order placed: {format(new Date(order.created_at), "dd MMM, yyyy HH:mm")}</p>
+                      {order.updated_at && <p>Last update: {format(new Date(order.updated_at), "dd MMM, yyyy HH:mm")}</p>}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -303,15 +304,8 @@ export function OrderTable({
                       </DropdownMenuItem>
                     )}
                     
-                    {onEdit && (
-                      <DropdownMenuItem onClick={() => onEdit(order)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                    )}
-                    
                     {/* Order Status Actions */}
-                    {getAvailableActions(order).length > 0 && (
+                    {/* {getAvailableActions(order).length > 0 && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuSub>
@@ -334,17 +328,7 @@ export function OrderTable({
                           </DropdownMenuPortal>
                         </DropdownMenuSub>
                       </>
-                    )}
-                    
-                    {onDelete && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onDelete(order)} className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Order
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                    )} */}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
