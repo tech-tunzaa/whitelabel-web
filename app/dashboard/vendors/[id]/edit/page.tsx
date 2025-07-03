@@ -51,7 +51,21 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
         const storeToUpdate = data.stores?.[0];
         if (storeToUpdate && storeToUpdate.store_id) {
           try {
-            await updateStore(storeToUpdate.store_id, storeToUpdate, headers);
+            const randomSlug = Math.random().toString(36).substring(2, 10);
+            const storeUpdatePayload = {
+              ...storeToUpdate,
+              store_slug: storeToUpdate.store_slug || randomSlug,
+              branding: {
+                  "colors": {
+                      "primary": "#4285F4",
+                      "secondary": "#34A853",
+                      "accent": "#FBBC05",
+                      "text": "#333333",
+                      "background": "#FFFFFF"
+                  }
+              },
+            };
+            await updateStore(storeToUpdate.store_id, storeUpdatePayload, headers);
             toast.success("Vendor and store updated successfully!");
 
             await new Promise((resolve) => setTimeout(resolve, 3000));

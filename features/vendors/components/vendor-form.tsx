@@ -244,25 +244,10 @@ export const VendorForm: React.FC<VendorFormProps> = ({
     }
   };
 
-  const handleDeleteDocument = async (index: number) => {
-    const documentToDelete = documentFields[index];
-    const documentId = (documentToDelete as VendorVerificationDocument).id;
-
-    if (documentId && initialData?.vendor_id) {
-      try {
-        await deleteDocument(initialData.vendor_id, documentId);
-        removeDocument(index);
-        toast.success("Document deleted successfully.");
-      } catch (error) {
-        toast.error("Failed to delete document from server.");
-        console.error("Error deleting document:", error);
-      }
-    } else {
-      removeDocument(index);
-      toast.info(
-        "Document removed from list. Save changes to make it permanent."
-      );
-    }
+  const handleDeleteDocument = (index: number) => {
+    // Simply remove the document from the field array without any server call
+    removeDocument(index);
+    toast.info("Document removed from list. Save changes to make it permanent.");
   };
 
   const handleUploadComplete = (doc: DocumentWithMeta) => {

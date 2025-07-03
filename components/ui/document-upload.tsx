@@ -3,8 +3,9 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Upload, Loader, File, Calendar, Plus, Trash, Eye, AlertTriangle } from "lucide-react"
+import { Upload, Loader, File, Calendar, Plus, Trash, Eye, AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
+import { Badge } from "@/components/ui/badge"
 
 import { useConfigurationStore } from "@/features/configurations/store"
 import { DocumentType } from "@/features/configurations/types"
@@ -66,6 +67,33 @@ export function DocumentUpload({
     error: configError,
     fetchEntityConfiguration,
   } = useConfigurationStore();
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case "verified":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 font-medium">
+            <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+            Verified
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 font-medium">
+            <XCircle className="mr-1.5 h-3.5 w-3.5" />
+            Rejected
+          </Badge>
+        );
+      case "pending":
+      default:
+        return (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 font-medium">
+            <Clock className="mr-1.5 h-3.5 w-3.5" />
+            Pending
+          </Badge>
+        );
+    }
+  };
 
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>("");
   const [expires_at, setExpires_at] = useState<string>("");
@@ -142,7 +170,7 @@ export function DocumentUpload({
   };
 
   const handleRemoveDocument = (index: number) => {
-    onDelete?.(index);
+    onDelete?.(index)
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -195,10 +223,10 @@ export function DocumentUpload({
                   id="document-file"
                   type="file"
                   onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                  accept=".pdf,.jpg,.jpeg,.png"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Accepted formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10MB)
+                  Accepted formats: PDF, JPG, JPEG, PNG (max 10MB)
                 </p>
               </div>
 
@@ -286,10 +314,12 @@ export function DocumentUpload({
                         <File className="h-8 w-8" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium flex items-center gap-1">
-                          {documentTypes.find((t) => t.document_type_id === doc.document_type)?.name || doc.document_type}
-                          {!doc.document_id && (
-                            <span className="text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">New</span>
+                        <div className="font-medium flex items-center gap-2">
+                          <span>{doc.document_type_name || documentTypes.find((t) => t.document_type_id === doc.document_type)?.name || doc.document_type}</span>
+                          {doc.file_name ? (
+                             <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 font-medium">New</Badge>
+                          ) : (
+                            getStatusBadge(doc.verification_status)
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground truncate max-w-[200px]">
