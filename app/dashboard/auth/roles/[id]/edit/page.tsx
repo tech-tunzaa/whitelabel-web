@@ -53,7 +53,7 @@ const EditRolePage = () => {
     if (!tenantId || !roleToEdit?.role) return;
     const headers = { 'X-Tenant-ID': tenantId };
     
-    const promise = updateRole(roleToEdit.id, data, headers);
+    const promise = updateRole(roleToEdit.role, data, headers);
 
     toast.promise(promise, {
       loading: 'Updating role...',
@@ -73,8 +73,8 @@ const EditRolePage = () => {
 
   const isLoading = loading && roles.length === 0;
 
-  if (isLoading) {
-    return <Spinner className="fixed inset-0 m-auto" />;
+  if (isLoading && !roleToEdit) {
+    return <Spinner />;
   }
 
   if (!loading && !roleToEdit) {
@@ -88,12 +88,8 @@ const EditRolePage = () => {
       />
     );
   }
-  
-  if (!roleToEdit) {
-    return <Spinner />;
-  }
 
-  return (
+  return roleToEdit ? (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 p-4 md:p-6">
         <Button variant="outline" size="icon" onClick={() => router.back()} className="shrink-0">
@@ -117,7 +113,7 @@ const EditRolePage = () => {
         />
       </div>
     </div>
-  );
+  ) : null;
 };
 
 export default EditRolePage;

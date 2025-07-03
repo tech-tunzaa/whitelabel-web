@@ -10,6 +10,8 @@ import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from '@/components/ui/error-card';
 
 interface EditUserPageProps {
   params: {
@@ -76,21 +78,28 @@ export default function EditUserPage({ params }: EditUserPageProps) {
     router.push("/dashboard/auth/users")
   }
   
-  if (loading) {
-    return <div className="container py-6">Loading user data...</div>
+  if (loading && !user) {
+    return <Spinner />;
   }
   
-  if (error || !user) {
-    return <div className="container py-6">Error: {error || 'User not found'}</div>
+  if (error && !user) {
+    return 
+      <ErrorCard 
+        title="User Not Found"
+        error={{ message: error, status: '404' }}
+        buttonText="Back to Users"
+        buttonAction={() => router.push('/dashboard/auth/users')}
+        buttonIcon={ArrowLeft}
+      />
   }
   
-  return (
+  return user ? (
     <div className="container py-6 space-y-6">
       <div className="flex items-center space-x-2 mx-4">
         <Button variant="outline" size="icon" onClick={handleCancel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">Edit User: {user.name}</h1>
           <p className="text-foreground">Modify user's information</p>
         </div>
@@ -99,5 +108,5 @@ export default function EditUserPage({ params }: EditUserPageProps) {
       
       <UserForm onSubmit={handleSubmit} onCancel={handleCancel} initialData={user} />
     </div>
-  )
+  ) : null;
 }

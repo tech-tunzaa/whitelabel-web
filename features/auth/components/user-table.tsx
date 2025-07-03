@@ -126,6 +126,12 @@ export function UserTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => onUserClick(user)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
                             onEditUser(user.user_id);
@@ -134,7 +140,7 @@ export function UserTable({
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        {user.is_active ? (
+                        {/* {user.is_active ? (
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -154,7 +160,7 @@ export function UserTable({
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             Activate
                           </DropdownMenuItem>
-                        )}
+                        )} */}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

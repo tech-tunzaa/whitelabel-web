@@ -200,26 +200,24 @@ export const useRoleStore = create<RoleStore>()(
     try {
       setActiveAction('create');
       setLoading(true);
-      
+
       const response = await apiClient.post<any>('/auth/roles', data, headers);
-      
+
       let createdRole;
       if (response.data && response.data.data) {
         createdRole = response.data.data;
       } else if (response.data) {
         createdRole = response.data;
       }
-      
-      if (createdRole) {
-        // Refresh the role list
-        await fetchRoles();
-        setLoading(false);
-        return createdRole as Role;
-      }
-      
-      throw new Error('Failed to create role');
+
+      // If we are here, the request was successful.
+      // Refresh the role list and return the created role.
+      await fetchRoles(undefined, headers);
+      setLoading(false);
+      return createdRole as Role;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create role';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create role';
       const errorStatus = (error as any)?.response?.status;
       setStoreError({
         message: errorMessage,
@@ -231,32 +229,38 @@ export const useRoleStore = create<RoleStore>()(
       setActiveAction(null);
     }
   },
-  
-  updateRole: async (id: string, data: Partial<Role>, headers?: Record<string, string>) => {
+
+  updateRole: async (
+    id: string,
+    data: Partial<Role>,
+    headers?: Record<string, string>
+  ) => {
     const { setActiveAction, setLoading, setStoreError, fetchRoles } = get();
     try {
       setActiveAction('update');
       setLoading(true);
-      
-      const response = await apiClient.put<any>(`/auth/roles/${id}`, data, headers);
-      
+
+      const response = await apiClient.put<any>(
+        `/auth/roles/${id}`,
+        data,
+        headers
+      );
+
       let updatedRole;
       if (response.data && response.data.data) {
         updatedRole = response.data.data;
       } else if (response.data) {
         updatedRole = response.data;
       }
-      
-      if (updatedRole) {
-        // Refresh the role list
-        await fetchRoles();
-        setLoading(false);
-        return updatedRole as Role;
-      }
-      
-      throw new Error('Failed to update role');
+
+      // If we are here, the request was successful.
+      // Refresh the role list and return the updated role.
+      await fetchRoles(undefined, headers);
+      setLoading(false);
+      return updatedRole as Role;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update role';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update role';
       const errorStatus = (error as any)?.response?.status;
       setStoreError({
         message: errorMessage,
@@ -278,7 +282,7 @@ export const useRoleStore = create<RoleStore>()(
       await apiClient.delete<any>(`/auth/roles/${id}`, undefined, headers);
       
       // Refresh the role list
-      await fetchRoles();
+      await fetchRoles(undefined, headers);
       setLoading(false);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete role';

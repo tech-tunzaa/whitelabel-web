@@ -183,26 +183,23 @@ export const useUserStore = create<UserStore>()(
     try {
       setActiveAction('create');
       setLoading(true);
-      
+
       const response = await apiClient.post<any>('/auth/register-auto', data, headers);
-      
+
       let createdUser;
       if (response.data && response.data.data) {
         createdUser = response.data.data;
       } else if (response.data) {
         createdUser = response.data;
       }
-      
-      if (createdUser) {
-        // Refresh the user list
-        await fetchUsers();
-        setLoading(false);
-        return createdUser as User;
-      }
-      
-      throw new Error('Failed to create user');
+
+      // If we are here, the request was successful.
+      // The user list will be refreshed on the user list page.
+      setLoading(false);
+      return createdUser as User;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create user';
       const errorStatus = (error as any)?.response?.status;
       setStoreError({
         message: errorMessage,
@@ -214,32 +211,33 @@ export const useUserStore = create<UserStore>()(
       setActiveAction(null);
     }
   },
-  
-  updateUser: async (id: string, data: Partial<User>, headers?: Record<string, string>) => {
+
+  updateUser: async (
+    id: string,
+    data: Partial<User>,
+    headers?: Record<string, string>
+  ) => {
     const { setActiveAction, setLoading, setStoreError, fetchUsers } = get();
     try {
       setActiveAction('update');
       setLoading(true);
-      
+
       const response = await apiClient.put<any>(`/auth/users/${id}`, data, headers);
-      
+
       let updatedUser;
       if (response.data && response.data.data) {
         updatedUser = response.data.data;
       } else if (response.data) {
         updatedUser = response.data;
       }
-      
-      if (updatedUser) {
-        // Refresh the user list
-        await fetchUsers();
-        setLoading(false);
-        return updatedUser as User;
-      }
-      
-      throw new Error('Failed to update user');
+
+      // If we are here, the request was successful.
+      // The user list will be refreshed on the user list page.
+      setLoading(false);
+      return updatedUser as User;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update user';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update user';
       const errorStatus = (error as any)?.response?.status;
       setStoreError({
         message: errorMessage,

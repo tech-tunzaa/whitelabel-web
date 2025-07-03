@@ -103,13 +103,13 @@ export function RoleTable({
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem
+                        {/* <DropdownMenuItem
                           onClick={() => onDeleteRole(role.role)}
                           className="text-red-600"
                         >
                           <Trash className="mr-2 h-4 w-4" />
                           Delete
-                        </DropdownMenuItem>
+                        </DropdownMenuItem> */}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
