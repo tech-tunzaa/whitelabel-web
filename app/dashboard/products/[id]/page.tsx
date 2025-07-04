@@ -481,10 +481,25 @@ export default function ProductPage({ params }: ProductPageProps) {
                     {product.has_variants && product.variants?.length > 0 && (
                       <div className="mt-4">
                         {product.variants.map((variant: any, index: number) => (
-                          <div key={index} className="p-3 border rounded-md mb-2">
-                            <p className="font-semibold">{variant.name}: {variant.value}</p>
-                            <p className="text-sm text-muted-foreground">Price: {formatPrice(variant.price)}</p>
-                            <p className="text-sm text-muted-foreground">SKU: {variant.sku || 'N/A'}</p>
+                          <div key={index} className="p-3 border rounded-md mb-2 flex items-start gap-4">
+                            {variant.image_url && (
+                              <div
+                                className="relative w-20 h-20 rounded-md overflow-hidden cursor-pointer group flex-shrink-0"
+                                onClick={() => handlePreviewImage(variant.image_url)}
+                              >
+                                <img
+                                  src={variant.image_url}
+                                  alt={variant.name}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="font-semibold">{variant.name}: {variant.value}</p>
+                              <p className="text-sm text-muted-foreground">Price: {formatPrice(variant.price)}</p>
+                              <p className="text-sm text-muted-foreground">SKU: {variant.sku || 'N/A'}</p>
+                              <p className="text-sm text-muted-foreground">Quantity: {variant.stock}</p>
+                            </div>
                           </div>
                         ))}
                       </div>

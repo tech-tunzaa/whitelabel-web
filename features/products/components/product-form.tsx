@@ -186,7 +186,7 @@ export function ProductForm({
           ...(initialData.dimensions || {}),
         },
         // Ensure arrays are taken from initialData if present, otherwise from defaultValues, or fallback to empty array
-        variants: initialData.variants || defaultValues.variants || [],
+        variants: initialData.variants || [],
         images: initialData.images || defaultValues.images || [],
         tags: initialData.tags || defaultValues.tags || [],
         category_ids:
@@ -277,6 +277,11 @@ export function ProductForm({
     name: "variants",
   });
 
+  const { append, update } = useFieldArray({
+    control: form.control,
+    name: "images",
+  });
+
   const handleAddNewVariant = React.useCallback(() => {
     setCurrentVariantData({
       name: "",
@@ -302,6 +307,7 @@ export function ProductForm({
   // Placeholder save function - proper implementation needs a dedicated form for the modal
   const handleSaveVariant = React.useCallback(
     (variantData: ProductVariant) => {
+      console.log("--- Saving Variant ---", JSON.stringify(variantData, null, 2));
       const validationResult = variantSchema.safeParse(variantData);
       if (!validationResult.success) {
         console.error(
@@ -319,13 +325,12 @@ export function ProductForm({
       }
 
       if (editingVariantIndex !== null) {
-        updateVariant(editingVariantIndex, validationResult.data);
+        updateVariant(editingVariantIndex, variantData);
         toast.success("Variant updated successfully!");
       } else {
-        appendVariant(validationResult.data);
+        appendVariant(variantData);
         toast.success("Variant added successfully!");
       }
-      form.setValue("has_variants", true); // Ensure has_variants is true
       setIsVariantModalOpen(false);
       setEditingVariantIndex(null);
       setCurrentVariantData(null);
@@ -360,6 +365,7 @@ export function ProductForm({
 
   // Handle form submission
   const handleFormSubmit = async (data: ProductFormValues) => {
+    console.log("--- Form Submission Payload ---", JSON.stringify(data, null, 2));
     console.log("Form submission started");
     console.log("Raw form data:", data);
 
@@ -374,6 +380,8 @@ export function ProductForm({
       // Ensure images don't have File objects when sending to API and format variants
       const cleanedData = {
         ...data,
+        has_variants: data.variants && data.variants.length > 0,
+
         slug,
         images: data.images?.map((img) => ({
           url: img.url,
@@ -390,8 +398,6 @@ export function ProductForm({
           })) || [],
       };
 
-      // Set has_variants flag based on variants array
-      cleanedData.has_variants = cleanedData.variants.length > 0;
       console.log("Cleaned data before submission:", cleanedData);
 
       await onSubmit(cleanedData);

@@ -91,7 +91,8 @@ export const productFormSchema = z
     store_id: z.string(), // Assuming this is always present
     images: z.array(productImageSchema).optional().default([]),
     // has_variants: z.boolean().default(false),
-    // variants: z.array(variantSchema).optional().default([]),
+    has_variants: z.boolean().optional(),
+    variants: z.array(variantSchema).optional().default([]),
     weight: z.coerce.number().min(0).optional(),
     dimensions: dimensionsSchema.optional(),
     requires_shipping: z.boolean().default(true),
@@ -99,38 +100,7 @@ export const productFormSchema = z
     is_featured: z.boolean().default(false),
     promotion: z.string().nullish(),
     tenant_id: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      // Refinement for variants presence
-      if (data.has_variants) {
-        return Array.isArray(data.variants) && data.variants.length > 0;
-      }
-      return true;
-    },
-    {
-      message: "At least one variant must be added when product has variants.",
-      path: ["variants"],
-    }
-  )
-  .refine(
-    (data) => {
-      // Refinement for inventory quantity when not tracking by variants
-      if (
-        !data.has_variants &&
-        data.inventory_tracking &&
-        typeof data.inventory_quantity !== "number"
-      ) {
-        return false; // If not has_variants and tracking inventory, inventory_quantity is required
-      }
-      return true;
-    },
-    {
-      message:
-        "Inventory quantity is required when tracking stock for a product without variants.",
-      path: ["inventory_quantity"],
-    }
-  );
+  });
 
 // Export the type
 export type ProductFormValues = z.infer<typeof productFormSchema>;
