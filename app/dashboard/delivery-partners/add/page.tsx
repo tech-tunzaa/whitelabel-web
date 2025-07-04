@@ -8,6 +8,80 @@ import { useDeliveryPartnerStore } from "@/features/delivery-partners/store"
 import { DeliveryPartnerForm } from "@/features/delivery-partners/components/delivery-partner-form"
 import { DeliveryPartner } from "@/features/delivery-partners/types"
 import toast from "@/components/ui/sonner";
+import { DeliveryPartnerFormValues } from "@/features/delivery-partners/schema";
+import { KycDocument } from "@/features/delivery-partners/types";
+
+const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues): Partial<DeliveryPartner> => {
+  const apiPayload: Partial<DeliveryPartner> = {
+    type: formValues.type,
+    name: formValues.name,
+    user: formValues.user,
+    profile_picture: formValues.profile_picture,
+    description: formValues.description,
+    tax_id: formValues.tax_id,
+  };
+
+  apiPayload.commission_percent = 15.0;
+
+  if (formValues.coordinates && formValues.coordinates.length === 2) {
+    apiPayload.location = {
+      coordinates: {
+        lat: formValues.coordinates[0],
+        lng: formValues.coordinates[1],
+      },
+      radiusKm: 10.5,
+    };
+  }
+
+  if (formValues.type === "individual") {
+    apiPayload.vehicle_info = {
+      type: formValues.vehicleType || "",
+      plate_number: formValues.plateNumber || "",
+      details: [],
+    };
+    if (formValues.vehicleMake)
+      apiPayload.vehicle_info.details?.push({
+        key: "make",
+        value: formValues.vehicleMake,
+      });
+    if (formValues.vehicleModel)
+      apiPayload.vehicle_info.details?.push({
+        key: "model",
+        value: formValues.vehicleModel,
+      });
+    if (formValues.vehicleYear)
+      apiPayload.vehicle_info.details?.push({
+        key: "year",
+        value: formValues.vehicleYear,
+      });
+
+    if (
+      formValues.cost_per_km !== undefined &&
+      formValues.cost_per_km !== null &&
+      formValues.cost_per_km !== ""
+    ) {
+      apiPayload.cost_per_km = parseFloat(formValues.cost_per_km);
+    }
+  }
+
+  if (formValues.type === "pickup_point") {
+    if (
+      formValues.flat_fee !== undefined &&
+      formValues.flat_fee !== null &&
+      formValues.flat_fee !== ""
+    ) {
+      apiPayload.flat_fee = parseFloat(formValues.flat_fee);
+    }
+  }
+
+  if (formValues.kyc_documents && Array.isArray(formValues.kyc_documents)) {
+    apiPayload.kyc = {
+      documents: formValues.kyc_documents as Partial<KycDocument>[],
+    };
+  }
+
+  return apiPayload;
+};
 
 export default function CreateDeliveryPartnerPage() {
     const router = useRouter()
@@ -15,7 +89,8 @@ export default function CreateDeliveryPartnerPage() {
 
     const { createDeliveryPartner } = useDeliveryPartnerStore()
 
-    const handleSubmit = async (data: any) => {
+    const handleSubmit = async (data: DeliveryPartnerFormValues) => {
+        const apiPayload = transformFormValuesToApiPayload(data);
         const tenantId = (session?.user as any)?.tenant_id;
         const headers: Record<string, string> = {};
         if (tenantId) {
@@ -23,7 +98,7 @@ export default function CreateDeliveryPartnerPage() {
         }
 
         try {
-            await createDeliveryPartner(data, headers);
+            await createDeliveryPartner(apiPayload, headers);
             toast.success("Delivery Partner created successfully");
             router.push("/dashboard/delivery-partners");
         } catch (error) {

@@ -22,56 +22,118 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, MoreHorizontal, X, Eye } from "lucide-react";
+import { Check, MoreHorizontal, X, Eye, XCircle, Edit } from "lucide-react";
 import { format } from 'date-fns';
 import { DeliveryPartner } from "../types";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
+import { DeliveryPartnerRejectionModal } from "./delivery-partner-rejection-modal";
 
 interface DeliveryPartnerTableProps {
   deliveryPartners: DeliveryPartner[];
   onPartnerClick: (partner: DeliveryPartner) => void;
-  onStatusChange: (partnerId: string, status: string, rejectionReason?: string) => void;
+  onPartnerEdit: (partner: DeliveryPartner) => void;
+  onStatusChange: (partnerId: string, payload: any) => Promise<void>;
   activeTab?: string;
 }
+
+const rejectionReasonsMap: { [key: string]: string } = {
+  incomplete_kyc: "Incomplete KYC",
+  invalid_vehicle_info: "Invalid Vehicle Information",
+  background_check_failed: "Background Check Failed",
+  policy_violation: "Policy Violation",
+  other: "Other",
+};
 
 export function DeliveryPartnerTable({
   deliveryPartners,
   onPartnerClick,
+  onPartnerEdit,
   onStatusChange,
   activeTab = "all",
 }: DeliveryPartnerTableProps) {
   const isMobile = useIsMobile();
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [partnerToReject, setPartnerToReject] = useState<string | null>(null);
-  
-  // Handle partner rejection with reason
-  const handleRejectWithReason = () => {
-    if (partnerToReject) {
-      onStatusChange(partnerToReject, "rejected", rejectionReason);
-      setIsRejectDialogOpen(false);
-      setRejectionReason("");
-      setPartnerToReject(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectPartnerId, setRejectPartnerId] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+
+  const handleStatusChange = async (
+    partnerId: string,
+    action: 'approve' | 'reject' | 'activate' | 'deactivate'
+  ) => {
+    if (!onStatusChange) return;
+
+    if (action === 'reject') {
+      setRejectPartnerId(partnerId);
+      setShowRejectDialog(true);
+      return;
+    }
+
+    let payload = {};
+    switch (action) {
+      case 'approve':
+        payload = { is_approved: true };
+        break;
+      case 'activate':
+        payload = { is_active: true };
+        break;
+      case 'deactivate':
+        payload = { is_active: false };
+        break;
+    }
+
+    setProcessingId(partnerId);
+    try {
+      await onStatusChange(partnerId, payload);
+    } catch (error) {
+      console.error(`Error changing partner status to ${action}:`, error);
+    } finally {
+      setProcessingId(null);
     }
   };
-  
-  // Open rejection dialog
-  const openRejectDialog = (e: React.MouseEvent, partnerId: string) => {
-    e.stopPropagation();
-    setPartnerToReject(partnerId);
-    setIsRejectDialogOpen(true);
+
+  const getRejectionReasonText = (type: string, customReason?: string) => {
+    if (type === 'other') {
+      return customReason || 'Other';
+    }
+    return rejectionReasonsMap[type] || 'No reason specified';
   };
-  
-  // Status badges mapping
-  const getStatusBadge = (partner: DeliveryPartner) => {
-    if (partner.is_active) {
+
+  const handleRejectConfirm = async ({ type, customReason }: { type: string; customReason?: string }) => {
+    if (!rejectPartnerId || !onStatusChange) return;
+
+    const reasonText = getRejectionReasonText(type, customReason);
+    const payload = {
+      is_approved: false,
+      is_active: false,
+      rejection_reason: reasonText,
+    };
+
+    setProcessingId(rejectPartnerId);
+    setShowRejectDialog(false);
+    try {
+      await onStatusChange(rejectPartnerId, payload);
+    } catch (error) {
+      console.error("Error rejecting partner:", error);
+    } finally {
+      setProcessingId(null);
+      setRejectPartnerId(null);
+    }
+  };
+
+  const getStatusBadge = (isActive: boolean) => {
+    if (isActive) {
       return <Badge variant="success">Active</Badge>;
-    } else if (!partner.is_active) {
-      return <Badge variant="outline" className="bg-slate-200 text-slate-800 border-slate-400">Inactive</Badge>;
     }
+    return <Badge variant="outline" className="bg-slate-200 text-slate-800 border-slate-400">Inactive</Badge>;
   };
-  
+
+  const getApprovalStatusBadge = (isApproved: boolean) => {
+    if (isApproved) {
+      return <Badge variant="success">Approved</Badge>;
+    }
+    return <Badge variant="destructive">Not Approved</Badge>;
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -81,6 +143,7 @@ export function DeliveryPartnerTable({
               <TableRow>
                 <TableHead>Partner</TableHead>
                 <TableHead className="hidden md:table-cell">Type</TableHead>
+                <TableHead>Approval Status</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Registered</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -112,9 +175,9 @@ export function DeliveryPartnerTable({
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div>{partner.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {partner.partner_id}
+                          <div className="font-semibold">{partner.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Partner ID: {partner.partner_id}
                           </div>
                         </div>
                       </div>
@@ -123,7 +186,10 @@ export function DeliveryPartnerTable({
                       <Badge variant="outline">{partner.type}</Badge>
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(partner)}
+                      {getApprovalStatusBadge(partner.is_approved ?? false)}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(partner.is_active ?? false)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {format(new Date(partner.created_at), 'PP')}
@@ -137,39 +203,59 @@ export function DeliveryPartnerTable({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
                               onPartnerClick(partner);
                             }}
                           >
-                            <Eye />
+                            <Eye className="mr-2 h-4 w-4"/>
                             View Details
                           </DropdownMenuItem>
-                          
-                          {partner.is_active && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onStatusChange(partner.partner_id, "suspended");
-                              }}
-                            >
-                              <X className="mr-2 h-4 w-4" />
-                              Suspend
-                            </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPartnerEdit(partner);
+                            }}
+                          >
+                            <Edit className="mr-2 h-4 w-4"/>
+                            Edit Partner
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+
+                          {/* --- Approval Actions --- */}
+                          {!partner.is_approved && (
+                            <>
+                              {partner.kyc?.verified && (
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleStatusChange(partner.partner_id, 'approve'); }}
+                                  disabled={processingId === partner.partner_id}
+                                >
+                                  {processingId === partner.partner_id ? <Spinner size="sm" className="mr-2 h-4 w-4"/> : <Check className="mr-2 h-4 w-4" />}
+                                  Approve
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(partner.partner_id, 'reject'); }}
+                                disabled={processingId === partner.partner_id}
+                              >
+                                {processingId === partner.partner_id ? <Spinner size="sm" className="mr-2 h-4 w-4"/> : <XCircle className="mr-2 h-4 w-4" />}
+                                Reject
+                              </DropdownMenuItem>
+                            </>
                           )}
-                          
-                          {!partner.is_active && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onStatusChange(partner.partner_id, "active");
-                              }}
-                            >
-                              <Check className="mr-2 h-4 w-4 text-success" />
-                              Activate
-                            </DropdownMenuItem>
+
+                          {/* --- Activation and Rejection Actions for Approved Partners --- */}
+                          {partner.is_approved && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(partner.partner_id, partner.is_active ? 'deactivate' : 'activate'); }}
+                                disabled={processingId === partner.partner_id}
+                              >
+                                {processingId === partner.partner_id ? <Spinner size="sm" className="mr-2 h-4 w-4"/> : (partner.is_active ? <X className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />) }
+                                {partner.is_active ? 'Deactivate' : 'Activate'}
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -181,35 +267,13 @@ export function DeliveryPartnerTable({
           </Table>
         </CardContent>
       </Card>
-        
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Delivery Partner</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this delivery partner. This will be visible to the partner.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder="Enter rejection reason..."
-            className="min-h-[100px]"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleRejectWithReason}
-              disabled={!rejectionReason.trim()}
-            >
-              Reject Partner
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+      <DeliveryPartnerRejectionModal
+        isOpen={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        onConfirm={handleRejectConfirm}
+        isProcessing={processingId === rejectPartnerId}
+      />
     </div>
   );
 }

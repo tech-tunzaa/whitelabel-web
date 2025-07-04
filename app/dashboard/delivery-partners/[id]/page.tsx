@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
@@ -15,6 +15,7 @@ import {
   MapPin as MapPinIcon,
   FileText,
   Calendar,
+  Power,
   AlertCircle,
   Trash2,
   Eye,
@@ -29,7 +30,8 @@ import {
   User,
   Briefcase,
   MapPin,
-  ShieldX, // Ensure ShieldX and AlertTriangle are present
+  ShieldX,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -54,6 +56,8 @@ import { DriversTab } from "@/features/delivery-partners/components/DriversTab";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
+import { DeliveryPartnerRejectionModal } from "@/features/delivery-partners/components/delivery-partner-rejection-modal";
+import { getRejectionReasonText } from "@/features/delivery-partners/utils";
 
 import {
   DeliveryPartner,
@@ -70,7 +74,11 @@ const MapPicker = dynamic(
     ),
   }
 );
-import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
+import {
+  VerificationDocumentManager,
+  VerificationDocument,
+  VerificationActionPayload,
+} from "@/components/ui/verification-document-manager";
 
 interface DeliveryPartnerPageProps {
   params: {
@@ -146,29 +154,24 @@ const StatusBadge = ({
 
   switch (status) {
     case "active":
-      variant = "default"; // Typically green, but using default and styling with className
       icon = <ShieldCheck className="h-3.5 w-3.5" />;
       className = `${
         className || ""
       } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
       break;
-    case "pending":
-      variant = "outline";
-      icon = <ListChecks className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200`;
-      text = "Pending Approval";
-      break;
-    case "rejected":
-      variant = "destructive";
+    case "inactive":
       icon = <ShieldX className="h-3.5 w-3.5" />;
       className = `${
         className || ""
       } bg-red-100 text-red-700 border-red-300 hover:bg-red-200`;
       break;
-    case "suspended":
-      variant = "default"; // Using default and styling with className for orange/yellow
+    case "approved":
+      icon = <ShieldX className="h-3.5 w-3.5" />;
+      className = `${
+        className || ""
+      } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
+      break;
+    case "not_approved":
       icon = <AlertCircle className="h-3.5 w-3.5" />;
       className = `${
         className || ""
@@ -198,9 +201,8 @@ export default function DeliveryPartnerPage({
 }: DeliveryPartnerPageProps) {
   const router = useRouter();
   const { data: session } = useSession();
-  const tenantId = useMemo(() => (session?.user as any)?.tenant_id, [session]);
-
-  const { id: partnerIdFromParams } = params;
+  const tenantId = session?.user?.tenant_id;
+  const { id } = params;
 
   const {
     partner,
@@ -208,92 +210,138 @@ export default function DeliveryPartnerPage({
     error,
     fetchDeliveryPartner,
     updateDeliveryPartnerStatus,
-    // TODO: Add methods for document verification if needed, e.g., verifyKycDocument
+    deleteDeliveryPartner,
+    updateDeliveryPartnerDocumentStatus,
   } = useDeliveryPartnerStore();
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [verificationDoc, setVerificationDoc] = useState<KycDocument | null>(
-    null
-  );
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
-  // Placeholder for verifying a KYC document
-  const handleVerifyDocument = async (documentId: string) => {
-    if (!partner || !tenantId) return;
-    console.log(
-      `Attempting to verify document: ${documentId} for partner: ${
-        partner.partner_id || partner._id
-      }`
-    );
-    // TODO: Implement store.verifyKycDocument(partner._id, documentId, { "X-Tenant-ID": tenantId });
-    // await verifyKycDocument(partner._id, documentId, { "X-Tenant-ID": tenantId });
-    toast.info(
-      "Verification action triggered. Store method needs implementation.",
-      {
-        description: `Document ID: ${documentId}`,
-      }
-    );
-    // Optionally re-fetch partner data if the store method was called
-    // fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
+  const transformKycToVerificationDoc = (
+    doc: any, // Using 'any' as the received data structure differs from the expected KycDocument type
+  ): VerificationDocument => {
+    console.log("Transforming source document:", JSON.stringify(doc, null, 2));
+    const transformed = {
+      document_type_id: doc.document_type_id,
+      document_type_name: 'KYC Document',
+      verification_status: doc.verified ? 'verified' : 'pending',
+      document_url: doc.link,
+      rejection_reason: doc.rejection_reason,
+      created_at: doc.created_at,
+      expires_at: doc.expires_at,
+    };
+    console.log("Transformed to verification document:", JSON.stringify(transformed, null, 2));
+    return transformed;
   };
+  const handleDocumentVerification = useCallback(async (payload: VerificationActionPayload) => {
+    if (!partner) {
+      toast.error("Verification failed: Partner data not available.");
+      return;
+    }
+    if (!tenantId) {
+      toast.error("Verification failed: User session is invalid.");
+      return;
+    }
 
-  // Placeholder for rejecting a KYC document
-  const handleRejectDocument = async (documentId: string, reason: string) => {
-    if (!partner || !tenantId) return;
-    console.log(
-      `Attempting to reject document: ${documentId} for partner: ${
-        partner.partner_id || partner._id
-      } with reason: ${reason}`
-    );
-    // TODO: Implement store.rejectKycDocument(partner._id, documentId, reason, { "X-Tenant-ID": tenantId });
-    // await rejectKycDocument(partner._id, documentId, reason, { "X-Tenant-ID": tenantId });
-    toast.info(
-      "Rejection action triggered. Store method needs implementation.",
-      {
-        description: `Document ID: ${documentId}, Reason: ${reason}`,
-      }
-    );
-    // Optionally re-fetch partner data
-    // fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
-  };
+    setIsUpdating(true);
+    const action = payload.verification_status === 'verified' ? 'Approving' : 'Rejecting';
+    const toastId = toast.loading(`${action} document...`);
+
+    try {
+      await updateDeliveryPartnerDocumentStatus(
+        partner.partner_id,
+        payload,
+        { "X-Tenant-ID": tenantId }
+      );
+      toast.success(`Document ${payload.verification_status} successfully.`, { id: toastId });
+    } catch (error) {
+      toast.error(`Failed to ${action.toLowerCase()} document.`, { id: toastId });
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [partner, tenantId, updateDeliveryPartnerDocumentStatus]);
+
 
   useEffect(() => {
-    if (partnerIdFromParams && tenantId) {
-      fetchDeliveryPartner(partnerIdFromParams, { "X-Tenant-ID": tenantId });
+    if (id && tenantId) {
+      fetchDeliveryPartner(id, { "X-Tenant-ID": tenantId });
     }
-  }, [partnerIdFromParams, tenantId, fetchDeliveryPartner]);
+  }, [id, tenantId, fetchDeliveryPartner]);
+
+  useEffect(() => {
+    if (partner) {
+      console.log("Partner data received:", JSON.stringify(partner, null, 2));
+      console.log("Partner KYC documents for inspection:", JSON.stringify(partner?.kyc?.documents, null, 2));
+    }
+  }, [partner]);
 
   const handleStatusChange = async (
-    newStatus: "active" | "rejected" | "suspended" | "pending",
-    reason?: string
+    action: 'approve' | 'reject' | 'activate' | 'deactivate'
   ) => {
-    if (!partner || !partner.partner_id || !tenantId) return;
-    setIsUpdatingStatus(true);
-    const toastId = toast.loading(`Updating status to ${newStatus}...`);
-    try {
-      await updateDeliveryPartnerStatus(partner.partner_id, newStatus, reason, {
-        "X-Tenant-ID": tenantId,
-      });
-      toast.success("Partner status updated successfully.", { id: toastId });
-      // Re-fetch partner data to get the latest status
-      fetchDeliveryPartner(partner.partner_id, { "X-Tenant-ID": tenantId });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update partner status.", {
-        id: toastId,
-      });
+    if (!partner) return;
+
+    if (action === 'reject') {
+      setShowRejectDialog(true);
+      return;
     }
-    setIsUpdatingStatus(false);
+
+    let payload = {};
+    switch (action) {
+      case 'approve':
+        payload = { is_approved: true, is_active: true };
+        break;
+      case 'activate':
+        payload = { is_active: true };
+        break;
+      case 'deactivate':
+        payload = { is_active: false };
+        break;
+    }
+
+    setIsUpdatingStatus(true);
+    const toastId = toast.loading("Updating partner status...");
+    try {
+      await updateDeliveryPartnerStatus(partner.partner_id, payload, undefined, { "X-Tenant-ID": tenantId });
+      toast.success("Partner status updated successfully.", { id: toastId });
+    } catch (error) {
+      toast.error("Failed to update partner status.", { id: toastId });
+      console.error(`Error changing partner status to ${action}:`, error);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleRejectConfirm = async ({ type, customReason }: { type: string; customReason?: string }) => {
+    if (!partner) return;
+
+    const reasonText = getRejectionReasonText(type, customReason);
+    const payload = {
+      is_approved: false,
+      is_active: false,
+      rejection_reason: reasonText,
+    };
+
+    setIsUpdatingStatus(true);
+    setShowRejectDialog(false);
+    const toastId = toast.loading("Rejecting partner...");
+    try {
+      await updateDeliveryPartnerStatus(partner.partner_id, payload, undefined,{ "X-Tenant-ID": tenantId });
+      toast.success("Partner has been rejected.", { id: toastId });
+    } catch (error) {
+      toast.error("Failed to reject partner.", { id: toastId });
+      console.error("Error rejecting partner:", error);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   const handleDeletePartner = async () => {
-    if (!partner || !partner.partner_id || !tenantId) return;
+    if (!partner?.partner_id || !tenantId) return;
     const toastId = toast.loading("Deleting delivery partner...");
     try {
-      // TODO: Implement deleteDeliveryPartner in store
-      // await deleteDeliveryPartner(partner.partner_id, { "X-Tenant-ID": tenantId });
-      toast.success("Delivery partner deleted successfully (simulated).", {
+      await deleteDeliveryPartner(partner.partner_id, { "X-Tenant-ID": tenantId });
+      toast.success("Delivery partner deleted successfully.", {
         id: toastId,
       });
       router.push("/dashboard/delivery-partners");
@@ -303,7 +351,7 @@ export default function DeliveryPartnerPage({
   };
 
   // Show a spinner while the data is being fetched.
-  if (loading || !partner) {
+  if (loading && !partner) {
     return <Spinner />;
   }
 
@@ -335,7 +383,7 @@ export default function DeliveryPartnerPage({
   ).toUpperCase();
 
   // Main layout: Two columns (Content and Sidebar)
-  return (
+  return partner ? (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-background z-10">
@@ -385,6 +433,7 @@ export default function DeliveryPartnerPage({
         </div>
 
         <div className="flex items-center gap-2.5">
+          <StatusBadge status={partner?.is_approved ? "approved" : "not_approved"} />
           <StatusBadge status={partner?.is_active ? "active" : "inactive"} />
           <Button
             variant="outline"
@@ -395,8 +444,7 @@ export default function DeliveryPartnerPage({
               )
             }
           >
-            <Edit className="h-3.5 w-3.5 mr-1.5" />
-            Edit
+            <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
           </Button>
         </div>
       </div>
@@ -413,6 +461,9 @@ export default function DeliveryPartnerPage({
                   </TabsTrigger>
                   <TabsTrigger value="drivers" className="text-sm font-medium">
                     <Users className="mr-2 h-4 w-4" /> Drivers
+                  </TabsTrigger>
+                  <TabsTrigger value="kyc" className="text-sm font-medium">
+                    <ShieldCheck className="mr-2 h-4 w-4" /> KYC Documents
                   </TabsTrigger>
                 </TabsList>
 
@@ -434,7 +485,7 @@ export default function DeliveryPartnerPage({
                             {partnerName}
                           </CardTitle>
                           <p className="text-sm text-muted-foreground">
-                            ID: {partner?.partner_id}{" "}
+                            ID: {partner?.id}{" "}
                             <Badge
                               variant="outline"
                               className="ml-2 capitalize"
@@ -690,10 +741,10 @@ export default function DeliveryPartnerPage({
               </CardHeader>
               <CardContent className="space-y-3">
                 <VerificationDocumentManager
-                  documents={partner?.kyc?.documents || []}
-                  onApprove={handleVerifyDocument}
-                  onReject={handleRejectDocument}
+                  documents={partner?.kyc?.documents?.map(transformKycToVerificationDoc) || []}
+                  onDocumentVerification={handleDocumentVerification}
                   showActions={true}
+                  isProcessing={isUpdating}
                 />
               </CardContent>
             </Card>
@@ -703,69 +754,60 @@ export default function DeliveryPartnerPage({
                 <CardTitle className="text-lg">Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {partner?.status === "pending" && (
-                  <>
+                {/* --- Approval Actions (only for unapproved partners) --- */}
+                {!partner.is_approved && (
+                  <div className="space-y-2">
+                    {partner.kyc?.verified && (
+                      <Button
+                        onClick={() => handleStatusChange("approve")}
+                        disabled={isUpdatingStatus}
+                        size="sm"
+                        className="w-full bg-green-100 text-green-600 border-green-600 hover:bg-green-200"
+                      >
+                        {isUpdatingStatus ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <Check className="mr-2 h-4 w-4" />
+                        )}
+                        Approve
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* --- Activation Actions (only for approved partners) --- */}
+                {partner.is_approved && (
+                  <div className="space-y-2">
                     <Button
-                      onClick={() => handleStatusChange("active")}
-                      className="w-full"
+                      onClick={() =>
+                        handleStatusChange(partner.is_active ? "deactivate" : "activate")
+                      }
                       disabled={isUpdatingStatus}
                       size="sm"
-                    >
-                      {isUpdatingStatus ? (
-                        <Spinner className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Check className="mr-2 h-4 w-4" />
-                      )}{" "}
-                      Approve Partner
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleStatusChange("rejected")}
                       className="w-full"
-                      disabled={isUpdatingStatus}
-                      size="sm"
                     >
                       {isUpdatingStatus ? (
-                        <Spinner className="mr-2 h-4 w-4" />
+                        <Spinner size="sm" />
                       ) : (
-                        <X className="mr-2 h-4 w-4" />
-                      )}{" "}
-                      Reject Partner
+                        <Power className="mr-2 h-4 w-4" />
+                      )}
+                      {partner.is_active ? "Deactivate" : "Activate"}
                     </Button>
-                  </>
+                  </div>
                 )}
-                {partner?.status === "active" && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleStatusChange("suspended")}
-                    className="w-full"
-                    disabled={isUpdatingStatus}
-                    size="sm"
-                  >
-                    {isUpdatingStatus ? (
-                      <Spinner className="mr-2 h-4 w-4" />
-                    ) : (
-                      <AlertCircle className="mr-2 h-4 w-4" />
-                    )}{" "}
-                    Suspend Partner
-                  </Button>
-                )}
-                {(partner?.status === "suspended" ||
-                  partner?.status === "rejected") && (
-                  <Button
-                    onClick={() => handleStatusChange("active")}
-                    className="w-full"
-                    disabled={isUpdatingStatus}
-                    size="sm"
-                  >
-                    {isUpdatingStatus ? (
-                      <Spinner className="mr-2 h-4 w-4" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}{" "}
-                    Reactivate Partner
-                  </Button>
-                )}
+                <Button
+                  onClick={() => handleStatusChange("reject")}
+                  disabled={isUpdatingStatus}
+                  size="sm"
+                  className="w-full bg-red-100 text-red-600 border-red-600 hover:bg-red-200"
+                >
+                  {isUpdatingStatus ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <XCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {!partner.is_approved ? "Reject Partner" : "Suspend Partner"}
+                </Button>
                 <Separator className="my-3" />
                 <Button
                   variant="outline"
@@ -818,6 +860,12 @@ export default function DeliveryPartnerPage({
           </div>
         </div>
       </div>
+      <DeliveryPartnerRejectionModal
+        isOpen={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        onConfirm={handleRejectConfirm}
+        isProcessing={isUpdatingStatus}
+      />
     </div>
-  );
+  ) : null;
 }

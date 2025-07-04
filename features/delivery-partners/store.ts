@@ -9,6 +9,7 @@ import {
   KycDocument,
   ApiResponse,
 } from './types';
+import { VerificationActionPayload } from '@/components/ui/verification-document-manager';
 
 interface DeliveryPartnerStore {
   partners: DeliveryPartner[];
@@ -29,7 +30,7 @@ interface DeliveryPartnerStore {
   updateDeliveryPartner: (id: string, data: Partial<DeliveryPartner>, headers?: Record<string, string>) => Promise<DeliveryPartner>;
   updateDeliveryPartnerStatus: (id: string, status: 'active' | 'rejected' | 'suspended' | 'pending', reason?: string, headers?: Record<string, string>) => Promise<void>;
   deleteDeliveryPartner: (id: string, headers?: Record<string, string>) => Promise<void>;
-  uploadKycDocuments: (id: string, documents: KycDocument[], headers?: Record<string, string>) => Promise<void>;
+  updateDeliveryPartnerDocumentStatus: (partnerId: string, payload: VerificationActionPayload, headers?: Record<string, string>) => Promise<void>;
 }
 
 export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get) => ({
@@ -200,7 +201,7 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get)
     setLoading(true);
     setError(null);
     try {
-      const payload: { status: string; rejection_reason?: string } = { status };
+      const payload: { status: string; rejection_reason?: string } = status;
       if (status === 'rejected' && reason) {
         payload.rejection_reason = reason;
       }
@@ -242,18 +243,26 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get)
     }
   },
 
-  uploadKycDocuments: async (id: string, documents: KycDocument[], headers?: Record<string, string>): Promise<void> => {
+  updateDeliveryPartnerDocumentStatus: async (partnerId, payload, headers) => {
     const { setLoading, setError, setActiveAction, fetchDeliveryPartner } = get();
-    setActiveAction('uploadKycDocuments');
+    setActiveAction('updateKycDocument');
     setLoading(true);
     setError(null);
     try {
-      await apiClient.post(`/partners/${id}/kyc/documents`, { documents }, headers);
-      toast.success('KYC documents uploaded successfully.');
-      // Refresh partner data to show new documents
-      await fetchDeliveryPartner(id, headers);
+      const endpoint = `/partners/${partnerId}/kyc/documents/${payload.document_type_id}/verify`;
+      
+      const isVerified = payload.verification_status === 'verified';
+      const requestBody = {
+        verified: isVerified,
+        ...(isVerified ? {} : { rejection_reason: payload.rejection_reason || "" }),
+      };
+      
+      await apiClient.patch(endpoint, requestBody, headers);
+      
+      toast.success(`KYC document status updated successfully.`);
+      await fetchDeliveryPartner(partnerId, headers);
     } catch (error: any) {
-      const errorData = { message: error.message || 'Failed to upload KYC documents', status: error.response?.status };
+      const errorData = { message: error.message || `Failed to update KYC document status.`, status: error.response?.status };
       setError(errorData);
       toast.error(errorData.message);
       throw errorData;

@@ -42,9 +42,9 @@ export default function DeliveryPartnersPage() {
     ? (session.data.user as any).tenant_id
     : undefined;
   const {
-    deliveryPartners,
+    partners: deliveryPartners,
     loading,
-    storeError,
+    error: storeError,
     fetchDeliveryPartners,
     updateDeliveryPartner,
   } = useDeliveryPartnerStore();
@@ -153,27 +153,24 @@ export default function DeliveryPartnersPage() {
     router.push(`/dashboard/delivery-partners/${partner.partner_id}`);
   };
 
-  const handleStatusChange = async (
-    partnerId: string,
-    status: string,
-    rejectionReason?: string
-  ) => {
+  const handlePartnerEdit = (partner: DeliveryPartner) => {
+    router.push(`/dashboard/delivery-partners/${partner.partner_id}/edit`);
+  };
+
+  const handleStatusChange = async (partnerId: string, payload: any) => {
+    console.log("Updating partner status: ", { partnerId, payload });
     try {
-      console.log('Updating partner status:', { partnerId, status });
-      
-      // Update the partner status
-      await updateDeliveryPartner(
-        partnerId,
-        { is_active: status === 'active' },
-        tenantHeaders
-      );
-      
-      // Force refresh the data from the store
-      const updatedData = await fetchDeliveryPartners(getFilters(), tenantHeaders);
-      setCurrentPartnersData(updatedData);
-      
-      toast.success(getStatusChangeMessage(status));
+      await updateDeliveryPartner(partnerId, payload, tenantHeaders);
+      toast.success("Partner status updated successfully.");
+
+      // Refetch data to reflect the change
+      const filters = getFilters();
+      const data = await fetchDeliveryPartners(filters, tenantHeaders);
+      if (data) {
+        setCurrentPartnersData(data);
+      }
     } catch (error) {
+      console.error("Failed to update partner status:", error);
       toast.error("Failed to update partner status");
     }
   };
@@ -311,6 +308,7 @@ export default function DeliveryPartnersPage() {
             <DeliveryPartnerTable
               deliveryPartners={filteredPartners}
               onPartnerClick={handlePartnerClick}
+              onPartnerEdit={handlePartnerEdit}
               onStatusChange={handleStatusChange}
               activeTab={activeTab}
             />

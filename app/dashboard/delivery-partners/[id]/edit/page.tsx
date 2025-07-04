@@ -11,7 +11,8 @@ import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
 import { DeliveryPartner, VehicleInfo, KycDocument } from "@/features/delivery-partners/types"; // Added KycDocument
 import { DeliveryPartnerFormValues, formKycDocumentSchema } from "@/features/delivery-partners/schema"; // Added FormValues type and formKycDocumentSchema
 import { z } from "zod"; // For inferring FormKycDocumentValues type
-import toast from "@/components/ui/sonner";
+import { toast } from "@/components/ui/sonner";
+import { Spinner } from "@/components/ui/spinner"
 
 interface DeliveryPartnerEditPageProps {
   params: {
@@ -23,6 +24,8 @@ type FormKycDocumentValues = z.infer<typeof formKycDocumentSchema>;
 
 const transformPartnerDataToFormValues = (partner: DeliveryPartner): Partial<DeliveryPartnerFormValues> => {
   const formValues: Partial<DeliveryPartnerFormValues> = {
+    _id: partner._id, // Add this line
+
     type: partner.type,
     name: partner.name, // Partner's main name (individual's full name or business name)
     user: partner.user ? {
@@ -111,12 +114,15 @@ const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues, 
     tax_id: formValues.tax_id,
   };
 
+  apiPayload.commission_percent = 15.0;
+
   if (formValues.coordinates && formValues.coordinates.length === 2) {
     apiPayload.location = { 
       coordinates: { 
         lat: formValues.coordinates[0],
         lng: formValues.coordinates[1]
-      }
+      },
+      radiusKm: 10.5
     };
   }
 
@@ -157,21 +163,8 @@ const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues, 
     // For simplicity, we're mapping metadata. If a 'file' object is present, it's ignored in this specific transformation
     // as the main partner update API usually doesn't take raw file binaries in JSON.
     apiPayload.kyc = { 
-      ...(partner?.kyc || {}), // Preserve other kyc fields if any, like top-level 'verified'
-      documents: formValues.kyc_documents.map((doc: FormKycDocumentValues): Partial<KycDocument> => {
-        const apiDoc: Partial<KycDocument> = {
-          type: doc.type,
-          number: doc.number,
-          link: doc.link, // Link to existing or newly uploaded file
-          expires_at: doc.expires_at,
-          // The API might infer 'verified' or 'rejected_at' based on separate actions or workflow.
-          // Or, if status is directly updatable via this payload, map doc.status back to API fields.
-          // For now, we're primarily sending descriptive data.
-        };
-        // If your API expects an ID for existing documents to update them:
-        // if (doc.id) apiDoc._id = doc.id; // Assuming API uses _id for documents
-        return apiDoc;
-      })
+      ...(partner?.kyc || {}),
+      documents: formValues.kyc_documents as Partial<KycDocument>[],
     };
   }
 
@@ -232,7 +225,11 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
     }
   };
 
-  if (!partner) {
+  if (loading && !partner){
+    return <Spinner />
+  }
+
+  if (!partner && error) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">

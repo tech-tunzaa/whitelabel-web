@@ -63,6 +63,7 @@ export interface DeliveryPartnerFilter {
     partner_type?: string
     verification_status?: string
     is_active?: boolean
+    kyc_verified?: boolean
 }
 
 export interface DeliveryPartnerListResponse {

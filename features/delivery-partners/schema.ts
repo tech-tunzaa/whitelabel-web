@@ -28,6 +28,7 @@ export const formKycDocumentSchema = z.object({
 });
 
 export const deliveryPartnerFormSchema = z.object({
+  _id: z.string().optional(),
   type: z.enum(["individual", "business", "pickup_point"], {
     required_error: "Please select a delivery partner type",
   }),
