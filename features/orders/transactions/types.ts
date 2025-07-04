@@ -10,92 +10,53 @@ export interface ApiResponse<T> {
 
 // Transaction Status
 export type TransactionStatus = 
-  | 'completed'
-  | 'pending'
-  | 'failed'
-  | 'refunded'
-  | 'partially_refunded';
-
-// Payment Method
-export type PaymentMethod = 
-  | 'credit_card'
-  | 'debit_card'
-  | 'mobile_money'
-  | 'bank_transfer'
-  | 'cash'
-  | 'wallet';
-
-// Transaction Type
-export type TransactionType = 
-  | 'payment'
-  | 'refund'
-  | 'fee'
-  | 'payout'
-  | 'adjustment';
+  | 'PENDING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'REFUNDED';
 
 // Transaction entity type
-export type Transaction = {
+export interface Transaction {
+  id: string;
   transaction_id: string;
-  order_id: string;
-  tenant_id: string;
-  vendor_id?: string;
-  customer_id?: string;
+  reference: string;
   amount: number;
-  fee_amount?: number;
-  net_amount: number;
-  currency: string;
   status: TransactionStatus;
-  payment_method: PaymentMethod;
-  transaction_type: TransactionType;
-  reference_number?: string;
-  description?: string;
-  payment_gateway?: string;
-  gateway_transaction_id?: string;
-  metadata?: Record<string, any>;
-  refund_reason?: string;
+  payment_date: string | null;
+  user_id: string;
+  tenant_id: string;
+  type?: string;
+  raw_request?: Record<string, any>;
+  raw_response?: Record<string, any>;
   created_at: string;
-  updated_at?: string;
-  completed_at?: string;
-};
+  updated_at: string;
+}
+
+// Response types
+export interface TransactionsResponse {
+  data: Transaction[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SingleTransactionResponse {
+  data: Transaction;
+  message: string;
+}
 
 // Error Type
-export type TransactionError = {
+export interface TransactionError {
   status?: number;
   message: string;
-};
-
-// List Response Types
-export type TransactionListResponse = {
-  items: Transaction[];
-  total: number;
-  skip: number;
-  limit: number;
-};
+}
 
 // Filter Types
-export type TransactionFilter = {
-  skip?: number;
-  limit?: number;
-  search?: string;
+export interface TransactionFilter {
   status?: TransactionStatus;
-  payment_method?: PaymentMethod;
-  transaction_type?: TransactionType;
-  order_id?: string;
-  vendor_id?: string;
-  customer_id?: string;
+  search?: string;
   date_from?: string;
   date_to?: string;
-  min_amount?: number;
-  max_amount?: number;
-};
-
-// Action Types
-export type TransactionAction =
-  | 'fetch'
-  | 'fetchOne'
-  | 'fetchList'
-  | 'fetchByOrder'
-  | 'exportCsv'
-  | 'refund'
-  | 'markAsCompleted'
-  | 'markAsFailed';
+  limit?: number;
+  offset?: number;
+}

@@ -1,6 +1,8 @@
-'use client';
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { Eye, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 
-import { useState } from 'react';
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -8,251 +10,149 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { 
-  ChevronDown, 
-  Download, 
-  Eye, 
-  MoreHorizontal, 
-  RefreshCw, 
-  Search 
-} from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Transaction, TransactionFilter } from '../types';
-import { TransactionStatusBadge } from './';
-// Alternatively could use: import TransactionStatusBadge from './transaction-status-badge';
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Transaction, TransactionStatus } from "../types";
 
 interface TransactionTableProps {
   transactions: Transaction[];
-  loading: boolean;
-  totalCount: number;
-  onSearch: (search: string) => void;
-  onFilter: (filter: Partial<TransactionFilter>) => void;
-  onRefresh: () => void;
-  onExport: () => void;
+  loading?: boolean;
+  onViewDetails?: (transaction: Transaction) => void;
 }
 
-export default function TransactionTable({
+export function TransactionTable({
   transactions,
-  loading,
-  totalCount,
-  onSearch,
-  onFilter,
-  onRefresh,
-  onExport,
+  loading = false,
+  onViewDetails,
 }: TransactionTableProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleSearch = () => {
-    onSearch(searchQuery);
+  const formatCurrency = (amount: number, currency = "TZS") => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid date";
+      return format(date, "MMM dd, yyyy HH:mm");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
     }
   };
 
-  const viewTransaction = (id: string) => {
-    router.push(`/dashboard/orders/transactions/${id}`);
+  const getStatusBadge = (status: TransactionStatus) => {
+    const statusConfig = {
+      PENDING: {
+        className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+        icon: <Clock className="h-3 w-3 mr-1" />,
+        label: "Pending",
+      },
+      COMPLETED: {
+        className: "bg-green-100 text-green-800 hover:bg-green-200",
+        icon: <CheckCircle className="h-3 w-3 mr-1" />,
+        label: "Completed",
+      },
+      FAILED: {
+        className: "bg-red-100 text-red-800 hover:bg-red-200",
+        icon: <XCircle className="h-3 w-3 mr-1" />,
+        label: "Failed",
+      },
+      REFUNDED: {
+        className: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+        icon: <RefreshCw className="h-3 w-3 mr-1" />,
+        label: "Refunded",
+      },
+    };
+
+    const config = statusConfig[status] || {
+      className: "bg-gray-100 text-gray-800",
+      icon: null,
+      label: status,
+    };
+
+    return (
+      <Badge className={`${config.className} inline-flex items-center`}>
+        {config.icon}
+        {config.label}
+      </Badge>
+    );
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 items-center">
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search transactions..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-          <Button variant="outline" onClick={handleSearch}>
-            Search
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={onExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                Filter
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Transaction Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onFilter({ status: 'completed' })}>
-                Completed
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ status: 'pending' })}>
-                Pending
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ status: 'failed' })}>
-                Failed
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ status: 'refunded' })}>
-                Refunded
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Transaction Type</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onFilter({ transaction_type: 'payment' })}>
-                Payment
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ transaction_type: 'refund' })}>
-                Refund
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ transaction_type: 'fee' })}>
-                Fee
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilter({ transaction_type: 'payout' })}>
-                Payout
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onFilter({})}>
-                Clear Filters
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Transaction ID</TableHead>
+            <TableHead>Reference</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {loading ? (
             <TableRow>
-              <TableHead>Transaction ID</TableHead>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableCell colSpan={6} className="text-center py-8">
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
-                </TableRow>
-              ))
-            ) : transactions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  No transactions found.
+          ) : transactions.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                No transactions found
+              </TableCell>
+            </TableRow>
+          ) : (
+            transactions.map((transaction) => (
+              <TableRow key={transaction.id} className="hover:bg-gray-50">
+                <TableCell className="font-medium">
+                  <div className="flex items-center">
+                    {transaction.transaction_id}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{transaction.reference}</div>
+                </TableCell>
+                <TableCell className="font-medium">
+                  {formatCurrency(transaction.amount)}
+                </TableCell>
+                <TableCell>
+                  {getStatusBadge(transaction.status)}
+                </TableCell>
+                <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (onViewDetails) {
+                        onViewDetails(transaction);
+                      } else {
+                        // Default behavior: navigate to order details
+                        router.push(`/dashboard/orders/${transaction.reference}`);
+                      }
+                    }}
+                  >
+                    <Eye className="h-4 w-4 mr-1" /> View
+                  </Button>
                 </TableCell>
               </TableRow>
-            ) : (
-              transactions.map((transaction) => (
-                <TableRow key={transaction.transaction_id}>
-                  <TableCell className="font-medium">
-                    {transaction.transaction_id}
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/dashboard/orders/${transaction.order_id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {transaction.order_id}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(transaction.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: transaction.currency }).format(transaction.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <TransactionStatusBadge status={transaction.status} />
-                  </TableCell>
-                  <TableCell className="capitalize">
-                    {transaction.payment_method.replace('_', ' ')}
-                  </TableCell>
-                  <TableCell className="capitalize">
-                    {transaction.transaction_type}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => viewTransaction(transaction.transaction_id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Showing {transactions.length} of {totalCount} transactions
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={transactions.length === 0}
-            onClick={() => {
-              // TODO: Implement pagination
-            }}
-          >
-            Load More
-          </Button>
-        </div>
-      </div>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
