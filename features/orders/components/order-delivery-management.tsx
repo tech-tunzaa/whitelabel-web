@@ -254,7 +254,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                       </div>
                       <div>
                         <p className="font-semibold capitalize">
-                          {stage.stage.replace(/_/g, " ")}
+                          {(stage.stage === "assigned" && index > 0 ? "reassigned" : stage.stage).replace(/_/g, " ")}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {formatDate(stage.timestamp)} at {formatTime(stage.timestamp)}
@@ -264,7 +264,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                           <span className="font-mono">{formatPartnerId(stage.partner_id)}</span>
                           <Copy text={stage.partner_id} size={14} className="ml-auto" />
                         </div>
-                        {deliveryDetails?.current_stage === "assigned" && (
+                        {deliveryDetails?.current_stage === "assigned" && index === deliveryDetails.stages.length - 1 && (
                           <Button
                             variant="outline"
                             size="sm"

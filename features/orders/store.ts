@@ -151,17 +151,30 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       if (response.data && response.data.data) {
         if (Array.isArray(response.data.data)) {
           orderList = {
-            items: response.data.data as Order[],
+            items: (response.data.data as Order[]).map(order => ({
+              ...order,
+              status: order.status?.toLowerCase() || order.status
+            })),
             total: response.data.data.length,
             skip: filter.skip || 0,
             limit: filter.limit || response.data.data.length,
           };
         } else {
-          orderList = response.data.data as OrderListResponse;
+          const data = response.data.data as OrderListResponse;
+          orderList = {
+            ...data,
+            items: data.items.map(order => ({
+              ...order,
+              status: order.status?.toLowerCase() || order.status
+            }))
+          };
         }
       } else if (response.data && Array.isArray(response.data)) {
         orderList = {
-          items: response.data as Order[],
+          items: (response.data as Order[]).map(order => ({
+            ...order,
+            status: order.status?.toLowerCase() || order.status
+          })),
           total: response.data.length,
           skip: filter.skip || 0,
           limit: filter.limit || response.data.length,
@@ -195,8 +208,12 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       const response = await apiClient.get<ApiResponse<Order>>(`/orders/${id}`, undefined, headers);
       const orderData = unwrapApiResponse<Order>(response);
       if (orderData) {
-        setOrder(orderData);
-        return orderData;
+        const processedOrder = {
+          ...orderData,
+          status: orderData.status?.toLowerCase() || orderData.status
+        };
+        setOrder(processedOrder);
+        return processedOrder;
       }
       throw new Error("Order data not found or in unexpected format");
     } catch (error: any) {
@@ -361,7 +378,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   },
 
   assignDeliveryPartner: async (payload, headers) => {
-    const { setOrder, setOrders, orders } = get();
+    const { setOrder, setOrders, orders, setDeliveryDetails } = get();
     try {
       const response = await apiClient.post<ApiResponse<DeliveryDetails>>(
         `/deliveries/`,
