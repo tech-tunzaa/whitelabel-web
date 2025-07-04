@@ -1,10 +1,19 @@
 export interface RewardsConfig {
-  pointsPerTzs: number;
-  redemption: {
-    points: number;
-    value: number;
-  };
-  referralBonus: number;
+  points_per_tzs: number;
+  redemption_points: number;
+  redemption_value_tzs: number;
+  referral_bonus_points: number;
+  is_active: boolean;
+}
+
+export interface RewardsConfigResponse {
+  points_per_tzs: number;
+  redemption_points: number;
+  redemption_value_tzs: number;
+  referral_bonus_points: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type RewardType = 'purchase' | 'redemption' | 'referral' | 'bonus';

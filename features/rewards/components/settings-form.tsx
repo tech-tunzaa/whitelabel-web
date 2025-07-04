@@ -1,85 +1,121 @@
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { RewardsConfig } from "../types";
 import { useRewardsStore } from "../store";
 
 export function RewardsSettingsForm() {
-  const { config, updateConfig, loading, fetchConfig } = useRewardsStore();
-  // Using sonner toast directly
+  const session = useSession();
+  const { 
+    config, 
+    updateConfig, 
+    loading, 
+    error,
+    fetchConfig 
+  } = useRewardsStore();
   
-  // Set default form data that doesn't depend on loading config
-  const defaultConfig = {
-    pointsPerTzs: 100,
-    redemption: {
-      points: 100,
-      value: 500,
-    },
-    referralBonus: 50,
-  };
-  
-  const [formData, setFormData] = useState<RewardsConfig>(defaultConfig);
+  const [formData, setFormData] = useState<RewardsConfig | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const tenantId = session.data?.user?.tenant_id;
+  
+  // Derived state for form controls
+  const isLoading = loading || session.status === 'loading';
+  const hasError = error !== null;
+  const isFormReady = !isLoading && !hasError && formData !== null;
 
-  // Load config once on mount and update form data
+  // Load config when component mounts or tenantId changes
   useEffect(() => {
-    // Fetch config if it doesn't exist
-    if (!config) {
-      fetchConfig()
-        .then(loadedConfig => {
-          if (loadedConfig) {
-            setFormData(loadedConfig);
-          }
-        })
-        .catch(err => {
-          console.error('Failed to load config:', err);
-          // Keep using default values if fetch fails
-        });
-    } else {
-      // Use existing config if available
+    const loadConfig = async () => {
+      if (!tenantId) return;
+      
+      try {
+        await fetchConfig(tenantId);
+      } catch (err) {
+        console.error('Failed to load config:', err);
+        toast.error('Failed to load rewards configuration');
+      }
+    };
+
+    loadConfig();
+  }, [tenantId, fetchConfig]);
+
+  // Update form data when config changes
+  useEffect(() => {
+    if (config) {
       setFormData(config);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [config]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     
-    if (name === "redemption.points" || name === "redemption.value") {
-      const [parent, child] = name.split(".");
-      setFormData({
-        ...formData,
-        [parent]: {
-          ...formData[parent as keyof RewardsConfig] as any,
-          [child]: parseInt(value) || 0,
-        },
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: parseInt(value) || 0,
-      });
-    }
+    if (!formData) return;
+    
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : parseInt(value) || 0,
+    });
+  };
+
+  const handleSwitchChange = (checked: boolean) => {
+    if (!formData) return;
+    
+    setFormData({
+      ...formData,
+      is_active: checked,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantId || !formData) {
+      toast.error("Error", {
+        description: "No tenant ID found or form data is missing. Please try again.",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
-      await updateConfig(formData);
+      await updateConfig(formData, tenantId);
       toast.success("Settings updated", {
         description: "Rewards configuration has been updated successfully",
       });
     } catch (error) {
+      console.error('Update error:', error);
       toast.error("Error", {
-        description: "Failed to update rewards configuration",
+        description: error instanceof Error ? error.message : "Failed to update rewards configuration",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return (
+  // Loading state
+  if (isLoading && !formData) {
+    return <Spinner />
+  }
+
+  // Error state
+  if (hasError && !formData) {
+    return (
+      <ErrorCard
+        title="Error Loading Configuration"
+        description={error?.message || 'Failed to load rewards configuration'}
+        onRetry={() => tenantId && fetchConfig(tenantId)}
+      />
+    );
+  }
+
+  // Form is ready to be displayed
+  return formData ? (
     <Card className="border shadow-sm">
       <CardHeader className="border-b bg-muted/50">
         <CardTitle className="flex items-center gap-2">
@@ -98,20 +134,23 @@ export function RewardsSettingsForm() {
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
+            {/* Points Earning Card */}
             <div className="border rounded-lg p-4 bg-card">
               <h3 className="text-sm font-semibold mb-3 text-primary">Points Earning</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="pointsPerTzs" className="text-base">Points Per TZS</Label>
+                  <Label htmlFor="points_per_tzs" className="text-base">Points Per TZS</Label>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 max-w-40">
                       <Input
-                        id="pointsPerTzs"
-                        name="pointsPerTzs"
+                        id="points_per_tzs"
+                        name="points_per_tzs"
                         type="number"
-                        value={formData.pointsPerTzs}
+                        min="1"
+                        value={formData.points_per_tzs}
                         onChange={handleChange}
                         className="w-full"
+                        disabled={!formData.is_active}
                       />
                     </div>
                     <span className="text-sm text-muted-foreground">
@@ -125,19 +164,26 @@ export function RewardsSettingsForm() {
               </div>
             </div>
 
-            <div className="border rounded-lg p-4 bg-card">
-              <h3 className="text-sm font-semibold mb-3 text-primary">Redemption Rules</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="redemption.points" className="text-base">Points Required</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 max-w-40">
+            <Card>
+              <CardHeader>
+                <h3 className="text-lg font-medium">Redemption Configuration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Set up how points can be redeemed for rewards.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="redemption_points">Points Required</Label>
+                    <div className="relative">
                       <Input
-                        id="redemption.points"
-                        name="redemption.points"
+                        id="redemption_points"
+                        name="redemption_points"
                         type="number"
-                        value={formData.redemption.points}
+                        min="1"
+                        value={formData.redemption_points || ''}
                         onChange={handleChange}
+                        disabled={!formData.is_active || loading || isSubmitting}
                         className="w-full"
                       />
                     </div>
@@ -148,15 +194,17 @@ export function RewardsSettingsForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="redemption.value" className="text-base">Coupon Value (TZS)</Label>
+                  <Label htmlFor="redemption_value_tzs" className="text-base">Coupon Value (TZS)</Label>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 max-w-40">
                       <Input
-                        id="redemption.value"
-                        name="redemption.value"
+                        id="redemption_value_tzs"
+                        name="redemption_value_tzs"
                         type="number"
-                        value={formData.redemption.value}
+                        min="1"
+                        value={formData.redemption_value_tzs || ''}
                         onChange={handleChange}
+                        disabled={!formData.is_active || loading || isSubmitting}
                         className="w-full"
                       />
                     </div>
@@ -165,25 +213,27 @@ export function RewardsSettingsForm() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Current rate: {formData.redemption.points} points = TZS {formData.redemption.value} discount
+                    Current rate: {formData.redemption_points} points = TZS {formData.redemption_value_tzs} discount
                   </p>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             <div className="border rounded-lg p-4 bg-card">
               <h3 className="text-sm font-semibold mb-3 text-primary">Referral Program</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="referralBonus" className="text-base">Referral Bonus Points</Label>
+                  <Label htmlFor="referral_bonus_points" className="text-base">Referral Bonus Points</Label>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 max-w-40">
                       <Input
-                        id="referralBonus"
-                        name="referralBonus"
+                        id="referral_bonus_points"
+                        name="referral_bonus_points"
                         type="number"
-                        value={formData.referralBonus}
+                        min="0"
+                        value={formData.referral_bonus_points || ''}
                         onChange={handleChange}
+                        disabled={!formData.is_active || loading || isSubmitting}
                         className="w-full"
                       />
                     </div>
@@ -197,15 +247,57 @@ export function RewardsSettingsForm() {
                 </div>
               </div>
             </div>
+
+            <div className={`border rounded-lg p-4 ${formData.is_active ? 'border-green-500/50 bg-green-500/5' : 'border-destructive/50 bg-destructive/5'}`}>
+              <h3 className="text-sm font-semibold mb-3 text-primary">Program Status</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {formData.is_active ? 'Active' : 'Inactive'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.is_active
+                        ? 'Rewards program is currently active.'
+                        : 'Rewards program is currently inactive.'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.is_active}
+                    onCheckedChange={handleSwitchChange}
+                    disabled={loading || isSubmitting}
+                    className={`${formData.is_active ? 'data-[state=checked]:bg-green-500/50' : 'data-[state=checked]:bg-destructive'}`}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formData.is_active
+                    ? 'Disabling will prevent customers from earning or redeeming points.'
+                    : 'Enabling will allow customers to start earning and redeeming points.'}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="border-t pt-6 mt-4">
-            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-              {loading ? "Updating..." : "Save Rewards Configuration"}
-            </Button>
+            <div className="flex justify-between items-center">
+              <div>
+                {isSubmitting && (
+                  <p className="text-sm text-muted-foreground">
+                    Saving changes...
+                  </p>
+                )}
+              </div>
+              <Button 
+                type="submit" 
+                disabled={loading || isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {loading || isSubmitting ? 'Updating...' : 'Save Rewards Configuration'}
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>
     </Card>
-  );
+  ) : null;
 }
