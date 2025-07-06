@@ -37,11 +37,10 @@ export default function OrdersPage() {
   
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState("requested_refund");
+  const [activeTab, setActiveTab] = useState("refund_requested");
   const [isTabLoading, setIsTabLoading] = useState(false);
   // Use the DateRange type from react-day-picker that the Calendar component expects
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const pageSize = 10;
 
   // Define tenant headers
   const tenantHeaders = {
@@ -267,7 +266,7 @@ export default function OrdersPage() {
           onValueChange={handleTabChange}
         >
           <TabsList className="mb-4 w-full">
-            <TabsTrigger value="requested_refund">Pending Refunds</TabsTrigger>
+            <TabsTrigger value="refund_requested">Pending Refunds</TabsTrigger>
             <TabsTrigger value="partially_refunded">Partial Refund</TabsTrigger>
             <TabsTrigger value="refunded">Refunded</TabsTrigger>
           </TabsList>
@@ -275,9 +274,7 @@ export default function OrdersPage() {
           <Card>
             <CardContent className="p-0">
               {isTabLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <Spinner />
-                </div>
+                <Spinner />
               ) : (
                 <OrderTable
                   orders={displayOrders}
