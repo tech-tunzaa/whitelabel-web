@@ -268,7 +268,7 @@ export default function OrdersPage() {
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
             <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-            <TabsTrigger value="requested_refund">Pending Refunds</TabsTrigger>
+            <TabsTrigger value="refund_requested">Pending Refunds</TabsTrigger>
             <TabsTrigger value="partially_refunded">Partial Refunds</TabsTrigger>
             <TabsTrigger value="refunded">Refunded</TabsTrigger>
           </TabsList>
@@ -276,9 +276,7 @@ export default function OrdersPage() {
           <Card>
             <CardContent className="p-0">
               {isTabLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <Spinner />
-                </div>
+                <Spinner />
               ) : (
                 <OrderTable
                   orders={displayOrders}
