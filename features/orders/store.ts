@@ -11,7 +11,6 @@ import {
   DeliveryDetails,
   AssignDeliveryPayload,
   AddDeliveryStagePayload,
-  Transaction,
 } from "./types";
 
 // Helper to safely unwrap API responses, handling multiple formats.
@@ -32,7 +31,6 @@ const unwrapApiResponse = <T>(response: any): T | null => {
 interface OrderStore {
   orders: OrderListResponse | null;
   order: Order | null;
-  transaction: Transaction | null;
   deliveryDetails: DeliveryDetails | null;
   loading: boolean;
   error: OrderError | null;
@@ -44,16 +42,11 @@ interface OrderStore {
   setLoading: (loading: boolean) => void;
   setStoreError: (error: OrderError | null) => void;
   setOrder: (order: Order | null) => void;
-  setTransaction: (transaction: Transaction | null) => void;
   setDeliveryDetails: (details: DeliveryDetails | null) => void;
   setOrders: (orders: OrderListResponse | null) => void;
   clearStore: () => void;
 
   // Order API methods
-  fetchTransactionDetails: (
-    transactionId: string,
-    headers?: Record<string, string>
-  ) => Promise<Transaction | null>;
   fetchOrder: (id: string, headers?: Record<string, string>) => Promise<Order | null>;
   fetchOrderDeliveryDetails: (
     orderId: string,
@@ -90,7 +83,6 @@ interface OrderStore {
 export const useOrderStore = create<OrderStore>()((set, get) => ({
   orders: null,
   order: null,
-  transaction: null,
   deliveryDetails: null,
   loading: false,
   error: null,
@@ -102,14 +94,12 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setStoreError: (error) => set({ storeError: error }),
   setOrder: (order) => set({ order }),
-  setTransaction: (transaction) => set({ transaction }),
   setDeliveryDetails: (details) => set({ deliveryDetails: details }),
   setOrders: (orders) => set({ orders }),
 
   clearStore: () =>
     set({
       order: null,
-      transaction: null,
       deliveryDetails: null,
       storeError: null,
       loading: false,
@@ -205,7 +195,11 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
     setLoading(true);
     setStoreError(null);
     try {
-      const response = await apiClient.get<ApiResponse<Order>>(`/orders/${id}`, undefined, headers);
+      // Check if the ID is a UUID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+      const endpoint = isUuid ? `/orders/${id}` : `/orders/number/${id}`;
+      
+      const response = await apiClient.get<ApiResponse<Order>>(endpoint, undefined, headers);
       const orderData = unwrapApiResponse<Order>(response);
       if (orderData) {
         const processedOrder = {
@@ -420,34 +414,6 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
     } catch (error: any) {
       console.error("[addDeliveryStage] Error updating delivery stage:", error);
       throw error;
-    }
-  },
-
-  fetchTransactionDetails: async (transactionId, headers) => {
-    const { setLoading, setStoreError, setTransaction } = get();
-    try {
-      setLoading(true);
-      const response = await apiClient.get<ApiResponse<Transaction>>(
-        `/payments/${transactionId}`,
-        undefined,
-        headers
-      );
-      const transactionData = unwrapApiResponse<Transaction>(response);
-      if (transactionData) {
-        setTransaction(transactionData);
-        return transactionData;
-      }
-      return null;
-    } catch (error: any) {
-      console.error("Error fetching transaction details:", error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error.message ||
-        "Failed to fetch transaction details";
-      setStoreError({ message: errorMessage, status: error?.response?.status });
-      throw error;
-    } finally {
-      setLoading(false);
     }
   },
 
