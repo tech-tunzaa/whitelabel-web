@@ -3,8 +3,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import type { User as NextAuthUser } from "next-auth";
+import type { User as NextAuthUser, DefaultSession } from "next-auth";
 import { format } from "date-fns";
+import { ChevronDown, Info, Check, AlertCircle } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +44,8 @@ import { toast } from "sonner";
 import DeliveryManagement from "@/features/orders/components/order-delivery-management";
 import { useOrderStore } from "@/features/orders/store";
 import { useVendorStore } from "@/features/vendors/store";
+import { useTransactionStore } from "@/features/orders/transactions/store";
+import { TransactionStatus } from "@/features/orders/transactions/types";
 import { VendorResponseItem } from "@/features/orders/components/vendor-response-item";
 import {
   Order,
@@ -51,71 +60,192 @@ import {
   CreditCard,
   Truck,
   User,
-  Calendar,
   RefreshCcw,
   ShoppingBag,
-  FileText,
   ExternalLink,
   Mail,
   Phone,
+  FileText,
+  Calendar,
 } from "lucide-react";
+
+interface ExtendedUser extends User {
+  tenant_id?: string;
+}
 
 const OrderPage = () => {
   const params = useParams();
-  interface ExtendedUser extends User {
-    tenant_id?: string;
-  }
+  const orderId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [transactionDetails, setTransactionDetails] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'payment'>('overview');
-  const getTransactionStatusBadgeVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "success":
-        return "success";
-      case "pending":
-        return "warning";
-      case "failed":
-        return "destructive";
-      default:
-        return "default";
-    }
-  };
-
-  const getPaymentStatusBadgeVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "paid":
-        return "success";
-      case "pending":
-        return "warning";
-      case "failed":
-        return "destructive";
-      default:
-        return "default";
-    }
-  };
-
-  const { data: session } = useSession();
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "payment">(
+    "overview"
+  );
+  const [hasFetchedTransaction, setHasFetchedTransaction] = useState(false);
   const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>(
     {}
   );
+
+  const { data: session } = useSession();
+  const router = useRouter();
 
   const {
     order,
     loading: orderLoading,
     error: orderError,
     fetchOrder,
-    activeAction,
+    clearStore,
   } = useOrderStore();
-
   const { vendor, loading: vendorLoading, fetchVendor } = useVendorStore();
+  const {
+    currentTransaction,
+    fetchTransaction,
+    loading: transactionLoading,
+    setCurrentTransaction,
+  } = useTransactionStore();
 
-  useEffect(() => {
-    const user = session?.user as ExtendedUser;
-    if (user?.tenant_id && params.id) {
-      fetchOrder(params.id as string, { "X-Tenant-ID": user.tenant_id });
+  const getTransactionStatusBadgeVariant = (status?: string) => {
+    if (!status) return "secondary";
+
+    const statusLower = status.toLowerCase();
+
+    if (["completed", "succeeded", "paid", "success"].includes(statusLower)) {
+      return "success";
+    } else if (["pending", "processing"].includes(statusLower)) {
+      return "warning";
+    } else if (
+      ["failed", "canceled", "cancelled", "declined"].includes(statusLower)
+    ) {
+      return "destructive";
+    } else if (["refunded", "partially_refunded"].includes(statusLower)) {
+      return "outline";
     }
-  }, [session, params.id, fetchOrder]);
+
+    return "secondary";
+  };
+
+  const getStatusBadgeVariant = (status?: string) => {
+    if (!status) return "secondary";
+    return getTransactionStatusBadgeVariant(status);
+  };
+
+  const getPaymentStatusBadgeVariant = (status?: string) => {
+    if (!status) return "default";
+    return getTransactionStatusBadgeVariant(status);
+  };
+
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Not specified";
+    try {
+      return format(new Date(dateString), "MMMM d, yyyy");
+    } catch (e) {
+      return "Invalid date";
+    }
+  };
+
+  const formatPrice = (
+    price: number | string | undefined,
+    options?: { currency?: string }
+  ): string => {
+    if (price === undefined || price === null || price === "") return "N/A";
+    const numPrice = typeof price === "string" ? parseFloat(price) : price;
+    if (isNaN(numPrice)) return "N/A";
+
+    // Get the order from the store
+    const order = useOrderStore.getState().order;
+    const currency = options?.currency || order?.currency || "USD";
+
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numPrice);
+  };
+
+  const formatTransactionDate = (dateString?: string | null): string => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid date";
+
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return "Invalid date";
+    }
+  };
+
+  // Reset state when component unmounts or orderId changes
+  useEffect(() => {
+    return () => {
+      // Clear the order store when component unmounts or orderId changes
+      clearStore();
+      setCurrentTransaction(null);
+      setHasFetchedTransaction(false);
+    };
+  }, [orderId, clearStore, setCurrentTransaction]);
+
+  // Fetch order data when component mounts or ID changes
+  useEffect(() => {
+    if (!orderId || !session?.user) return;
+
+    // Reset states when orderId changes
+    clearStore();
+    setCurrentTransaction(null);
+    setHasFetchedTransaction(false);
+
+    const headers: Record<string, string> = {};
+
+    // Type assertion for user with tenant_id
+    const user = session.user as any;
+    if (user?.tenant_id) {
+      headers["X-Tenant-ID"] = user.tenant_id;
+    }
+
+    if (user?.accessToken) {
+      headers["Authorization"] = `Bearer ${user.accessToken}`;
+    }
+
+    fetchOrder(orderId, headers);
+  }, [orderId, session?.user, fetchOrder]);
+
+  // Fetch transaction details when payment tab is active
+  useEffect(() => {
+    const fetchTransactionData = async () => {
+      if (
+        activeTab === "payment" &&
+        order?.payment_details?.transaction_id &&
+        !hasFetchedTransaction &&
+        session?.user?.tenant_id
+      ) {
+        try {
+          await fetchTransaction(order.payment_details.transaction_id, {
+            "X-Tenant-ID": session.user.tenant_id,
+          });
+          setHasFetchedTransaction(true);
+        } catch (error) {
+          console.error("Error fetching transaction:", error);
+          toast.error("Failed to load transaction details");
+        }
+      }
+    };
+
+    fetchTransactionData();
+  }, [
+    activeTab,
+    order?.payment_details?.transaction_id,
+    hasFetchedTransaction,
+    session?.user?.tenant_id,
+    fetchTransaction,
+  ]);
 
   const handleAccordionChange = async (index: number) => {
     if (!order?.items) return;
@@ -136,70 +266,6 @@ const OrderPage = () => {
       }
     }
   };
-
-  const router = useRouter();
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "completed":
-        return "success";
-      case "pending":
-        return "warning";
-      case "cancelled":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "Not specified";
-    try {
-      return format(new Date(dateString), "MMMM d, yyyy");
-    } catch (e) {
-      return "Invalid date";
-    }
-  };
-
-  const formatPrice = (price: number | undefined) => {
-    if (price === undefined || price === null) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "TZS",
-    }).format(price);
-  };
-
-  const fetchTransactionDetails = async (
-    transactionId: string,
-    headers: any
-  ) => {
-    try {
-      const response = await fetch(`/api/transactions/${transactionId}`, {
-        headers: headers,
-      });
-      if (response.ok) {
-        return await response.json();
-      } else {
-        throw new Error("Failed to fetch transaction details");
-      }
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  useEffect(() => {
-    // Fetch transaction details when payment tab is opened
-    if (activeTab === 'payment' && order?.payment_details?.transaction_id && session?.user?.tenant_id) {
-      fetchTransactionDetails(order.payment_details.transaction_id, { 'X-Tenant-ID': session.user.tenant_id })
-        .then((details) => {
-          setTransactionDetails(details);
-        })
-        .catch((error) => {
-          console.error('Error fetching transaction details:', error);
-          toast.error('Failed to fetch transaction details');
-        });
-    }
-  }, [activeTab, order?.payment_details?.transaction_id, session?.user?.tenant_id]);
 
   if (orderLoading && !order) {
     return <Spinner />;
@@ -269,7 +335,12 @@ const OrderPage = () => {
 
       <main className="flex-1 p-6 space-y-6">
         <div className="flex flex-col gap-6 lg:flex-row">
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs
+            defaultValue="overview"
+            className="space-y-6 w-full"
+            onValueChange={setActiveTab}
+            value={activeTab}
+          >
             <TabsList className="w-full">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="payment">Payment & Installments</TabsTrigger>
@@ -440,167 +511,349 @@ const OrderPage = () => {
             </TabsContent>
 
             <TabsContent value="payment" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Payment Details
-                  </CardTitle>
-                  <CardDescription>
-                    Payment information and transaction history
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">Total Amount</span>
-                        <span className="text-2xl font-bold">
-                          {formatPrice(order?.payment_details?.amount)}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm font-medium">Payment Status</span>
-                        <Badge
-                          variant={getPaymentStatusBadgeVariant(
-                            order?.payment_status || ""
-                          )}
-                          className="text-base"
-                        >
-                          {order?.payment_status || "Unknown"}
-                        </Badge>
-                      </div>
+              {/* Combined Payment & Transaction Card */}
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-3">
+                        <CreditCard className="h-5 w-5" />
+                        Payment Details
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {currentTransaction?.transaction_id ? (
+                          <span className="font-mono text-sm">
+                            {currentTransaction.transaction_id}
+                          </span>
+                        ) : (
+                          "Loading transaction details..."
+                        )}
+                      </CardDescription>
                     </div>
-                    
-                    {order?.payment_details && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Payment ID</span>
-                            <div className="flex items-center gap-2">
-                              <Copy 
-                                text={order.payment_details.payment_id} 
-                                className="text-sm" 
-                              />
-                              <span className="text-sm text-muted-foreground">
-                                ({order.payment_details.payment_gateway})
-                              </span>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Amount</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
-                                {formatPrice(order.payment_details.amount)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Status</span>
-                            <Badge
-                              variant={getTransactionStatusBadgeVariant(
-                                order.payment_details.status || ""
-                              )}
-                              className="text-sm ms-2"
-                            >
-                              {order.payment_details.status || "Unknown"}
-                            </Badge>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Payment Method</span>
-                            <span className="text-sm ms-2">
-                              {order.payment_details.method}
+                    {currentTransaction && (
+                      <Badge
+                        variant={getTransactionStatusBadgeVariant(
+                          currentTransaction.status
+                        )}
+                        className="px-3 py-1.5 text-sm h-8 self-start sm:self-center"
+                      >
+                        {currentTransaction.status.replace(/_/g, " ")}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-0">
+                  {transactionLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Spinner className="mb-3" />
+                      <p className="text-muted-foreground">
+                        Loading payment details...
+                      </p>
+                    </div>
+                  ) : currentTransaction ? (
+                    <div className="divide-y">
+                      {/* Payment Summary */}
+                      <div className="p-6">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                          PAYMENT SUMMARY
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Order Amount
+                            </span>
+                            <span className="font-medium">
+                              {formatPrice(order?.totals?.total || 0, {
+                                currency: order?.currency || "TZS",
+                              })}
                             </span>
                           </div>
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Paid At</span>
-                            <span className="text-sm ms-2">
-                              {formatDate(order.payment_details.paid_at)}
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Amount Paid
+                            </span>
+                            <span className="font-medium">
+                              {formatPrice(currentTransaction.amount, {
+                                currency: order?.currency || "TZS",
+                              })}
                             </span>
                           </div>
-                          {order.payment_details.notes && (
-                            <div className="space-y-1">
-                              <span className="text-sm font-medium">Notes</span>
-                              <span className="text-sm text-muted-foreground ms-2">
-                                {order.payment_details.notes}
+                          {order?.payment_details?.remaining_balance !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">
+                                Remaining Balance
+                              </span>
+                              <span className="font-medium">
+                                {formatPrice(order.payment_details.remaining_balance, {
+                                  currency: order.currency || "TZS",
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          {currentTransaction.fee_amount && (
+                            <div className="flex justify-between pt-2 border-t">
+                              <span className="text-muted-foreground">
+                                Transaction Fee
+                              </span>
+                              <span>
+                                {formatPrice(currentTransaction.fee_amount, {
+                                  currency: order?.currency || "TZS",
+                                })}
                               </span>
                             </div>
                           )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
 
-              {order?.plan?.installments &&
-                order.plan.installments.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        Installment Plan
-                      </CardTitle>
-                      <CardDescription>
-                        {order.plan.installments.length} installments scheduled
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {order.plan.installments.map(
-                          (installment: any, index: number) => (
-                            <div
-                              key={index}
-                              className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <Badge
-                                  variant={getStatusBadgeVariant(
-                                    installment.status
-                                  )}
-                                  className="capitalize"
-                                >
-                                  {installment.status}
-                                </Badge>
-                                <div
-                                  className={cn(
-                                    "text-sm flex items-center gap-2",
-                                    installment.status === "pending" &&
-                                      new Date(installment.due_date) <
-                                        new Date()
-                                      ? "text-destructive animate-pulse font-medium"
-                                      : "text-muted-foreground"
-                                  )}
-                                >
-                                  <Calendar className="h-4 w-4" />
-                                  <span className="flex-1">
-                                    Due: {formatDate(installment.due_date)}
-                                  </span>
-                                  {installment.status === "pending" &&
-                                    new Date(installment.due_date).getTime() <
-                                      new Date().getTime() && (
-                                    <div className="flex items-center gap-2">
-                                      <AlertTriangle className="h-4 w-4 text-destructive" />
-                                      <span className="text-xs font-medium">Overdue</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                  Installment {index + 1}
-                                </p>
+                      {/* Transaction Details */}
+                      <div className="p-6">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                          TRANSACTION DETAILS
+                        </h3>
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Reference
+                              </p>
+                              <div className="flex items-center gap-2">
                                 <p className="font-medium">
-                                  {formatPrice(installment.amount)}
+                                  {currentTransaction.reference || "N/A"}
                                 </p>
+                                <Copy
+                                  content={currentTransaction.reference}
+                                  className="text-muted-foreground"
+                                />
                               </div>
                             </div>
-                          )
-                        )}
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Payment Method
+                              </p>
+                              <div className="flex items-center gap-2">
+                                {currentTransaction.raw_request
+                                  ?.payment_method || "Mobile Money"}
+                              </div>
+                            </div>
+                            {currentTransaction.raw_request
+                              ?.customer_msisdn && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Customer Phone
+                                </p>
+                                <p>
+                                  {
+                                    currentTransaction.raw_request
+                                      .customer_msisdn
+                                  }
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Initiated
+                              </p>
+                              <p>
+                                {formatTransactionDate(
+                                  currentTransaction.created_at
+                                )}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Last Updated
+                              </p>
+                              <p>
+                                {formatTransactionDate(
+                                  currentTransaction.updated_at
+                                )}
+                              </p>
+                            </div>
+                            {currentTransaction.payment_date && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Completed
+                                </p>
+                                <p>
+                                  {formatTransactionDate(
+                                    currentTransaction.payment_date
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+
+
+
+                      {/* Raw Response */}
+                      {currentTransaction.raw_response && (
+                        <div className="border-t">
+                          <Accordion type="single" collapsible>
+                            <AccordionItem
+                              value="raw-response"
+                              className="border-b-0"
+                            >
+                              <AccordionTrigger className="hover:no-underline px-6 py-3 text-sm font-medium hover:bg-muted/30 transition-colors">
+                                <span>View Raw Response</span>
+                              </AccordionTrigger>
+                              <AccordionContent className="px-6 pb-4 pt-1">
+                                <div className="bg-muted/30 p-3 rounded-md">
+                                  <pre className="text-xs overflow-x-auto">
+                                    {JSON.stringify(
+                                      currentTransaction.raw_response,
+                                      null,
+                                      2
+                                    )}
+                                  </pre>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">No transaction details available</p>
+                    </div>
+                  )}
+                </CardContent>
+
+                {/* Installment Plan Card - Only show if order has a plan */}
+                {order?.plan && (
+                  <div className="border-t">
+                    <Card className="border-0 rounded-none">
+                      <CardHeader className="p-6 pb-4">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            Installment Plan
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="px-2.5">
+                              {order.payment_details?.paid_installments || 0}/{order.plan.installments?.length || 0} Paid
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="px-6 pb-6 pt-0">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-medium">{order.plan.name || 'Installment Plan'}</p>
+                              {order.plan.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {order.plan.description}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {order.plan.installments?.length || 0} installments
+                            </span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Payment Progress</span>
+                              <span className="font-medium">
+                                {Math.round(((order.payment_details?.paid_installments || 0) / (order.plan.installments?.length || 1)) * 100)}%
+                              </span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary"
+                                style={{
+                                  width: `${((order.payment_details?.paid_installments || 0) / (order.plan.installments?.length || 1)) * 100}%`,
+                                  transition: 'width 0.3s ease-in-out'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Installment Summary */}
+                          <div className="border rounded-md">
+                            <Accordion type="single" collapsible>
+                              <AccordionItem value="installment-details" className="border-b-0">
+                                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                                  <span className="text-sm font-medium">View Installment Details</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-4 pt-1">
+                                  <div className="space-y-3 mt-2">
+                                    {order.plan.installments?.map((installment, index) => {
+                                      const isPaid = index < (order.payment_details?.paid_installments || 0);
+                                      const isCurrent = index === (order.payment_details?.paid_installments || 0);
+                                      const dueDate = new Date(installment.due_date);
+                                      const today = new Date();
+                                      today.setHours(0, 0, 0, 0);
+                                      const isOverdue = !isPaid && dueDate < today;
+
+                                      return (
+                                        <div 
+                                          key={index}
+                                          className={`p-3 rounded-md border ${
+                                            isOverdue ? 'border-red-200 bg-red-50' : 
+                                            isCurrent ? 'border-primary/50 bg-primary/5' : 'border-border'
+                                          }`}
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                                isPaid ? 'bg-green-100 text-green-600' : 
+                                                isOverdue ? 'bg-red-100 text-red-600' :
+                                                isCurrent ? 'bg-blue-100 text-blue-600' : 'bg-muted'
+                                              }`}>
+                                                {isPaid ? (
+                                                  <Check className="h-4 w-4" />
+                                                ) : isOverdue ? (
+                                                  <span className="text-xs font-medium">!</span>
+                                                ) : (
+                                                  <span className="text-xs font-medium">{index + 1}</span>
+                                                )}
+                                              </div>
+                                              <div>
+                                                <p className={`text-sm font-medium ${isOverdue ? 'text-red-700' : ''}`}>
+                                                  Installment {index + 1}
+                                                  {isOverdue && <span className="ml-2 text-xs text-red-500">(Overdue)</span>}
+                                                </p>
+                                                <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                                  Due {dueDate.toLocaleDateString()}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className={`font-medium ${isOverdue ? 'text-red-700' : ''}`}>
+                                                {formatPrice(installment.amount, { currency: order?.currency || 'TZS' })}
+                                              </p>
+                                              <p className={`text-xs ${
+                                                isPaid ? 'text-green-600' : 
+                                                isOverdue ? 'text-red-600 font-medium' :
+                                                isCurrent ? 'text-blue-600 font-medium' : 'text-muted-foreground'
+                                              }`}>
+                                                {isPaid ? 'Paid' : isOverdue ? 'Overdue' : isCurrent ? 'Upcoming' : 'Pending'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 )}
+              </Card>
             </TabsContent>
           </Tabs>
 
