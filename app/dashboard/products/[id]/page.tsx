@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
+import { Copy } from "@/components/ui/copy";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { toast } from "sonner";
 
@@ -279,11 +280,11 @@ export default function ProductPage({ params }: ProductPageProps) {
     return { text: "In Stock", variant: "success" as const };
   };
 
-  if (productLoading) {
+  if (productLoading && !product) {
     return <Spinner />;
   }
 
-  if (!product) {
+  if (!product && productError) {
     return (
       <ErrorCard
         title="Failed to load product"
@@ -349,7 +350,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                Product ID: {product.product_id}
+                Product ID: {product.product_id} <Copy text={product.product_id} size={14} />
               </p>
             </div>
           </div>
@@ -657,13 +658,11 @@ export default function ProductPage({ params }: ProductPageProps) {
                   <>
                     <Button
                       className="w-full"
-                      onClick={() =>
-                        handleUpdate({ status: "approved" })
-                      }
+                      onClick={() => handleUpdate({ status: "approved" })}
                       disabled={productLoading}
                     >
                       {productLoading ? (
-                        <Spinner className="mr-2 h-4 w-4" />
+                        <Spinner size="sm" />
                       ) : (
                         <Check className="mr-2 h-4 w-4" />
                       )}
@@ -672,11 +671,14 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <Button
                       className="w-full"
                       variant="destructive"
-                      size="sm"
                       onClick={() => setProductToReject(product)}
                       disabled={productLoading}
                     >
-                      <Ban className="mr-2 h-3 w-3" />
+                      {productLoading ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <Ban className="mr-2 h-3 w-3" />
+                      )}
                       Reject
                     </Button>
                   </>
@@ -687,13 +689,11 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <Button
                       className="w-full"
                       variant="outline"
-                      onClick={() =>
-                        handleUpdate({ is_active: !product.is_active })
-                      }
+                      onClick={() => handleUpdate({ is_active: !product.is_active })}
                       disabled={productLoading}
                     >
                       {productLoading ? (
-                        <Spinner className="mr-2 h-4 w-4" />
+                        <Spinner size="sm" />
                       ) : product.is_active ? (
                         <EyeOff className="mr-2 h-4 w-4" />
                       ) : (
@@ -702,16 +702,8 @@ export default function ProductPage({ params }: ProductPageProps) {
                       {product.is_active ? "Unpublish" : "Publish"}
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleUpdate({ verification_status: "approved" })}
-                    >
-                      <Check className="mr-2 h-3 w-3" />
-                      Re-Approve
-                    </Button>
-                    <Button
+                      className="w-full"
                       variant="destructive"
-                      size="sm"
                       onClick={() => setProductToReject(product)}
                     >
                       <Ban className="mr-2 h-3 w-3" />
@@ -723,17 +715,15 @@ export default function ProductPage({ params }: ProductPageProps) {
                 {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
                   <Button
                     className="w-full"
-                    onClick={() =>
-                      handleUpdate({ verification_status: "approved" })
-                    }
+                    onClick={() => handleUpdate({ verification_status: "approved" })}
                     disabled={productLoading}
                   >
                     {productLoading ? (
-                      <Spinner className="mr-2 h-4 w-4" />
+                      <Spinner size="sm" />
                     ) : (
                       <Check className="mr-2 h-4 w-4" />
                     )}
-                    Re-approve
+                    Approve
                   </Button>
                 )}
 

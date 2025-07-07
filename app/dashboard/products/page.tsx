@@ -227,9 +227,7 @@ export default function ProductsPage() {
           </TabsList>
 
           {isTabLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Spinner />
-            </div>
+            <Spinner />
           ) : (
             <>
               <ProductTable
@@ -250,7 +248,7 @@ export default function ProductsPage() {
         </Tabs>
       </div>
 
-            <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
