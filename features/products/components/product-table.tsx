@@ -70,10 +70,26 @@ export function ProductTable({
     }
   };
 
-
-
   const handleToggleIsActive = (product: Product) => {
-    onUpdateProduct(product.product_id, { is_active: !product.is_active });
+    setProcessingId(product.product_id);
+    try {
+      onUpdateProduct(product.product_id, { is_active: !product.is_active });
+    } catch (error) {
+      // Error is handled in the parent component's toast
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (product: Product) => {
+    setProcessingId(product.product_id);
+    try {
+      onReject(product);
+    } catch (error) {
+      // Error is handled in the parent component's toast
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const getApprovalStatusBadge = (status: Product["verification_status"]) => {
@@ -93,7 +109,7 @@ export function ProductTable({
     return isActive ? (
       <Badge variant="default">Published</Badge>
     ) : (
-      <Badge variant="outline">Draft</Badge>
+      <Badge variant="secondary">Draft</Badge>
     );
   };
 
@@ -107,172 +123,183 @@ export function ProductTable({
   };
 
   return (
-    <>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Categories</TableHead>
-                <TableHead>Approval Status</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.length > 0 ? (
-                products.map((product) => (
-                  <TableRow
-                    key={product.product_id}
-                    className="hover:bg-muted/50 cursor-pointer"
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Categories</TableHead>
+              <TableHead>Approval Status</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.length > 0 ? (
+              products.map((product) => (
+                <TableRow
+                  key={product.product_id}
+                  className="hover:bg-muted/50"
+                >
+                  <TableCell
+                    className="font-medium cursor-pointer hover:underline"
                     onClick={() => onProductClick(product)}
                   >
-                    <TableCell
-                      className="font-medium"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 rounded-md">
-                          <AvatarImage
-                            src={product.images?.[0]?.url || ""}
-                            alt={product.name}
-                          />
-                          <AvatarFallback className="rounded-md">
-                            {product.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-semibold">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            SKU: {product.sku || "N/A"}
-                          </div>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 rounded-md">
+                        <AvatarImage
+                          src={product.images?.[0]?.url || ""}
+                          alt={product.name}
+                        />
+                        <AvatarFallback className="rounded-md">
+                          {product.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold">{product.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          SKU: {product.sku || "N/A"}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {product.categories?.slice(0, 2).map((cat) => (
-                          <Badge key={cat.category_id} variant="secondary">
-                            {cat.name}
-                          </Badge>
-                        ))}
-                        {product.categories && product.categories.length > 2 && (
-                          <Badge variant="outline">
-                            +{product.categories.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getApprovalStatusBadge(product.verification_status)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(product.is_active)}
-                    </TableCell>
-                    <TableCell>
-                      {`Tsh ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.base_price ?? 0)}`}
-                    </TableCell>
-                    <TableCell>{formatDate(product.created_at)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end">
-                        {processingId === product.product_id ? (
-                          <Spinner size="sm" />
-                        ) : (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/dashboard/products/${product.product_id}`)}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/dashboard/products/${product.product_id}/edit`)}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Product
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {product.verification_status === "pending" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => handleApprove(product.product_id)}
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                    Approve
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => onReject(product)}
-                                  >
-                                    <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                                    Reject
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {product.verification_status === "approved" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => handleToggleIsActive(product)}
-                                  >
-                                    {product.is_active ? (
-                                      <>
-                                        <ToggleLeft className="mr-2 h-4 w-4" />
-                                        Unpublish
-                                      </> 
-                                    ) : (
-                                      <>
-                                        <ToggleRight className="mr-2 h-4 w-4" />
-                                        Publish
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => onReject(product)}
-                                  >
-                                    <XCircle className="mr-2 h-4 w-4 text-yellow-500" />
-                                    Suspend
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {product.verification_status === "suspended" && (
+                    </div>
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>
+                    <div className="flex flex-wrap gap-1">
+                      {product.categories?.slice(0, 2).map((cat) => (
+                        <Badge key={cat.category_id} variant="secondary">
+                          {cat.name}
+                        </Badge>
+                      ))}
+                      {product.categories && product.categories.length > 2 && (
+                        <Badge variant="outline">
+                          +{product.categories.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>
+                    {getApprovalStatusBadge(product.verification_status)}
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>
+                    {getStatusBadge(product.is_active)}
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>
+                    {`Tsh ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.base_price ?? 0)}`}
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>{formatDate(product.created_at)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger 
+                          asChild 
+                          disabled={processingId === product.product_id}
+                          className={processingId === product.product_id ? 'opacity-50' : ''}
+                        >
+                          <div className="relative">
+                            {processingId === product.product_id && (
+                              <div className="absolute -left-6">
+                                <Spinner size="sm" />
+                              </div>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              disabled={processingId === product.product_id}
+                            >
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </DropdownMenuTrigger>
+
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/dashboard/products/${product.product_id}`)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/dashboard/products/${product.product_id}/edit`)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Product
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {product.verification_status === "pending" && (
+                              <>
                                 <DropdownMenuItem
                                   onClick={() => handleApprove(product.product_id)}
                                 >
                                   <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
                                   Approve
                                 </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No products found for the selected filter.
+                                <DropdownMenuItem
+                                  onClick={() => handleReject(product)}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                                  Reject
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {product.verification_status === "approved" && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleIsActive(product)}
+                                >
+                                  {product.is_active ? (
+                                    <>
+                                      <ToggleLeft className="mr-2 h-4 w-4" />
+                                      Unpublish
+                                    </> 
+                                  ) : (
+                                    <>
+                                      <ToggleRight className="mr-2 h-4 w-4" />
+                                      Publish
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleReject(product)}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4 text-yellow-500" />
+                                  Suspend
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {product.verification_status === "rejected" && (
+                              <DropdownMenuItem
+                                onClick={() => handleApprove(product.product_id)}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                Approve
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      
-    </>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No products found for the selected filter.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

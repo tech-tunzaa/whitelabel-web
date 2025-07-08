@@ -296,7 +296,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  return (
+  return product ? (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
@@ -715,7 +715,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                 {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
                   <Button
                     className="w-full"
-                    onClick={() => handleUpdate({ verification_status: "approved" })}
+                    onClick={() => handleUpdate({ status: "approved" })}
                     disabled={productLoading}
                   >
                     {productLoading ? (
@@ -788,5 +788,5 @@ export default function ProductPage({ params }: ProductPageProps) {
         loading={productLoading}
       />
     </div>
-  );
+  ) : null;
 }
