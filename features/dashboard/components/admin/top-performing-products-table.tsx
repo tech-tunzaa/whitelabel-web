@@ -1,11 +1,13 @@
 "use client";
 
+
 import Link from 'next/link';
 import { useDashboardStore } from '../../store'; 
-import { shallow } from 'zustand/shallow';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const formatCurrency = (amount: number) => {
     if (typeof amount !== 'number') return 'TZS 0';
@@ -21,10 +23,8 @@ const ProductRowSkeleton = () => (
 );
 
 export function TopPerformingProductsTable() {
-            const topPerformingProducts = useDashboardStore((state) => state.topPerformingProducts);
+    const topPerformingProducts = useDashboardStore((state) => state.topPerformingProducts);
     const isLoading = useDashboardStore((state) => state.loadingTopPerformingProducts);
-
-    
 
     return (
         <Card className="h-full flex flex-col">
@@ -32,7 +32,8 @@ export function TopPerformingProductsTable() {
                 <CardTitle>Top Performing Products</CardTitle>
                 <CardDescription>Your best-selling products by revenue.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow overflow-y-auto">
+            <CardContent>
+                <div className="max-h-[250px] overflow-y-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -65,6 +66,7 @@ export function TopPerformingProductsTable() {
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </CardContent>
         </Card>
     );

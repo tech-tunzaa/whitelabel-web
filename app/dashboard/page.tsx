@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { SuperOwnerDashboard } from "../../features/dashboard/components/super-owner/super-owner-dashboard";
-import { AdminDashboard } from "../../features/dashboard/components/admin/admin-dashboard";
-import { SubAdminDashboard } from "../../features/dashboard/components/sub-admin/sub-admin-dashboard";
-import { SupportDashboard } from "../../features/dashboard/components/support/support-dashboard";
+import { SuperOwnerDashboard } from "@/features/dashboard/components/super-owner/super-owner-dashboard";
+import { AdminDashboard } from "@/features/dashboard/components/admin/admin-dashboard";
+import { SubAdminDashboard } from "@/features/dashboard/components/sub-admin/sub-admin-dashboard";
+import { SupportDashboard } from "@/features/dashboard/components/support/support-dashboard";
 
 export const metadata = {
   title: "Meneja Dashboard",
