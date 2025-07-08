@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ export default function OrdersPage() {
   } = useOrderStore();
   
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
@@ -62,18 +63,30 @@ export default function OrdersPage() {
       }
       setStoreError(null);
       const filter = getFilter();
-      await fetchOrders({
+      
+      // Clear previous orders before making a new search
+      if (searchTerm) {
+        setOrders([]);
+      }
+      
+      const result = await fetchOrders({
         ...filter,
-        search: searchQuery,
+        search: searchTerm,
         dateFrom: dateRange?.from?.toISOString(),
         dateTo: dateRange?.to?.toISOString(),
       }, tenantHeaders);
+      
+      // If result is empty and we have a search term, ensure orders are cleared
+      if (searchTerm && (!result || result.length === 0)) {
+        setOrders([]);
+      }
     } catch (error) {
       console.error("Error loading orders:", error);
       // Always set empty orders array for 404 errors (no orders found)
       if (error instanceof Error && 
           ((error.message.includes("404") && error.message.includes("No orders found")) ||
-           error.message.includes("not found"))) {
+           error.message.includes("not found") ||
+           error.message.includes("404"))) {
         setOrders([]);
         setStoreError(null);
       } else {
@@ -156,12 +169,25 @@ export default function OrdersPage() {
     }
   }, [tenantId]);
   
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only update searchTerm if searchQuery has at least 3 characters or is empty
+      if (searchQuery.length >= 3 || searchQuery.length === 0) {
+        setSearchTerm(searchQuery);
+        setCurrentPage(1); // Reset to first page when search term changes
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Effect for filter changes
   useEffect(() => {
     if (tenantId) {
       loadOrders();
     }
-  }, [activeTab, currentPage, searchQuery, dateRange]);
+  }, [activeTab, currentPage, searchTerm, dateRange]);
   
   // Determine which orders to show based on active tab
   const displayOrders = activeTab === "all" ? (orders || []) : (orders || []).filter(order => order.status === activeTab);
@@ -239,7 +265,6 @@ export default function OrdersPage() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
                 }}
                 className="w-[250px]"
               />

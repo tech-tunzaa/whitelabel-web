@@ -118,7 +118,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       const params = new URLSearchParams();
       if (filter.skip) params.append("skip", filter.skip.toString());
       if (filter.limit) params.append("limit", filter.limit.toString());
-      if (filter.search) params.append("search", filter.search);
+      if (filter.search) params.append("query", filter.search);
       if (filter.status) params.append("status", filter.status);
       if (filter.userId) params.append("user_id", filter.userId);
       if (filter.vendorId) params.append("vendor_id", filter.vendorId);
