@@ -51,24 +51,24 @@ export const useProductStore = create<ProductStore>()(
         setLoading(true);
         console.log('Fetching product with ID:', id);
         console.log('Using headers:', headers);
-        
+
         const response = await apiClient.get<any>(`/products/${id}`, undefined, headers);
         console.log('API Response:', response);
-        
+
         // Try multiple possible response structures
         let productData = null;
-        
+
         // Option 1: response.data.data structure
         if (response.data && response.data.data) {
           console.log('Found product data in response.data.data', response.data.data);
           productData = response.data.data;
-        } 
+        }
         // Option 2: response.data structure (direct)
         else if (response.data) {
           console.log('Found product data directly in response.data', response.data);
           productData = response.data;
         }
-        
+
         // Check if we found product data
         if (productData) {
           console.log('Setting product data:', productData);
@@ -77,7 +77,7 @@ export const useProductStore = create<ProductStore>()(
           setLoading(false);
           return productData;
         }
-        
+
         console.log('No product data found in response');
         setLoading(false);
         throw new Error('Product data not found or in unexpected format');
@@ -113,27 +113,27 @@ export const useProductStore = create<ProductStore>()(
         if (filter.vendorId) params.append('vendor_id', filter.vendorId);
 
         const response = await apiClient.get<ProductApiResponse>(`/products/?${params.toString()}`, undefined, headers);
-        
+
         // Check if response has a nested data property
         if (response.data && response.data.data) {
           // Use the nested data property
           const productData = response.data.data as ProductApiResponse;
           // Update state with the items directly from the API
-          const items = Array.isArray(productData.items) ? productData.items : 
-                        Array.isArray(productData) ? productData : [];
+          const items = Array.isArray(productData.items) ? productData.items :
+            Array.isArray(productData) ? productData : [];
           setProducts(items);
           setLoading(false);
           return { ...productData, items };
         } else if (response.data) {
           // API might be returning data directly without nesting
           const productData = response.data as ProductApiResponse;
-          const items = Array.isArray(productData.items) ? productData.items : 
-                        Array.isArray(productData) ? productData : [];
+          const items = Array.isArray(productData.items) ? productData.items :
+            Array.isArray(productData) ? productData : [];
           setProducts(items);
           setLoading(false);
           return { ...productData, items };
         }
-        
+
         // Return empty result if no data
         const emptyResult = {
           items: [],
@@ -141,7 +141,7 @@ export const useProductStore = create<ProductStore>()(
           skip: filter.skip || 0,
           limit: filter.limit || 10
         };
-        
+
         setLoading(false);
         return emptyResult;
       } catch (error: unknown) {
@@ -163,17 +163,17 @@ export const useProductStore = create<ProductStore>()(
       try {
         setActiveAction('create');
         setLoading(true);
-        
+
         const response = await apiClient.post<ApiResponse<any>>('/products/', data, headers);
-        
+
         let productData = null;
-        
+
         if (response.data && response.data.data) {
           productData = response.data.data;
         } else if (response.data) {
           productData = response.data;
         }
-        
+
         setLoading(false);
         return productData;
       } catch (error: unknown) {
@@ -195,17 +195,17 @@ export const useProductStore = create<ProductStore>()(
       try {
         setActiveAction('update');
         setLoading(true);
-        
+
         const response = await apiClient.put<ApiResponse<any>>(`/products/${id}`, data, headers);
-        
+
         let productData = null;
-        
+
         if (response.data && response.data.data) {
           productData = response.data.data;
         } else if (response.data) {
           productData = response.data;
         }
-        
+
         setLoading(false);
         return productData;
       } catch (error: unknown) {
@@ -227,17 +227,17 @@ export const useProductStore = create<ProductStore>()(
       try {
         setActiveAction('update');
         setLoading(true);
-        
+
         const response = await apiClient.put<ApiResponse<any>>(`/products/${id}/status`, data, headers);
-        
+
         let productData = null;
-        
+
         if (response.data && response.data.data) {
           productData = response.data.data;
         } else if (response.data) {
           productData = response.data;
         }
-        
+
         setLoading(false);
         return productData;
       } catch (error: unknown) {
@@ -259,9 +259,9 @@ export const useProductStore = create<ProductStore>()(
       try {
         setActiveAction('delete');
         setLoading(true);
-        
+
         const response = await apiClient.delete<ApiResponse<any>>(`/products/${id}`, undefined, headers);
-        
+
         setLoading(false);
         return response.data;
       } catch (error: unknown) {
@@ -270,6 +270,152 @@ export const useProductStore = create<ProductStore>()(
         setStoreError({
           message: errorMessage,
           status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+
+    // Fetch bulk upload batch status
+    fetchBulkUploadStatus: async (
+      batchId: string,
+      headers?: Record<string, string>
+    ): Promise<any> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('fetchOne');
+        setLoading(true);
+        const response = await apiClient.get<any>(
+          `/bulk-upload/batch/${batchId}`,
+          undefined,
+          headers
+        );
+        setLoading(false);
+        return response.data;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch bulk upload status';
+        const errorStatus = (error as any)?.response?.status;
+        setStoreError({
+          message: errorMessage,
+          status: errorStatus,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    // Fetch all bulk upload batches for a vendor/store
+    fetchBulkUploadBatches: async (
+      vendorId: string,
+      storeId: string,
+      headers?: Record<string, string>
+    ): Promise<any[]> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('fetchList');
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (vendorId) params.append('vendor_id', vendorId);
+        if (storeId) params.append('store_id', storeId);
+        const response = await apiClient.get<any>(
+          `/bulk-upload/batches?${params.toString()}`,
+          undefined,
+          headers
+        );
+        setLoading(false);
+        // Assume response.data.data is an array of batches
+        if (response.data?.data) return response.data.data;
+        if (Array.isArray(response.data)) return response.data;
+        return [];
+      } catch (error: unknown) {
+        setStoreError({
+          message: error instanceof Error ? error.message : 'Failed to fetch bulk upload batches',
+          status: (error as any)?.response?.status,
+        });
+        setLoading(false);
+        return [];
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    // Fetch details for a single bulk upload batch
+    fetchBulkUploadBatchDetails: async (
+      batchId: string,
+      headers?: Record<string, string>
+    ): Promise<any> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('fetchOne');
+        setLoading(true);
+        const response = await apiClient.get<any>(
+          `/bulk-upload/batch/${batchId}`,
+          undefined,
+          headers
+        );
+        setLoading(false);
+        return response.data;
+      } catch (error: unknown) {
+        setStoreError({
+          message: error instanceof Error ? error.message : 'Failed to fetch batch details',
+          status: (error as any)?.response?.status,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    // Direct browser-to-backend file upload for bulk products
+    uploadBulkProductsDirect: async (
+      file: File,
+      vendorId: string,
+      storeId: string,
+      token: string,
+      tenantId: string
+    ): Promise<any> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('vendor_id', vendorId);
+      formData.append('store_id', storeId);
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${baseUrl}/bulk-upload/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': tenantId,
+        },
+        body: formData,
+      });
+
+      return response.json();
+    },
+
+    // Fetch bulk upload template CSV
+    fetchBulkUploadTemplateCSV: async (headers?: Record<string, string>): Promise<string> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('fetchList');
+        setLoading(true);
+        const response = await apiClient.get<any>(
+          '/bulk-upload/template/csv',
+          undefined,
+          headers
+        );
+        setLoading(false);
+        // The API returns the CSV as a string in response.data
+        return response.data;
+      } catch (error: unknown) {
+        setStoreError({
+          message: error instanceof Error ? error.message : 'Failed to fetch bulk upload template',
+          status: (error as any)?.response?.status,
         });
         setLoading(false);
         throw error;

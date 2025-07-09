@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw, Files } from "lucide-react";
 import { toast } from "sonner";
 
 import { useProductStore } from "@/features/products/store";
@@ -197,10 +197,21 @@ export default function ProductsPage() {
             Manage your products and their approval status.
           </p>
         </div>
-        <Button onClick={() => router.push("/dashboard/products/add")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
+        <div className="flex">
+          <Button 
+            variant="outline"
+            onClick={() => router.push("/dashboard/products/add")}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Product
+          </Button>
+          <Button onClick={() => router.push("/dashboard/products/bulk-upload")}
+            className="ml-2"
+          >
+            <Files className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
