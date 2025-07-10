@@ -54,6 +54,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DriversTab } from "@/features/delivery-partners/components/DriversTab";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Copy } from "@/components/ui/copy";
 
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
 import { DeliveryPartnerRejectionModal } from "@/features/delivery-partners/components/delivery-partner-rejection-modal";
@@ -374,8 +375,8 @@ export default function DeliveryPartnerPage({
 
   const partnerName =
     partner?.name ||
-    `${partner?.user?.first_name || ""} ${
-      partner?.user?.last_name || ""
+    `${partner?.user_details?.first_name || ""} ${
+      partner?.user_details?.last_name || ""
     }`.trim() ||
     "Unnamed Partner";
   const partnerAvatarFallback = (
@@ -426,6 +427,11 @@ export default function DeliveryPartnerPage({
                 {partner?.type ? partner?.type.replace("_", " ") : "Type N/A"}
                 <span className="text-gray-500 font-mono text-[11px] lg:text-xs ml-1">
                   ID: {partner?.partner_id}
+                  {partner?.partner_id && (
+                    <span className="ml-2 align-middle inline-flex">
+                      <Copy text={partner.partner_id} size={14} className="ml-1" />
+                    </span>
+                  )}
                 </span>
               </p>
             </div>
@@ -512,12 +518,16 @@ export default function DeliveryPartnerPage({
                         <InfoItem
                           icon={<Mail className="h-4 w-4" />}
                           label="Contact Email"
-                          value={partner?.user?.email}
+                          value={partner?.user_details?.email ? (
+                            <a href={`mailto:${partner.user_details.email}`} className="hover:underline">{partner.user_details.email}</a>
+                          ) : "N/A"}
                         />
                         <InfoItem
                           icon={<Phone className="h-4 w-4" />}
                           label="Contact Phone"
-                          value={partner?.user?.phone_number}
+                          value={partner?.user_details?.phone ? (
+                            <a href={`tel:${partner.user_details.phone}`} className="hover:underline">{partner.user_details.phone}</a>
+                          ) : "N/A"}
                         />
                         <InfoItem
                           icon={<BuildingIcon className="h-4 w-4" />}
@@ -534,8 +544,8 @@ export default function DeliveryPartnerPage({
                           icon={<UserIcon className="h-4 w-4" />}
                           label="Account Name"
                           value={
-                            `${partner?.user?.first_name || ""} ${
-                              partner?.user?.last_name || ""
+                            `${partner?.user_details?.first_name || ""} ${
+                              partner?.user_details?.last_name || ""
                             }`.trim() || "N/A"
                           }
                         />
@@ -593,12 +603,16 @@ export default function DeliveryPartnerPage({
                       <InfoItem
                         icon={<Mail className="h-4 w-4" />}
                         label="Contact Email"
-                        value={partner?.user?.email}
+                        value={partner?.user_details?.email ? (
+                          <a href={`mailto:${partner.user_details.email}`} className="hover:underline">{partner.user_details.email}</a>
+                        ) : "N/A"}
                       />
                       <InfoItem
                         icon={<Phone className="h-4 w-4" />}
                         label="Contact Phone"
-                        value={partner?.user?.phone_number}
+                        value={partner?.user_details?.phone ? (
+                          <a href={`tel:${partner.user_details.phone}`} className="hover:underline">{partner.user_details.phone}</a>
+                        ) : "N/A"}
                       />
                       {partner?.location?.address && (
                         <InfoItem
@@ -617,8 +631,8 @@ export default function DeliveryPartnerPage({
                         icon={<UserIcon className="h-4 w-4" />}
                         label="Account Name"
                         value={
-                          `${partner?.user?.first_name || ""} ${
-                            partner?.user?.last_name || ""
+                          `${partner?.user_details?.first_name || ""} ${
+                            partner?.user_details?.last_name || ""
                           }`.trim() || "N/A"
                         }
                       />

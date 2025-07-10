@@ -264,7 +264,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                           <span className="font-mono">{formatPartnerId(stage.partner_id)}</span>
                           <Copy text={stage.partner_id} size={14} className="ml-auto" />
                         </div>
-                        {order.status != "cancelled" && deliveryDetails?.current_stage === "assigned" && index === deliveryDetails.stages.length - 1 && (
+                        {order?.status && ['pending', 'processing', 'confirmed'].includes(order.status) && deliveryDetails?.current_stage === "assigned" && index === deliveryDetails.stages.length - 1 && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -292,12 +292,14 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                   <p className="mt-4 text-sm text-muted-foreground">
                     Delivery has not been initiated for this order.
                   </p>
-                  <Button
-                    className="mt-4"
-                    onClick={() => setAssignDialogOpen(true)}
-                  >
-                    Assign Delivery Partner
-                  </Button>
+                  {order?.status && ['pending', 'processing', 'confirmed'].includes(order.status) && (
+                    <Button
+                      className="mt-4"
+                      onClick={() => setAssignDialogOpen(true)}
+                    >
+                      Assign Delivery Partner
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -362,11 +364,11 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                         <div className="text-sm text-muted-foreground space-y-1">
                           <div className="flex items-center gap-2">
                             <Mail className="h-3.5 w-3.5" />
-                            <span>{partner.contact_email}</span>
+                            <span>{partner.user_details.email}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-3.5 w-3.5" />
-                            <span>{partner.contact_phone}</span>
+                            <span>{partner.user_details.phone}</span>
                           </div>
                         </div>
                       </div>
