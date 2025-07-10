@@ -5,10 +5,11 @@ interface BulkUploadDropzoneProps {
   uploading: boolean;
   disabled?: boolean;
   clearFileSignal?: number; // increment this to trigger file clear
+  disabledReason?: string; // message to show when disabled
 }
 
 export const BulkUploadDropzone = forwardRef<unknown, BulkUploadDropzoneProps>(
-  ({ onUpload, uploading, disabled, clearFileSignal }, ref) => {
+  ({ onUpload, uploading, disabled, clearFileSignal, disabledReason }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [dragOver, setDragOver] = useState(false);
@@ -103,7 +104,11 @@ export const BulkUploadDropzone = forwardRef<unknown, BulkUploadDropzoneProps>(
           )}
           {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
           {uploading && <div className="mt-2 text-sm text-primary animate-pulse">Uploading...</div>}
-          {disabled && <div className="mt-2 text-sm text-muted-foreground">Select a vendor to enable upload</div>}
+          {disabled && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              {disabledReason || "Select a vendor to enable upload"}
+            </div>
+          )}
         </div>
       </div>
     );

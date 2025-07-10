@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ApiResponse } from '@/features/vendors/types';
 import { apiClient } from '@/lib/api/client';
 import { Product, ProductFilter, ProductListResponse, ProductAction, ProductError } from './types';
+import api from '@/lib/core/api';
 
 // Extended API response type that includes items property
 interface ProductApiResponse extends ApiResponse<any> {
@@ -373,11 +374,10 @@ export const useProductStore = create<ProductStore>()(
     },
 
     // Direct browser-to-backend file upload for bulk products
-    uploadBulkProductsDirect: async (
+    uploadBulkProducts: async (
       file: File,
       vendorId: string,
       storeId: string,
-      token: string,
       tenantId: string
     ): Promise<any> => {
       const formData = new FormData();
@@ -385,17 +385,9 @@ export const useProductStore = create<ProductStore>()(
       formData.append('vendor_id', vendorId);
       formData.append('store_id', storeId);
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${baseUrl}/bulk-upload/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Tenant-ID': tenantId,
-        },
-        body: formData,
-      });
-
-      return response.json();
+      // Use the dedicated file upload client
+      const response = await api.postFile('/bulk-upload/upload', formData, { 'X-Tenant-ID': tenantId });
+      return response.data;
     },
 
     // Fetch bulk upload template CSV
@@ -415,6 +407,34 @@ export const useProductStore = create<ProductStore>()(
       } catch (error: unknown) {
         setStoreError({
           message: error instanceof Error ? error.message : 'Failed to fetch bulk upload template',
+          status: (error as any)?.response?.status,
+        });
+        setLoading(false);
+        throw error;
+      } finally {
+        setActiveAction(null);
+      }
+    },
+
+    approveBulkUploadBatch: async (
+      batchId: string,
+      userName: string,
+      headers?: Record<string, string>
+    ): Promise<any> => {
+      const { setActiveAction, setLoading, setStoreError } = get();
+      try {
+        setActiveAction('approve');
+        setLoading(true);
+        const response = await apiClient.post<any>(
+          `/bulk-upload/batches/${batchId}/approve`,
+          { approved_by: userName },
+          headers
+        );
+        setLoading(false);
+        return response.data;
+      } catch (error: unknown) {
+        setStoreError({
+          message: error instanceof Error ? error.message : 'Failed to approve bulk upload batch',
           status: (error as any)?.response?.status,
         });
         setLoading(false);

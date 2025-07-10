@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Store, HelpCircle, FileDown, History, User, FileUp } from "lucide-react";
+import { toast } from "sonner";
 import { BulkUploadDocsModal } from "@/features/products/components/bulk-upload-docs-modal";
 
 export default function BulkUploadPage() {
@@ -41,12 +42,14 @@ export default function BulkUploadPage() {
   const [batchId, setBatchId] = useState<string | undefined>(undefined);
   const [showStatus, setShowStatus] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { bulkUploadProducts, fetchBulkUploadStatus, fetchBulkUploadBatches, uploadBulkProductsDirect, fetchBulkUploadTemplateCSV } = useProductStore();
+  const { bulkUploadProducts, fetchBulkUploadStatus, fetchBulkUploadBatches, uploadBulkProducts, fetchBulkUploadTemplateCSV } = useProductStore();
   const { vendors, fetchVendors, fetchVendor, loading: loadingVendors } = useVendorStore();
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("upload");
   const [docsOpen, setDocsOpen] = useState(false);
   const [clearFileSignal, setClearFileSignal] = useState(0);
+  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [responseStatusCode, setResponseStatusCode] = useState<number | undefined>(undefined);
 
   // Fetch vendors on mount
   useEffect(() => {
@@ -91,17 +94,26 @@ export default function BulkUploadPage() {
     setBatchId(undefined);
     setUploading(true);
     setShowStatus(true);
+    setUploadResult(null);
+    setResponseStatusCode(undefined);
     try {
       // Use direct upload for file
-      const token = (session as any)?.accessToken || (session as any)?.user?.token;
-      if (!token || !tenantId) throw new Error('Missing token or tenant ID');
-      const result = await uploadBulkProductsDirect(
+      const result = await uploadBulkProducts(
         file,
         selectedVendorId,
         storeId,
-        token,
         tenantId
       );
+      // If error response (no batch_id and has detail/error/message)
+      if ((!result.batch_id) && (result.detail || result.error || result.message)) {
+        setUploadResult(result);
+        setResponseStatusCode(400); // or use actual status if available
+        setStatus("error");
+        setErrors([]); // Don't set errors array to avoid duplicate error display
+        return;
+      }
+      setUploadResult(result);
+      setResponseStatusCode(undefined);
       if (result.errors || result.error || result.message || result.detail) {
         setStatus("error");
         // Prefer array of errors, else show error/message/detail as array
@@ -122,6 +134,8 @@ export default function BulkUploadPage() {
         setTimeout(async () => {
           try {
             const batch = await fetchBulkUploadStatus(result.batch_id, { 'X-Tenant-ID': tenantId });
+            setUploadResult(batch);
+            setResponseStatusCode(undefined);
             if (batch && batch.status === "complete") {
               setStatus("complete");
             } else {
@@ -137,7 +151,17 @@ export default function BulkUploadPage() {
       }
     } catch (err: any) {
       setStatus("error");
-      setErrors([err?.message || "Upload failed"]);
+      setErrors([]); // Don't set errors array to avoid duplicate error display
+      let backendDetail = "Upload failed";
+      if (err?.response?.data?.detail) {
+        backendDetail = err.response.data.detail;
+      } else if (err?.response?.data?.error) {
+        backendDetail = err.response.data.error;
+      } else if (err?.message) {
+        backendDetail = err.message;
+      }
+      setUploadResult({ detail: backendDetail });
+      setResponseStatusCode(err?.response?.status || 400);
     } finally {
       setUploading(false);
     }
@@ -148,6 +172,8 @@ export default function BulkUploadPage() {
     setErrors([]);
     setBatchId(undefined);
     setShowStatus(false);
+    setUploadResult(null);
+    setResponseStatusCode(undefined);
     setClearFileSignal((c) => c + 1); // trigger file clear in dropzone
   };
 
@@ -176,7 +202,7 @@ export default function BulkUploadPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Failed to download template. Please try again.');
+      toast.error('Failed to download template. Please try again.');
     }
   };
 
@@ -321,12 +347,21 @@ export default function BulkUploadPage() {
                     <BulkUploadDropzone
                       onUpload={handleFileUpload}
                       uploading={uploading}
-                      disabled={!selectedVendorId}
+                      disabled={
+                        !selectedVendorId || (selectedVendor && (!selectedVendor.stores || selectedVendor.stores.length === 0))
+                      }
+                      disabledReason={
+                        !selectedVendorId
+                          ? 'Select a vendor to enable upload'
+                          : (selectedVendor && (!selectedVendor.stores || selectedVendor.stores.length === 0))
+                            ? 'Selected vendor has no store. Please add a store first.'
+                            : undefined
+                      }
                       clearFileSignal={clearFileSignal}
                     />
                     {showStatus && (
                       <div className="transition-all duration-300 animate-fade-in">
-                        <BulkUploadStatus status={status} errors={errors} onRetry={handleRetry} batchId={batchId} />
+                        <BulkUploadStatus status={status} errors={errors} onRetry={handleRetry} batchId={batchId} result={uploadResult} responseStatusCode={responseStatusCode} />
                       </div>
                     )}
                     {status === "complete" && (
@@ -389,7 +424,3 @@ export default function BulkUploadPage() {
     </div>
   );
 }
-
-// Animations (add to global CSS if not present)
-// .animate-fade-in { animation: fadeIn 0.4s ease; }
-// @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none; } }

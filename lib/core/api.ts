@@ -29,7 +29,7 @@ const getToken = () => {
   if (typeof window !== 'undefined') {
     const localToken = localStorage.getItem('token');
     if (localToken) return localToken;
-    
+
     // If not in localStorage, try to get from Next.js session
     // Note: This won't directly access HTTP-only cookies, but the session
     // data might be available in the window.__NEXT_DATA__ object
@@ -54,7 +54,7 @@ const getRefreshToken = () => {
   if (typeof window !== 'undefined') {
     const localRefreshToken = localStorage.getItem('refresh_token');
     if (localRefreshToken) return localRefreshToken;
-    
+
     // Try to get from Next.js session
     try {
       // @ts-ignore - This is a Next.js specific property
@@ -94,11 +94,11 @@ const syncTokensFromSession = () => {
       // @ts-ignore - This is a Next.js specific property
       const nextData = window.__NEXT_DATA__;
       const session = nextData?.props?.pageProps?.session;
-      
+
       if (session?.accessToken) {
         localStorage.setItem('token', session.accessToken);
       }
-      
+
       if (session?.user?.token) {
         localStorage.setItem('refresh_token', session.user.token);
       }
@@ -122,129 +122,144 @@ export const useApiErrorStore = create<{
 // Create the API client
 const createApiClient = () => {
   const baseURL = process.env.NEXT_PUBLIC_API_URL || '';
-  
+
   // Main API client with interceptors
   const apiClient = axios.create({
     baseURL,
     timeout: 30000,
     headers: { 'Content-Type': 'application/json' },
   });
-  
+
+  // File upload client (no default Content-Type)
+  const fileUploadClient = axios.create({
+    baseURL,
+    timeout: 30000,
+    // No headers here; Axios will set Content-Type for FormData
+  });
+
   // Auth-specific client (without token refresh to avoid circular references)
   const authClient = axios.create({
     baseURL,
     timeout: 30000,
     headers: { 'Content-Type': 'application/json' },
   });
-  
-  // Add auth token to requests
-  apiClient.interceptors.request.use(
-    (config) => {
-      const token = getToken();
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-  
-  let isRefreshing = false;
-  let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
 
-  const processQueue = (error: any, token: string | null = null) => {
-    failedQueue.forEach(prom => {
-      if (error) {
-        prom.reject(error);
-      } else {
-        prom.resolve(token!);
-      }
-    });
-    failedQueue = [];
-  };
+  // --- Interceptor logic as a reusable function ---
+  function addAuthInterceptors(client: AxiosInstance) {
+    // Add auth token to requests
+    client.interceptors.request.use(
+      (config) => {
+        const token = getToken();
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
 
-  // Handle 401 errors and token refresh
-  apiClient.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      const originalRequest = error.config;
-      const { response } = error;
+    let isRefreshing = false;
+    let failedQueue: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
 
-      // Handle expired tokens (401 Unauthorized)
-      if (response?.status === 401 && !originalRequest._retry) {
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          })
-            .then(token => {
-              originalRequest.headers['Authorization'] = 'Bearer ' + token;
-              return apiClient(originalRequest);
-            })
-            .catch(err => {
-              return Promise.reject(err);
-            });
+    const processQueue = (error: any, token: string | null = null) => {
+      failedQueue.forEach(prom => {
+        if (error) {
+          prom.reject(error);
+        } else {
+          prom.resolve(token!);
         }
+      });
+      failedQueue = [];
+    };
 
-        originalRequest._retry = true;
-        isRefreshing = true;
+    // Handle 401 errors and token refresh
+    client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        const { response } = error;
 
-        try {
-          const refreshToken = getRefreshToken();
-          if (!refreshToken) {
-            const noTokenError = new Error('No refresh token available');
-            processQueue(noTokenError, null);
+        // Handle expired tokens (401 Unauthorized)
+        if (response?.status === 401 && !originalRequest._retry) {
+          if (isRefreshing) {
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then(token => {
+                originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                return client(originalRequest);
+              })
+              .catch(err => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            const refreshToken = getRefreshToken();
+            if (!refreshToken) {
+              const noTokenError = new Error('No refresh token available');
+              processQueue(noTokenError, null);
+              clearTokens();
+              if (typeof window !== 'undefined') window.location.href = '/';
+              return Promise.reject(noTokenError);
+            }
+
+            const refreshResponse = await authClient.post('/auth/refresh', {
+              refresh_token: refreshToken
+            });
+
+            const data = refreshResponse.data as any;
+            if (data.access_token) {
+              setTokens(data.access_token, data.refresh_token);
+              client.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
+              originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+              processQueue(null, data.access_token);
+              return client(originalRequest);
+            }
+            // If refresh response is malformed
+            throw new Error('Invalid token refresh response');
+          } catch (refreshError) {
+            processQueue(refreshError, null);
             clearTokens();
             if (typeof window !== 'undefined') window.location.href = '/';
-            return Promise.reject(noTokenError);
+            return Promise.reject(refreshError);
+          } finally {
+            isRefreshing = false;
           }
-
-          const refreshResponse = await authClient.post('/auth/refresh', {
-            refresh_token: refreshToken
-          });
-
-          const data = refreshResponse.data as any;
-          if (data.access_token) {
-            setTokens(data.access_token, data.refresh_token);
-            apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
-            originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-            processQueue(null, data.access_token);
-            return apiClient(originalRequest);
-          }
-          // If refresh response is malformed
-          throw new Error('Invalid token refresh response');
-        } catch (refreshError) {
-          processQueue(refreshError, null);
-          clearTokens();
-          if (typeof window !== 'undefined') window.location.href = '/';
-          return Promise.reject(refreshError);
-        } finally {
-          isRefreshing = false;
         }
-      }
 
-      // Global error handling
-      if (response?.data?.message && response?.status !== 401) {
-        toast.error(response.data.message);
-      }
+        // Global error handling
+        if (response?.data?.message && response?.status !== 401) {
+          toast.error(response.data.message);
+        }
 
-      return Promise.reject(error);
-    }
-  );
-  
-  // Add retry for network errors
-  apiClient.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      const { config, response } = error;
-      if (!config || !config.retries) return Promise.reject(error);
-      
-      if ((!response || response.status >= 500) && config.retries > 0) {
-        config.retries--;
-        return apiClient(config);
+        return Promise.reject(error);
       }
-      
-      return Promise.reject(error);
-    }
-  );
-  
+    );
+
+    // Add retry for network errors
+    client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const { config, response } = error;
+        if (!config || !config.retries) return Promise.reject(error);
+
+        if ((!response || response.status >= 500) && config.retries > 0) {
+          config.retries--;
+          return client(config);
+        }
+
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // Apply interceptors to both apiClient and fileUploadClient
+  addAuthInterceptors(apiClient);
+  addAuthInterceptors(fileUploadClient);
+
+
   // --- Request Deduplication Logic ---
   const pendingRequests = new Map<string, Promise<any>>();
 
@@ -285,7 +300,7 @@ const createApiClient = () => {
 
   // Simple wrapper functions with deduplication
   return {
-    get: <T>(url:string, params?: any, headers?: Record<string, string>) => {
+    get: <T>(url: string, params?: any, headers?: Record<string, string>) => {
       return requestWithDeduplication<T>('get', url, { params, headers });
     },
     post: <T>(url: string, data?: any, headers?: Record<string, string>) => {
@@ -300,8 +315,10 @@ const createApiClient = () => {
     delete: <T>(url: string, data?: any, headers?: Record<string, string>) => {
       return requestWithDeduplication<T>('delete', url, { data, headers });
     },
-
-    
+    // File upload method using fileUploadClient
+    postFile: <T>(url: string, data?: any, headers?: Record<string, string>) => {
+      return fileUploadClient.post<T>(url, data, { headers });
+    },
     // Auth specific methods (using authClient)
     auth: {
       login: async (email: string, password: string) => {
@@ -310,24 +327,24 @@ const createApiClient = () => {
           password,
           is_phone: false
         });
-        
+
         const data = response.data as any;
         if (data.access_token) {
           setTokens(data.access_token, data.refresh_token);
         }
-        
+
         return data;
       },
       refreshToken: async (refreshToken: string) => {
         const response = await authClient.post('/auth/refresh', {
           refresh_token: refreshToken
         });
-        
+
         const data = response.data as any;
         if (data.access_token) {
           setTokens(data.access_token, data.refresh_token);
         }
-        
+
         return data;
       },
       logout: () => {
