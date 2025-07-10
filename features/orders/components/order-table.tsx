@@ -69,7 +69,7 @@ export function OrderTable({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedAction, setSelectedAction] = useState<OrderStatus | null>(null);
 
-  const formatCurrency = (amount: number, currency = "USD") => {
+  const formatCurrency = (amount: number, currency = "TZS") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,

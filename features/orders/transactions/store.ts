@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { apiClient } from '@/lib/api/client';
 import { Transaction, TransactionStatus, TransactionsResponse } from './types';
+import { ApiResponse } from '@/types/api';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -50,13 +51,14 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       const queryString = queryParams.toString();
       const url = `/transactions/${queryString ? `?${queryString}` : ''}`;
       
-      const response = await apiClient.get<TransactionsResponse>(url, undefined, headers);
+      const response = await apiClient.get<ApiResponse<TransactionsResponse>>(url, undefined, headers);
+      const responseData = response.data;
       
       set({
-        transactions: response.data.data,
-        total: response.data.total,
-        limit: response.data.limit || 50,
-        offset: response.data.offset || 0,
+        transactions: responseData.data,
+        total: responseData.total,
+        limit: responseData.limit || 50,
+        offset: responseData.offset || 0,
         loading: false,
       });
     } catch (error) {
@@ -71,7 +73,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   fetchTransaction: async (transactionId: string, headers = {}) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get<{ data: Transaction; message: string }>(
+      const response = await apiClient.get<ApiResponse<Transaction>>(
         `/transactions/${transactionId}`,
         undefined,
         headers
@@ -87,6 +89,43 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         loading: false,
       });
       return null;
+    }
+  },
+
+  fetchTransactionsByOrder: async (orderReference: string, headers = {}) => {
+    set({ loading: true, error: null });
+    try {
+      interface OrderTransactionsResponse {
+        data: Transaction[];
+        total: number;
+        limit: number;
+        offset: number;
+      }
+      
+      const response = await apiClient.get<ApiResponse<OrderTransactionsResponse>>(
+        `/orders/${orderReference}/transactions`,
+        undefined,
+        headers
+      );
+      
+      const responseData = response.data;
+      
+      set({
+        transactions: responseData.data,
+        total: responseData.total,
+        limit: responseData.limit || 50,
+        offset: responseData.offset || 0,
+        loading: false,
+      });
+      
+      return responseData.data;
+    } catch (error) {
+      console.error(`Error fetching transactions for order ${orderReference}:`, error);
+      set({
+        error: error instanceof Error ? error : new Error(`Failed to fetch transactions for order ${orderReference}`),
+        loading: false,
+      });
+      return [];
     }
   },
 

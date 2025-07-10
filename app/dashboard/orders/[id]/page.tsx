@@ -3,9 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { User as NextAuthUser, DefaultSession } from "next-auth";
 import { format } from "date-fns";
-import { ChevronDown, Info, Check, AlertCircle } from "lucide-react";
+import { ChevronDown, Info, Check, AlertCircle, Code2, X } from "lucide-react";
+import { toast } from "sonner";
+import { useOrderStore } from "@/features/orders/store";
+import { useTransactionStore } from "@/features/orders/transactions/store";
+import { useVendorStore } from "@/features/vendors/store";
 import {
   Accordion,
   AccordionContent,
@@ -39,12 +44,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Spinner } from "@/components/ui/spinner";
 import { Copy } from "@/components/ui/copy";
-import { toast } from "sonner";
 
 import DeliveryManagement from "@/features/orders/components/order-delivery-management";
-import { useOrderStore } from "@/features/orders/store";
-import { useVendorStore } from "@/features/vendors/store";
-import { useTransactionStore } from "@/features/orders/transactions/store";
 import { TransactionStatus } from "@/features/orders/transactions/types";
 import { VendorResponseItem } from "@/features/orders/components/vendor-response-item";
 import {
@@ -69,7 +70,7 @@ import {
   Calendar,
 } from "lucide-react";
 
-interface ExtendedUser extends User {
+interface ExtendedUser extends NextAuthUser {
   tenant_id?: string;
 }
 
@@ -78,31 +79,33 @@ const OrderPage = () => {
   const orderId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "payment">(
-    "overview"
-  );
-  const [hasFetchedTransaction, setHasFetchedTransaction] = useState(false);
-  const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "payment">("overview");
+  const handleTabChange = (value: "overview" | "payment") => setActiveTab(value);
+  const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>({});
+  const [currentTransaction, setCurrentTransaction] = useState<any>(null);
 
   const { data: session } = useSession();
   const router = useRouter();
 
-  const {
-    order,
-    loading: orderLoading,
-    error: orderError,
-    fetchOrder,
-    clearStore,
+  const { 
+    order, 
+    fetchOrder, 
+    updateOrderStatus, 
+    clearStore, 
+    loading: orderLoading, 
+    error: orderError 
   } = useOrderStore();
   const { vendor, loading: vendorLoading, fetchVendor } = useVendorStore();
-  const {
-    currentTransaction,
+  const { 
+    transactions, 
+    fetchTransactionsByOrder, 
     fetchTransaction,
-    loading: transactionLoading,
-    setCurrentTransaction,
+    loading, 
+    error: transactionsError 
   } = useTransactionStore();
+  const transactionsLoading = loading; // Alias for consistency with other loading states
+
 
   const getTransactionStatusBadgeVariant = (status?: string) => {
     if (!status) return "secondary";
@@ -129,11 +132,6 @@ const OrderPage = () => {
     return getTransactionStatusBadgeVariant(status);
   };
 
-  const getPaymentStatusBadgeVariant = (status?: string) => {
-    if (!status) return "default";
-    return getTransactionStatusBadgeVariant(status);
-  };
-
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not specified";
     try {
@@ -145,22 +143,43 @@ const OrderPage = () => {
 
   const formatPrice = (
     price: number | string | undefined,
-    options?: { currency?: string }
+    currency: any = 'TZS',
+    options?: { currency?: string | object }
   ): string => {
     if (price === undefined || price === null || price === "") return "N/A";
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     if (isNaN(numPrice)) return "N/A";
-
-    // Get the order from the store
-    const order = useOrderStore.getState().order;
-    const currency = options?.currency || order?.currency || "USD";
-
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numPrice);
+    
+    // Safely extract currency code
+    const getCurrencyCode = (curr: any): string => {
+      if (!curr) return 'TZS';
+      if (typeof curr === 'string') return curr.toUpperCase();
+      if (typeof curr === 'object' && curr !== null) {
+        // Handle case where currency is an object with a 'code' property
+        if ('code' in curr && typeof curr.code === 'string') {
+          return curr.code.toUpperCase();
+        }
+        // Handle case where currency is an object with a 'currency' property
+        if ('currency' in curr && typeof curr.currency === 'string') {
+          return curr.currency.toUpperCase();
+        }
+      }
+      return 'TZS'; // Default fallback
+    };
+    
+    const displayCurrency = getCurrencyCode(options?.currency || currency);
+    
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: displayCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(numPrice);
+    } catch (e) {
+      // Fallback to simple formatting if currency is invalid
+      return `${displayCurrency} ${numPrice.toFixed(2)}`;
+    }
   };
 
   const formatTransactionDate = (dateString?: string | null): string => {
@@ -189,7 +208,6 @@ const OrderPage = () => {
       // Clear the order store when component unmounts or orderId changes
       clearStore();
       setCurrentTransaction(null);
-      setHasFetchedTransaction(false);
     };
   }, [orderId, clearStore, setCurrentTransaction]);
 
@@ -200,7 +218,6 @@ const OrderPage = () => {
     // Reset states when orderId changes
     clearStore();
     setCurrentTransaction(null);
-    setHasFetchedTransaction(false);
 
     const headers: Record<string, string> = {};
 
@@ -217,35 +234,40 @@ const OrderPage = () => {
     fetchOrder(orderId, headers);
   }, [orderId, session?.user, fetchOrder]);
 
-  // Fetch transaction details when payment tab is active
+  // Fetch transactions when the order loads
+  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (order?.order_number) {
+      fetchTransactionsByOrder(order.order_number, {'X-Tenant-ID': (session?.user as ExtendedUser)?.tenant_id || ''}).then(fetchedTransactions => {
+        if (fetchedTransactions.length > 0) {
+          // Auto-expand the first transaction
+          const firstTransaction = fetchedTransactions[0];
+          setExpandedTransaction(firstTransaction.transaction_id);
+          setCurrentTransaction(firstTransaction);
+        }
+      });
+    }
+  }, [order?.order_number, fetchTransactionsByOrder, session?.user]);
+
+  // Fetch transaction details when a transaction is selected in the accordion
   useEffect(() => {
     const fetchTransactionData = async () => {
-      if (
-        activeTab === "payment" &&
-        order?.payment_details?.transaction_id &&
-        !hasFetchedTransaction &&
-        session?.user?.tenant_id
-      ) {
+      if (expandedTransaction) {
         try {
-          await fetchTransaction(order.payment_details.transaction_id, {
-            "X-Tenant-ID": session.user.tenant_id,
+          const transaction = await fetchTransaction(expandedTransaction, {
+            'X-Tenant-ID': (session?.user as ExtendedUser)?.tenant_id || '',
           });
-          setHasFetchedTransaction(true);
+          setCurrentTransaction(transaction);
         } catch (error) {
-          console.error("Error fetching transaction:", error);
-          toast.error("Failed to load transaction details");
+          console.error('Error fetching transaction:', error);
+          toast.error('Failed to load transaction details');
         }
       }
     };
 
     fetchTransactionData();
-  }, [
-    activeTab,
-    order?.payment_details?.transaction_id,
-    hasFetchedTransaction,
-    session?.user?.tenant_id,
-    fetchTransaction,
-  ]);
+  }, [expandedTransaction, fetchTransaction, session?.user]);
 
   const handleAccordionChange = async (index: number) => {
     if (!order?.items) return;
@@ -331,6 +353,51 @@ const OrderPage = () => {
             </div>
           </div>
         </div>
+        
+        {order?.status && ['pending', 'processing', 'confirmed', 'shipped', 'rejected'].includes(order.status) && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowCancelConfirm(true)}
+            >
+              <X className="h-4 w-4" />
+              Cancel Order
+            </Button>
+
+            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will cancel the order. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>No, keep order</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      if (!order?.order_id) return;
+                      
+                      try {
+                        await updateOrderStatus(order.order_id, 'cancelled', { "X-Tenant-ID": session.user?.tenant_id });
+                        toast.success('Order cancelled');
+                        fetchOrder(order.order_id, { "X-Tenant-ID": session.user?.tenant_id });
+                      } catch (error) {
+                        console.error('Error cancelling order:', error);
+                        toast.error('Failed to cancel order');
+                      }
+                    }}
+                  >
+                    Yes, cancel order
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
       </div>
 
       <main className="flex-1 p-6 space-y-6">
@@ -338,7 +405,7 @@ const OrderPage = () => {
           <Tabs
             defaultValue="overview"
             className="space-y-6 w-full"
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             value={activeTab}
           >
             <TabsList className="w-full">
@@ -423,10 +490,10 @@ const OrderPage = () => {
                               <Badge variant="outline">{item.quantity}</Badge>
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatPrice(item.unit_price)}
+                              {formatPrice(item.unit_price, order?.currency || 'TZS')}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatPrice(item.total)}
+                              {formatPrice(item.total, order?.currency || 'TZS')}
                             </TableCell>
                           </TableRow>
                           {expandedItems.includes(index) && (
@@ -491,7 +558,7 @@ const OrderPage = () => {
                               Refund Amount
                             </p>
                             <p className="font-medium text-destructive">
-                              {formatPrice(refund.amount)}
+                              {formatPrice(refund.amount, order?.currency || 'TZS')}
                             </p>
                           </div>
                           {refund.reason && (
@@ -511,7 +578,6 @@ const OrderPage = () => {
             </TabsContent>
 
             <TabsContent value="payment" className="space-y-6">
-              {/* Combined Payment & Transaction Card */}
               <Card className="overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -521,209 +587,199 @@ const OrderPage = () => {
                         Payment Details
                       </CardTitle>
                       <CardDescription className="mt-1">
-                        {currentTransaction?.transaction_id ? (
-                          <span className="font-mono text-sm">
-                            {currentTransaction.transaction_id}
+                        {transactions.length > 0 ? (
+                          <span className="text-sm">
+                            {transactions.length} payment{transactions.length !== 1 ? 's' : ''} found
                           </span>
                         ) : (
-                          "Loading transaction details..."
+                          "No payment records found"
                         )}
                       </CardDescription>
                     </div>
-                    {currentTransaction && (
-                      <Badge
-                        variant={getTransactionStatusBadgeVariant(
-                          currentTransaction.status
-                        )}
-                        className="px-3 py-1.5 text-sm h-8 self-start sm:self-center"
-                      >
-                        {currentTransaction.status.replace(/_/g, " ")}
-                      </Badge>
-                    )}
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-0">
-                  {transactionLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <Spinner className="mb-3" />
-                      <p className="text-muted-foreground">
-                        Loading payment details...
-                      </p>
-                    </div>
-                  ) : currentTransaction ? (
-                    <div className="divide-y">
-                      {/* Payment Summary */}
-                      <div className="p-6">
-                        <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                          PAYMENT SUMMARY
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Order Amount
-                            </span>
-                            <span className="font-medium">
-                              {formatPrice(order?.totals?.total || 0, {
-                                currency: order?.currency || "TZS",
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Amount Paid
-                            </span>
-                            <span className="font-medium">
-                              {formatPrice(currentTransaction.amount, {
-                                currency: order?.currency || "TZS",
-                              })}
-                            </span>
-                          </div>
-                          {order?.payment_details?.remaining_balance !== undefined && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">
-                                Remaining Balance
-                              </span>
-                              <span className="font-medium">
-                                {formatPrice(order.payment_details.remaining_balance, {
-                                  currency: order.currency || "TZS",
-                                })}
-                              </span>
-                            </div>
-                          )}
-                          {currentTransaction.fee_amount && (
-                            <div className="flex justify-between pt-2 border-t">
-                              <span className="text-muted-foreground">
-                                Transaction Fee
-                              </span>
-                              <span>
-                                {formatPrice(currentTransaction.fee_amount, {
-                                  currency: order?.currency || "TZS",
-                                })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Transaction Details */}
-                      <div className="p-6">
-                        <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                          TRANSACTION DETAILS
-                        </h3>
-                        <div className="grid gap-6 md:grid-cols-2">
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Reference
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">
-                                  {currentTransaction.reference || "N/A"}
-                                </p>
-                                <Copy
-                                  content={currentTransaction.reference}
-                                  className="text-muted-foreground"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Payment Method
-                              </p>
-                              <div className="flex items-center gap-2">
-                                {currentTransaction.raw_request
-                                  ?.payment_method || "Mobile Money"}
-                              </div>
-                            </div>
-                            {currentTransaction.raw_request
-                              ?.customer_msisdn && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Customer Phone
-                                </p>
-                                <p>
-                                  {
-                                    currentTransaction.raw_request
-                                      .customer_msisdn
-                                  }
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Initiated
-                              </p>
-                              <p>
-                                {formatTransactionDate(
-                                  currentTransaction.created_at
-                                )}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Last Updated
-                              </p>
-                              <p>
-                                {formatTransactionDate(
-                                  currentTransaction.updated_at
-                                )}
-                              </p>
-                            </div>
-                            {currentTransaction.payment_date && (
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Completed
-                                </p>
-                                <p>
-                                  {formatTransactionDate(
-                                    currentTransaction.payment_date
-                                  )}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-
-
-                      {/* Raw Response */}
-                      {currentTransaction.raw_response && (
-                        <div className="border-t">
-                          <Accordion type="single" collapsible>
-                            <AccordionItem
-                              value="raw-response"
-                              className="border-b-0"
-                            >
-                              <AccordionTrigger className="hover:no-underline px-6 py-3 text-sm font-medium hover:bg-muted/30 transition-colors">
-                                <span>View Raw Response</span>
-                              </AccordionTrigger>
-                              <AccordionContent className="px-6 pb-4 pt-1">
-                                <div className="bg-muted/30 p-3 rounded-md">
-                                  <pre className="text-xs overflow-x-auto">
-                                    {JSON.stringify(
-                                      currentTransaction.raw_response,
-                                      null,
-                                      2
-                                    )}
-                                  </pre>
+                {transactions && transactions.length > 0 && (
+                  <div className="border-b">
+                    <h3 className="text-sm font-medium p-4">Payment History</h3>
+                    <Accordion 
+                      type="single" 
+                      collapsible 
+                      value={expandedTransaction || undefined}
+                      onValueChange={setExpandedTransaction}
+                      className="w-full"
+                    >
+                      {transactions.map((transaction: any) => (
+                        <AccordionItem 
+                          key={transaction.transaction_id} 
+                          value={transaction.transaction_id}
+                          className="border-b-0"
+                        >
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                            <div className="flex w-full items-center justify-between pr-2">
+                              <div className="text-left">
+                                <div className="font-medium">
+                                  {formatPrice(transaction.amount, { currency: order?.currency || 'TZS' })}
                                 </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">No transaction details available</p>
-                    </div>
-                  )}
-                </CardContent>
+                                <div className="text-sm text-muted-foreground">
+                                  {format(new Date(transaction.payment_date || transaction.created_at), 'MMM d, yyyy h:mm a')}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {transaction.transaction_id}
+                                </div>
+                                <Badge 
+                                  variant={getTransactionStatusBadgeVariant(transaction.status as any)}
+                                  className="text-xs"
+                                >
+                                  {String(transaction.status).replace(/_/g, ' ')}
+                                </Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-0 pt-2">
+                            <div className="px-4 pb-4">
+                              {loading && currentTransaction?.transaction_id === transaction.transaction_id ? (
+                                <div className="flex justify-center py-8">
+                                  <Spinner className="h-6 w-6" />
+                                </div>
+                              ) : currentTransaction?.transaction_id === transaction.transaction_id ? (
+                                <div className="space-y-6">
+                                  {/* Payment Summary Card */}
+                                  <div className="bg-muted/30 rounded-lg p-4">
+                                    <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                                      <CreditCard className="h-4 w-4" />
+                                      PAYMENT SUMMARY
+                                    </h4>
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-center">
+                                        <div className="space-y-0.5">
+                                          <p className="text-sm text-muted-foreground">Amount Paid</p>
+                                          <p className="text-lg font-semibold">
+                                            {formatPrice(currentTransaction.amount, {
+                                              currency: order?.currency || 'TZS',
+                                            })}
+                                          </p>
+                                        </div>
+                                        {currentTransaction.fee_amount > 0 && (
+                                          <div className="text-right">
+                                            <p className="text-sm text-muted-foreground">Fee</p>
+                                            <p className="text-sm">
+                                              {formatPrice(currentTransaction.fee_amount, {
+                                                currency: order?.currency || 'TZS',
+                                              })}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {currentTransaction.payment_date && (
+                                        <div className="pt-2 border-t flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">Status</span>
+                                          <Badge 
+                                            variant={getTransactionStatusBadgeVariant(currentTransaction.status as any)}
+                                            className="capitalize"
+                                          >
+                                            {String(currentTransaction.status).replace(/_/g, ' ').toLowerCase()}
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Transaction Details Card */}
+                                  <div className="bg-muted/5 border rounded-lg p-4">
+                                    <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                                      <FileText className="h-4 w-4" />
+                                      TRANSACTION DETAILS
+                                    </h4>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <p className="text-sm text-muted-foreground">Reference</p>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-sm font-medium truncate">
+                                              {currentTransaction.reference || 'N/A'}
+                                            </p>
+                                            <Copy
+                                              text={currentTransaction.reference || ''}
+                                              className="text-muted-foreground hover:text-foreground transition-colors"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <p className="text-sm text-muted-foreground">Payment Method</p>
+                                          <p className="text-sm">
+                                            {currentTransaction.raw_request?.payment_method || 'Mobile Money'}
+                                          </p>
+                                        </div>
+                                        {currentTransaction.raw_request?.customer_msisdn && (
+                                          <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">Customer Phone</p>
+                                            <div className="flex items-center gap-2">
+                                              <a 
+                                                href={`tel:${currentTransaction.raw_request.customer_msisdn}`}
+                                                className="text-sm hover:underline hover:text-primary transition-colors"
+                                              >
+                                                {currentTransaction.raw_request.customer_msisdn}
+                                              </a>
+                                              <Copy
+                                                text={currentTransaction.raw_request.customer_msisdn}
+                                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="space-y-1">
+                                          <p className="text-sm text-muted-foreground">
+                                            {currentTransaction.payment_date ? 'Completed' : 'Initiated'}
+                                          </p>
+                                          <p className="text-sm">
+                                            {formatTransactionDate(currentTransaction.payment_date || currentTransaction.created_at)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Raw Response */}
+                                  {currentTransaction.raw_response && (
+                                    <div className="bg-muted/5 border rounded-lg overflow-hidden">
+                                      <Accordion type="single" collapsible>
+                                        <AccordionItem value="raw-response" className="border-0">
+                                          <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline hover:bg-muted/30">
+                                            <div className="flex items-center gap-2">
+                                              <Code2 className="h-4 w-4" />
+                                              <span>View Raw Response</span>
+                                            </div>
+                                          </AccordionTrigger>
+                                          <AccordionContent className="px-4 pb-4 pt-0">
+                                            <div className="bg-muted/30 p-3 rounded-md overflow-x-auto max-h-60">
+                                              <pre className="text-xs">
+                                                {JSON.stringify(
+                                                  currentTransaction.raw_response,
+                                                  (key, value) => 
+                                                    typeof value === 'string' && value.length > 100 
+                                                      ? `${value.substring(0, 100)}...` 
+                                                      : value,
+                                                  2
+                                                )}
+                                              </pre>
+                                            </div>
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      </Accordion>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                )}
 
                 {/* Installment Plan Card - Only show if order has a plan */}
                 {order?.plan && (
@@ -867,31 +923,31 @@ const OrderPage = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.subtotal)}
+                      {formatPrice(order?.totals?.subtotal, order?.currency || 'TZS')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span className="font-medium text-destructive">
-                      -{formatPrice(order?.totals?.discount) || "TZS 0.00"}
+                      -{formatPrice(order?.totals?.discount, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.tax) || "TZS 0.00"}
+                      {formatPrice(order?.totals?.tax, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.shipping) || "TZS 0.00"}
+                      {formatPrice(order?.totals?.shipping, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-t pt-4">
                     <span className="text-lg font-medium">Total</span>
                     <span className="text-lg font-bold">
-                      {formatPrice(order?.totals?.total)}
+                      {formatPrice(order?.totals?.total, order?.currency || 'TZS')}
                     </span>
                   </div>
                 </div>

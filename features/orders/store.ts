@@ -198,7 +198,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       // Check if the ID is a UUID
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
       const endpoint = isUuid ? `/orders/${id}` : `/orders/number/${id}`;
-      
+
       const response = await apiClient.get<ApiResponse<Order>>(endpoint, undefined, headers);
       const orderData = unwrapApiResponse<Order>(response);
       if (orderData) {
@@ -256,14 +256,23 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
 
     // Optimistic UI update
     set((state) => {
-      const newOrders = state.orders
-        ? {
-            ...state.orders,
-            items: state.orders.items.map((o: Order) =>
-              o.order_id === orderId ? { ...o, status } : o
-            ),
-          }
-        : null;
+      let newOrders = null;
+      if (state.orders && Array.isArray(state.orders.items)) {
+        newOrders = {
+          ...state.orders,
+          items: state.orders.items.map((o: Order) =>
+            o.order_id === orderId ? { ...o, status } : o
+          ),
+        };
+      } else if (Array.isArray(state.orders)) {
+        // Defensive: orders is an array, not an object
+        // console.warn('[OrderStore] orders is an array, not an object. This is a bug.');
+        newOrders = state.orders.map((o: Order) =>
+          o.order_id === orderId ? { ...o, status } : o
+        );
+      } else {
+        newOrders = null;
+      }
 
       const newOrder =
         state.order && state.order.order_id === orderId
@@ -288,13 +297,13 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       // API call was successful, confirm the changes
       set((state) => {
         const newOrders = state.orders
-        ? {
+          ? {
             ...state.orders,
             items: state.orders.items.map((o) =>
               o.order_id === orderId ? updatedOrder : o
             ),
           }
-        : null;
+          : null;
         const newOrder = state.order && state.order.order_id === orderId ? updatedOrder : state.order;
         return { ...state, order: newOrder, orders: newOrders };
       });
@@ -302,7 +311,7 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       return updatedOrder;
     } catch (error: any) {
       console.error("Failed to update order status:", error);
-      
+
       // Revert optimistic update on failure
       set({ order: originalOrder, orders: originalOrdersList, storeError: { message: "Failed to update status. Reverting changes." } });
 
@@ -310,8 +319,8 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       setTimeout(() => {
         console.log(`Triggering re-fetch for order ${orderId} after failed update.`);
         fetchOrder(orderId, headers).catch(err => {
-            console.error(`Re-fetch for order ${orderId} also failed:`, err);
-            set(state => ({...state, storeError: { message: "Failed to sync with server. Please refresh."}}))
+          console.error(`Re-fetch for order ${orderId} also failed:`, err);
+          set(state => ({ ...state, storeError: { message: "Failed to sync with server. Please refresh." } }))
         });
       }, 3000);
 

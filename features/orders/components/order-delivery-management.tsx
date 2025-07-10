@@ -264,7 +264,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                           <span className="font-mono">{formatPartnerId(stage.partner_id)}</span>
                           <Copy text={stage.partner_id} size={14} className="ml-auto" />
                         </div>
-                        {deliveryDetails?.current_stage === "assigned" && index === deliveryDetails.stages.length - 1 && (
+                        {order.status != "cancelled" && deliveryDetails?.current_stage === "assigned" && index === deliveryDetails.stages.length - 1 && (
                           <Button
                             variant="outline"
                             size="sm"
