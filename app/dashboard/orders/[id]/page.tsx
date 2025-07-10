@@ -354,7 +354,7 @@ const OrderPage = () => {
           </div>
         </div>
         
-        {order?.status && ['pending', 'processing', 'confirmed', 'shipped', 'rejected'].includes(order.status) && (
+        {order?.status && ['pending', 'processing', 'confirmed', 'shipped'].includes(order.status) && (
           <>
             <Button
               variant="outline"
