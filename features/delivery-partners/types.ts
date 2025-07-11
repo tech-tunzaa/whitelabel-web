@@ -6,19 +6,27 @@ export interface Location {
 }
 
 export interface VehicleInfo {
-    vehicle_type_id: string
-    plate_number: string
-    details?: { key: string; value: string; }[]
+    vehicle_type_id: string;
+    plate_number: string;
+    details: string;
+    metadata: {
+        make?: string;
+        model?: string;
+        year?: number;
+        color?: string;
+        plate?: string;
+        [key: string]: string | number | undefined;
+    };
 }
 
 export interface KycDocument {
-    type: string
-    number: string
-    link: string
-    expires_at?: string
-    rejected_at?: string
-    rejected_reason?: string
-    verified?: boolean
+    document_type_id: string;
+    number: string;
+    link: string;
+    expires_at?: string;
+    verified?: boolean;
+    rejected_at?: string;
+    rejected_reason?: string;
 }
 
 export interface Kyc {
@@ -31,7 +39,7 @@ export interface DeliveryPartner {
     partner_id?: string; // From API
     user_id?: string; // From API, but seems missing in the example
     tenant_id?: string; // From API
-    user: {
+    user_details: {
         first_name: string;
         last_name: string;
         email: string;
@@ -73,7 +81,7 @@ export interface DeliveryPartnerListResponse {
     limit: number
 }
 
-export type DeliveryPartnerAction = 
+export type DeliveryPartnerAction =
     | 'fetchList'
     | 'fetchOne'
     | 'fetchByUser'
@@ -88,7 +96,7 @@ export interface DeliveryPartnerError {
 }
 
 export interface ApiResponse<T> {
-  data: T;
-  success?: boolean;
-  message?: string;
+    data: T;
+    success?: boolean;
+    message?: string;
 }

@@ -12,17 +12,39 @@ import { DeliveryPartnerFormValues } from "@/features/delivery-partners/schema";
 import { KycDocument } from "@/features/delivery-partners/types";
 
 const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues): Partial<DeliveryPartner> => {
+  const vehicle_metadata = {
+    make: formValues.vehicleMake || "",
+    model: formValues.vehicleModel || "",
+    year: formValues.vehicleYear || "",
+    color: formValues.vehicleColor || "",
+    plate: formValues.vehiclePlate || "",
+  };
+  const detailsArr = [vehicle_metadata.make, vehicle_metadata.model, vehicle_metadata.color, vehicle_metadata.plate].filter(Boolean);
+  const details = detailsArr.join(", ");
+  const vehicle_info = {
+    vehicle_type_id: formValues.vehicle_type_id || "",
+    details,
+    metadata: vehicle_metadata,
+  };
+  const kyc_documents = (formValues.kyc_documents || []).map((doc) => ({
+    document_type_id: doc.document_type_id || "",
+    number: doc.number || "",
+    link: doc.link || "",
+    expires_at: doc.expires_at || "",
+    verified: false,
+  }));
   const apiPayload: Partial<DeliveryPartner> = {
     type: formValues.type,
     name: formValues.name,
     user: formValues.user,
-    profile_picture: formValues.profile_picture,
-    description: formValues.description,
+    profile_picture: formValues.profile_picture || undefined,
+    description: formValues.description || undefined,
     tax_id: formValues.tax_id,
+    vehicle_info,
+    kyc: { verified: false, documents: kyc_documents },
+    commission_percent: 10,
+    drivers: [],
   };
-
-  apiPayload.commission_percent = 15.0;
-
   if (formValues.coordinates && formValues.coordinates.length === 2) {
     apiPayload.location = {
       coordinates: {
@@ -32,54 +54,12 @@ const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues):
       radiusKm: 10.5,
     };
   }
-
-  if (formValues.type === "individual") {
-    apiPayload.vehicle_info = {
-      type: formValues.vehicleType || "",
-      plate_number: formValues.plateNumber || "",
-      details: [],
-    };
-    if (formValues.vehicleMake)
-      apiPayload.vehicle_info.details?.push({
-        key: "make",
-        value: formValues.vehicleMake,
-      });
-    if (formValues.vehicleModel)
-      apiPayload.vehicle_info.details?.push({
-        key: "model",
-        value: formValues.vehicleModel,
-      });
-    if (formValues.vehicleYear)
-      apiPayload.vehicle_info.details?.push({
-        key: "year",
-        value: formValues.vehicleYear,
-      });
-
-    if (
-      formValues.cost_per_km !== undefined &&
-      formValues.cost_per_km !== null &&
-      formValues.cost_per_km !== ""
-    ) {
-      apiPayload.cost_per_km = parseFloat(formValues.cost_per_km);
-    }
+  if (formValues.type === "pickup_point" && formValues.flat_fee) {
+    apiPayload.flat_fee = parseFloat(formValues.flat_fee);
   }
-
-  if (formValues.type === "pickup_point") {
-    if (
-      formValues.flat_fee !== undefined &&
-      formValues.flat_fee !== null &&
-      formValues.flat_fee !== ""
-    ) {
-      apiPayload.flat_fee = parseFloat(formValues.flat_fee);
-    }
+  if (formValues.type === "individual" && formValues.cost_per_km) {
+    apiPayload.cost_per_km = parseFloat(formValues.cost_per_km);
   }
-
-  if (formValues.kyc_documents && Array.isArray(formValues.kyc_documents)) {
-    apiPayload.kyc = {
-      documents: formValues.kyc_documents as Partial<KycDocument>[],
-    };
-  }
-
   return apiPayload;
 };
 

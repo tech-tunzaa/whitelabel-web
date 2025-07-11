@@ -32,6 +32,7 @@ export interface DocumentWithMeta {
   rejection_reason?: string
   file?: File
   file_id?: string
+  number?: string // Added number field
 }
 
 export interface DocumentUploadProps {
@@ -97,6 +98,7 @@ export function DocumentUpload({
 
   const [selectedDocumentType, setSelectedDocumentType] = useState<string>("");
   const [expires_at, setExpires_at] = useState<string>("");
+  const [number, setNumber] = useState<string>(""); // Added state for number
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewFile, setPreviewFile] = useState<{ src: string; alt: string } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -136,13 +138,14 @@ export function DocumentUpload({
       setError(!file ? "Please select a file" : "Please select a document type");
       return;
     }
-
+    if (!number) {
+      setError("Please enter a number for the document.");
+      return;
+    }
     try {
       setIsUploading(true);
       setError(null);
-
       const uploadResponse = await uploadFile(file, true);
-
       const newDocument: DocumentWithMeta = {
         document_type: selectedDocumentType,
         file_name: file.name,
@@ -150,13 +153,13 @@ export function DocumentUpload({
         expires_at: expires_at || undefined,
         file_id: uploadResponse.filePath,
         verification_status: 'pending',
+        number, // Add number to new document
       };
-
       onUploadComplete?.(newDocument);
-
       // Reset dialog state
       setSelectedDocumentType("");
       setExpires_at("");
+      setNumber(""); // Reset number
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -265,6 +268,19 @@ export function DocumentUpload({
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="document-number">Document Number</Label>
+                <Input
+                  id="document-number"
+                  type="text"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  className="w-full"
+                  placeholder="Enter document number"
+                  disabled={isUploading}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="expiry-date">Expires At (if applicable)</Label>
                 <Input
                   id="expiry-date"
@@ -317,7 +333,7 @@ export function DocumentUpload({
                         <div className="font-medium flex items-center gap-2">
                           <span>{doc.document_type_name || documentTypes.find((t) => t.document_type_id === doc.document_type)?.name || doc.document_type}</span>
                           {doc.file_name ? (
-                             <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 font-medium">New</Badge>
+                            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 font-medium">New</Badge>
                           ) : (
                             getStatusBadge(doc.verification_status)
                           )}
@@ -325,6 +341,9 @@ export function DocumentUpload({
                         <div className="text-sm text-muted-foreground truncate max-w-[200px]">
                           {doc.file_name || ""}
                         </div>
+                        {doc.number && (
+                          <span className="ml-2 text-xs text-muted-foreground">#{doc.number}</span>
+                        )}
                         {doc.expires_at && (
                           <div className="text-xs flex items-center text-muted-foreground">
                             <Calendar className="h-3 w-3 mr-1" />

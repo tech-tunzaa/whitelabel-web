@@ -231,6 +231,7 @@ export default function DeliveryPartnerPage({
       rejection_reason: doc.rejection_reason,
       created_at: doc.created_at,
       expires_at: doc.expires_at,
+      number: doc.number || undefined, // Ensure number is included
     };
     console.log("Transformed to verification document:", JSON.stringify(transformed, null, 2));
     return transformed;
@@ -673,29 +674,29 @@ export default function DeliveryPartnerPage({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                           <InfoItem
                             label="Vehicle Type"
-                            value={partner?.vehicle_info.type || "N/A"}
+                            value={partner?.vehicle_info.vehicle_type_id || "N/A"}
                           />
                           <InfoItem
                             label="Plate Number"
-                            value={partner?.vehicle_info.plate_number || "N/A"}
+                            value={partner?.vehicle_info.metadata?.plate || "N/A"}
+                          />
+                          <InfoItem
+                            label="Make"
+                            value={partner?.vehicle_info.metadata?.make || "N/A"}
+                          />
+                          <InfoItem
+                            label="Model"
+                            value={partner?.vehicle_info.metadata?.model || "N/A"}
+                          />
+                          <InfoItem
+                            label="Year"
+                            value={partner?.vehicle_info.metadata?.year || "N/A"}
+                          />
+                          <InfoItem
+                            label="Color"
+                            value={partner?.vehicle_info.metadata?.color || "N/A"}
                           />
                         </div>
-                        {partner?.vehicle_info &&
-                          Array.isArray(partner?.vehicle_info.details) &&
-                          partner?.vehicle_info.details.length > 0 && (
-                            <div className="mt-3">
-                              <Label className="text-sm font-semibold">
-                                Additional Vehicle Details
-                              </Label>
-                              <ul className="list-disc list-inside pl-4 text-sm mt-1">
-                                {partner?.vehicle_info.details.map((detail) => (
-                                  <li key={detail.key}>
-                                    {detail.key}: {detail.value}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                       </div>
                     )}
 

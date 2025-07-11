@@ -263,6 +263,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       expires_at: doc.expires_at,
       file_id: doc.file_id,
       verification_status: "pending",
+      number: doc.number, // Ensure number is included
     };
     appendDocument(newDocument as any);
   };
@@ -292,7 +293,8 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       dataToSubmit.verification_documents =
         dataToSubmit.verification_documents.map((doc: any) => {
           const { file, ...docWithoutFile } = doc;
-          return docWithoutFile;
+          // Ensure number is included in the payload
+          return { ...docWithoutFile, number: doc.number };
         });
     }
 
@@ -1305,6 +1307,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                         (doc: any, index: number) => (
                           <li key={index}>
                             {doc.document_type_name}: {doc.file_name}
+                            {doc.number && (
+                              <span className="ml-2 text-xs text-muted-foreground">Number: {doc.number}</span>
+                            )}
                             {doc.expiry_date && (
                               <span className="ml-2 text-muted-foreground">
                                 Expires: {doc.expiry_date}

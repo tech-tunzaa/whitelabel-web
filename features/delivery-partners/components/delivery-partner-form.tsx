@@ -49,6 +49,8 @@ import { cn } from "@/lib/utils";
 import { deliveryPartnerFormSchema } from "../schema";
 import { useDeliveryPartnerStore } from "../store";
 import { useRouter } from "next/navigation";
+import { useConfigurationStore } from "@/features/configurations/store";
+import { useSession } from "next-auth/react";
 
 type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>;
 
@@ -60,18 +62,14 @@ const MapPicker = dynamic(
 const defaultValues: Partial<DeliveryPartnerFormValues> = {
   type: "individual",
   description: "",
-  // Individual section default values
-  plateNumber: "",
+  vehiclePlate: "",
   vehicleMake: "",
   vehicleModel: "",
   vehicleYear: "",
-  vehicleInsurance: "",
-  vehicleRegistration: "",
+  vehicleColor: "",
   cost_per_km: "",
   coordinates: undefined,
-  // Document verification
   kyc_documents: [],
-  // Drivers array default values
   drivers: [
     {
       name: "",
@@ -140,7 +138,18 @@ const vehicleTypes = [
 interface DeliveryPartnerFormProps {
   onSubmit: (data: DeliveryPartnerFormValues) => void;
   onCancel?: () => void;
-  initialData?: Partial<DeliveryPartnerFormValues> & { _id?: string };
+  initialData?: (Partial<DeliveryPartnerFormValues> & {
+    vehicle_info?: {
+      vehicle_type_id?: string;
+      metadata?: {
+        plate?: string;
+        make?: string;
+        model?: string;
+        year?: string | number;
+        color?: string;
+      };
+    };
+  }) & { _id?: string };
   disableTypeChange?: boolean;
 }
 
@@ -156,10 +165,39 @@ export function DeliveryPartnerForm({
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [internalIsSubmitting, setInternalIsSubmitting] = useState(false);
 
+  // Debug: log initialData and computed defaultValues
+  useEffect(() => {
+    console.log('DeliveryPartnerForm initialData:', initialData);
+    let computedDefaults = defaultValues;
+    if (initialData) {
+      computedDefaults = {
+        ...defaultValues,
+        ...initialData,
+        vehicle_type_id: initialData.vehicle_type_id ?? (initialData.vehicle_info && initialData.vehicle_info.vehicle_type_id) ?? "",
+        vehiclePlate: initialData.vehiclePlate ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.plate ? String(initialData.vehicle_info.metadata.plate) : ""),
+        vehicleMake: initialData.vehicleMake ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.make ? String(initialData.vehicle_info.metadata.make) : ""),
+        vehicleModel: initialData.vehicleModel ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.model ? String(initialData.vehicle_info.metadata.model) : ""),
+        vehicleYear: initialData.vehicleYear ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.year ? String(initialData.vehicle_info.metadata.year) : ""),
+        vehicleColor: initialData.vehicleColor ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.color ? String(initialData.vehicle_info.metadata.color) : ""),
+      };
+    }
+    console.log('DeliveryPartnerForm computed defaultValues:', computedDefaults);
+  }, [initialData]);
+
+  // When setting defaultValues for edit, ensure vehicle_type_id is set if initialData is provided
   const form = useForm<DeliveryPartnerFormValues>({
     resolver: zodResolver(deliveryPartnerFormSchema),
     defaultValues: initialData
-      ? { ...defaultValues, ...initialData }
+      ? {
+          ...defaultValues,
+          ...initialData,
+          vehicle_type_id: initialData.vehicle_type_id ?? (initialData.vehicle_info && initialData.vehicle_info.vehicle_type_id) ?? "",
+          vehiclePlate: initialData.vehiclePlate ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.plate ? String(initialData.vehicle_info.metadata.plate) : ""),
+          vehicleMake: initialData.vehicleMake ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.make ? String(initialData.vehicle_info.metadata.make) : ""),
+          vehicleModel: initialData.vehicleModel ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.model ? String(initialData.vehicle_info.metadata.model) : ""),
+          vehicleYear: initialData.vehicleYear ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.year ? String(initialData.vehicle_info.metadata.year) : ""),
+          vehicleColor: initialData.vehicleColor ?? (initialData.vehicle_info && initialData.vehicle_info.metadata?.color ? String(initialData.vehicle_info.metadata.color) : ""),
+        }
       : defaultValues,
     mode: "onChange",
   });
@@ -182,6 +220,20 @@ export function DeliveryPartnerForm({
     control: form.control,
     name: "kyc_documents",
   });
+
+  // Fetch vehicle types from store and use items property
+  const { vehicleTypes, fetchVehicleTypes } = useConfigurationStore();
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if ((session?.user as any)?.tenant_id) {
+      fetchVehicleTypes((session?.user as any).tenant_id);
+    }
+  }, [(session?.user as any)?.tenant_id, fetchVehicleTypes]);
+
+  useEffect(() => {
+    console.log('vehicleTypes from store:', vehicleTypes);
+  }, [vehicleTypes]);
 
   // Reset verification states and set active tab to basic when form type changes
   useEffect(() => {
@@ -227,9 +279,9 @@ export function DeliveryPartnerForm({
 
       // Map the incoming doc to the structure expected by the form schema
       const documentToAppend = {
-        type: doc.document_type,
+        document_type_id: doc.document_type,
         link: doc.document_url,
-        number: doc.document_number,
+        number: doc.number,
         expires_at: doc.expires_at,
         file: doc.file, // Keep the file object for now, it will be stripped on submission
         status: "uploaded" as const,
@@ -269,27 +321,22 @@ export function DeliveryPartnerForm({
       // This simulates an API call to fetch vehicle details
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Demo data - in real implementation, this would come from the API
+      // Demo data for all fields
       const vehicleDetails = {
         make: "Toyota",
         model: "Corolla",
         year: "2020",
+        color: "Red",
+        plate: plateNumber,
       };
 
       // Update form values with the retrieved data
       if (isDriver && typeof driverIndex === "number") {
-        form.setValue(
-          `drivers.${driverIndex}.vehicleMake`,
-          vehicleDetails.make
-        );
-        form.setValue(
-          `drivers.${driverIndex}.vehicleModel`,
-          vehicleDetails.model
-        );
-        form.setValue(
-          `drivers.${driverIndex}.vehicleYear`,
-          vehicleDetails.year
-        );
+        form.setValue(`drivers.${driverIndex}.vehicleMake`, vehicleDetails.make);
+        form.setValue(`drivers.${driverIndex}.vehicleModel`, vehicleDetails.model);
+        form.setValue(`drivers.${driverIndex}.vehicleYear`, vehicleDetails.year);
+        form.setValue(`drivers.${driverIndex}.vehicleColor`, vehicleDetails.color);
+        form.setValue(`drivers.${driverIndex}.vehiclePlate`, vehicleDetails.plate);
 
         // Add this driver to the verified list
         setVerifiedDrivers((prev) => {
@@ -302,6 +349,8 @@ export function DeliveryPartnerForm({
         form.setValue("vehicleMake", vehicleDetails.make);
         form.setValue("vehicleModel", vehicleDetails.model);
         form.setValue("vehicleYear", vehicleDetails.year);
+        form.setValue("vehicleColor", vehicleDetails.color);
+        form.setValue("vehiclePlate", vehicleDetails.plate);
         setVerificationSuccess(true);
       }
 
@@ -338,6 +387,7 @@ export function DeliveryPartnerForm({
     }
 
     const tabOrder = getTabOrder();
+    if (!tabOrder) return;
     const currentIndex = tabOrder.indexOf(activeTab);
     if (currentIndex < tabOrder.length - 1) {
       setActiveTab(tabOrder[currentIndex + 1]);
@@ -346,6 +396,7 @@ export function DeliveryPartnerForm({
 
   const prevTab = () => {
     const tabOrder = getTabOrder();
+    if (!tabOrder) return;
     const currentIndex = tabOrder.indexOf(activeTab);
     if (currentIndex > 0) {
       setActiveTab(tabOrder[currentIndex - 1]);
@@ -356,35 +407,36 @@ export function DeliveryPartnerForm({
     try {
       setInternalIsSubmitting(true);
 
-      // Create a clean data object for submission, similar to vendor-form
-      const dataToSubmit = JSON.parse(JSON.stringify(data));
-
-      // 1. Clean up kyc_documents: transform payload to match API requirements
-      if (dataToSubmit.kyc_documents && Array.isArray(dataToSubmit.kyc_documents)) {
-        dataToSubmit.kyc_documents = dataToSubmit.kyc_documents.map((doc: any) => {
-          // Explicitly construct the new object to ensure correct shape and remove unwanted fields
-          const newDoc: { [key: string]: any } = {
-            document_type_id: doc.type,
-            link: doc.link,
-            verified: false,
-          };
-          if (doc.id) newDoc.id = doc.id;
-          if (doc.number) newDoc.number = doc.number;
-          if (doc.expires_at) newDoc.expires_at = doc.expires_at;
-          return newDoc;
-        });
-      }
-
+      // Build vehicle_info
+      const vehicle_metadata = {
+        make: data.vehicleMake,
+        model: data.vehicleModel,
+        year: data.vehicleYear,
+        color: data.vehicleColor,
+        plate: data.vehiclePlate || "", // Always include plate
+      };
+      const detailsArr = [vehicle_metadata.make, vehicle_metadata.model, vehicle_metadata.color, vehicle_metadata.plate].filter(Boolean);
+      const details = detailsArr.join(", ");
+      const vehicle_info = {
+        vehicle_type_id: data.vehicle_type_id,
+        details,
+        metadata: vehicle_metadata,
+      };
+      // KYC documents
+      const kyc_documents = (data.kyc_documents || []).map((doc) => ({
+        document_type_id: doc.document_type_id,
+        number: doc.number || "",
+        link: doc.link,
+        expires_at: doc.expires_at || "", // Always include expires_at
+        verified: false,
+      }));
       // Package data for submission
       const packagedData = {
-        ...dataToSubmit,
-        name:
-          dataToSubmit.type === "individual"
-            ? `${dataToSubmit.user.first_name} ${dataToSubmit.user.last_name}`
-            : dataToSubmit.name,
-        commission_percent: "10",
-        // drivers: Array.isArray(dataToSubmit.drivers) ? dataToSubmit.drivers : [],
-        drivers: [], // Assuming drivers are handled separately or not needed here
+        ...data,
+        vehicle_info,
+        kyc: { verified: false, documents: kyc_documents },
+        commission_percent: 10,
+        drivers: [],
       };
 
       console.log("Submitting packaged data:", packagedData);
@@ -854,46 +906,38 @@ export function DeliveryPartnerForm({
         <div className="space-y-6">
           <h3 className="text-lg font-medium">Vehicle Information</h3>
           <div className="space-y-6">
+            {/* Vehicle Type Dropdown */}
             <FormField
               control={form.control}
-              name="vehicleType"
+              name="vehicle_type_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Vehicle Type</FormLabel>
                   <FormControl>
-                    <RadioGroup
+                    <Select
+                      value={field.value}
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="grid grid-cols-2 gap-4"
                     >
-                      {vehicleTypes.map((type) => (
-                        <div key={type.id}>
-                          <RadioGroupItem
-                            value={type.id}
-                            id={`vehicle-type-${type.id}`}
-                            className="peer sr-only"
-                          />
-                          <Label
-                            htmlFor={`vehicle-type-${type.id}`}
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                          >
-                            <span className="text-2xl mb-2">{type.icon}</span>
-                            <span className="font-medium">{type.label}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {type.description}
-                            </span>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select vehicle type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicleTypes.map((type: any) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.metadata?.icon ? `${type.metadata.icon} ` : ''}{type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {/* Plate Number with Verify */}
             <FormField
               control={form.control}
-              name="plateNumber"
+              name="vehiclePlate"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Vehicle Plate Number</FormLabel>
@@ -917,72 +961,65 @@ export function DeliveryPartnerForm({
                 </FormItem>
               )}
             />
-
-            {/* Vehicle information fields (editable) - shown after verification or can be manually entered */}
-            <div
-              className={cn(
-                "grid gap-4 mt-4 p-4 rounded-md",
-                verificationSuccess
-                  ? "border border-green-200 bg-green-50"
-                  : "border border-muted"
+            {/* Color */}
+            <FormField
+              control={form.control}
+              name="vehicleColor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Color</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter vehicle color..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            >
-              <div className="flex items-center justify-between">
-                <h4
-                  className={cn(
-                    "text-sm font-medium",
-                    verificationSuccess ? "text-green-700" : "text-foreground"
-                  )}
-                >
-                  {verificationSuccess
-                    ? "Vehicle Details (Verified)"
-                    : "Vehicle Details"}
-                </h4>
-              </div>
-
+            />
+            {/* Make */}
+            <FormField
+              control={form.control}
+              name="vehicleMake"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Make</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter vehicle make..." />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Model and Year */}
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="vehicleMake"
+                name="vehicleModel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Make</FormLabel>
+                    <FormLabel>Model</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter vehicle make..." />
+                      <Input
+                        {...field}
+                        placeholder="Enter vehicle model..."
+                      />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="vehicleModel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Model</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="Enter vehicle model..."
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="vehicleYear"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Year</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter year..." />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="vehicleYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Year</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter year..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
         </div>
@@ -1098,7 +1135,7 @@ export function DeliveryPartnerForm({
                             defaultValue={field.value}
                             className="grid grid-cols-2 gap-4"
                           >
-                            {vehicleTypes.map((type) => (
+                            {vehicleTypes.map((type: any) => (
                               <div key={type.id}>
                                 <RadioGroupItem
                                   value={type.id}
@@ -1110,10 +1147,10 @@ export function DeliveryPartnerForm({
                                   className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                                 >
                                   <span className="text-2xl mb-2">
-                                    {type.icon}
+                                    {type.metadata?.icon}
                                   </span>
                                   <span className="font-medium">
-                                    {type.label}
+                                    {type.name}
                                   </span>
                                   <span className="text-sm text-muted-foreground">
                                     {type.description}
@@ -1284,17 +1321,13 @@ export function DeliveryPartnerForm({
         required: false, // You can make this dynamic if needed
       })
     );
-
-    // Map the data from the form (which uses `type`, `link`) to the format
-    // expected by the DocumentUpload component (which uses `document_type`, `document_url`).
+    // Map the data from the form (which uses document_type_id, number, link) to the format expected by the DocumentUpload component
     const documentsForUpload = documentFields.map((doc) => ({
       ...doc,
-      document_type: doc.type,
+      document_type: doc.document_type_id,
       document_url: doc.link,
       document_number: doc.number,
-      // Pass through other fields like `id`, `file`, `status`, etc.
     }));
-
     return (
       <TabsContent value="documents" className="space-y-6">
         <div className="space-y-6">
@@ -1322,14 +1355,12 @@ export function DeliveryPartnerForm({
   function ReviewTab() {
     // Use a snapshot of values instead of form.watch
     const [reviewValues, setReviewValues] = useState(() => form.getValues());
-
     // Update values when tab becomes active
     useEffect(() => {
       if (activeTab === "review") {
         setReviewValues(form.getValues());
       }
     }, [activeTab]);
-
     return (
       <TabsContent value="review" className="space-y-6">
         <div className="space-y-6">
@@ -1366,22 +1397,18 @@ export function DeliveryPartnerForm({
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Tax ID
                 </h4>
-                <p className="text-base">{reviewValues?.taxId || "—"}</p>
+                <p className="text-base">{reviewValues?.tax_id || "—"}</p>
               </div>
             </div>
           </div>
-
           <Separator />
-
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">
               Business Description
             </h4>
             <p className="text-base">{reviewValues?.description || "—"}</p>
           </div>
-
           <Separator />
-
           <div>
             <h3 className="text-lg font-medium mb-4">Service Area</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1397,9 +1424,7 @@ export function DeliveryPartnerForm({
               </div>
             </div>
           </div>
-
           <Separator />
-
           <div>
             <h3 className="text-lg font-medium mb-4">Vehicle Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1407,52 +1432,41 @@ export function DeliveryPartnerForm({
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Vehicle Type
                 </h4>
-                <p className="text-base">{reviewValues?.vehicleType || "—"}</p>
+                <p className="text-base">{reviewValues?.vehicle_type_id || "—"}</p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Vehicle Plate Number
                 </h4>
-                <p className="text-base">{reviewValues?.plateNumber || "—"}</p>
+                <p className="text-base">{reviewValues?.vehiclePlate || "—"}</p>
               </div>
-              {verificationSuccess && (
-                <div className="mt-2 border-t pt-2">
-                  <h4 className="text-sm font-medium text-green-700">
-                    Verified Vehicle Details
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
-                    <div>
-                      <span className="text-xs text-muted-foreground">
-                        Make:
-                      </span>
-                      <p className="text-sm">
-                        {reviewValues?.vehicleMake || "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">
-                        Model:
-                      </span>
-                      <p className="text-sm">
-                        {reviewValues?.vehicleModel || "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">
-                        Year:
-                      </span>
-                      <p className="text-sm">
-                        {reviewValues?.vehicleYear || "—"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  Color
+                </h4>
+                <p className="text-base">{reviewValues?.vehicleColor || "—"}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  Make
+                </h4>
+                <p className="text-base">{reviewValues?.vehicleMake || "—"}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  Model
+                </h4>
+                <p className="text-base">{reviewValues?.vehicleModel || "—"}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  Year
+                </h4>
+                <p className="text-base">{reviewValues?.vehicleYear || "—"}</p>
+              </div>
             </div>
           </div>
-
           <Separator />
-
           <div>
             <h3 className="text-lg font-medium mb-4">Commission Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1464,9 +1478,7 @@ export function DeliveryPartnerForm({
               </div>
             </div>
           </div>
-
           <Separator />
-
           <div>
             <h3 className="text-lg font-medium mb-4">Uploaded Documents</h3>
             <div className="space-y-4">
@@ -1474,12 +1486,11 @@ export function DeliveryPartnerForm({
                 <h4 className="text-sm font-medium text-muted-foreground">
                   KYC Documents
                 </h4>
-                {reviewValues?.kyc_documents?.length > 0 ? (
+                {reviewValues?.kyc_documents && reviewValues.kyc_documents.length > 0 ? (
                   <ul className="list-disc list-inside">
                     {reviewValues.kyc_documents.map((doc, index) => (
                       <li key={index} className="text-sm">
-                        {DOCUMENT_TYPES.find((t) => t.id === doc.type)?.label ||
-                          doc.type}
+                        {doc.document_type_id}
                         {doc.status && ` (${doc.status})`}
                       </li>
                     ))}
@@ -1492,7 +1503,6 @@ export function DeliveryPartnerForm({
               </div>
             </div>
           </div>
-
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               By submitting this application, you confirm that all information

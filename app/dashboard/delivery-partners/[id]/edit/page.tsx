@@ -24,150 +24,102 @@ type FormKycDocumentValues = z.infer<typeof formKycDocumentSchema>;
 
 const transformPartnerDataToFormValues = (partner: DeliveryPartner): Partial<DeliveryPartnerFormValues> => {
   const formValues: Partial<DeliveryPartnerFormValues> = {
-    _id: partner._id, // Add this line
-
+    _id: partner._id,
     type: partner.type,
-    name: partner.name, // Partner's main name (individual's full name or business name)
-    user: partner.user ? {
-      first_name: partner.user.first_name || "",
-      last_name: partner.user.last_name || "",
-      email: partner.user.email || "",
-      phone_number: partner.user.phone_number || "",
+    name: partner.name,
+    user: partner.user_details ? {
+      first_name: partner.user_details.first_name || "",
+      last_name: partner.user_details.last_name || "",
+      email: partner.user_details.email || "",
+      phone_number: partner.user_details.phone || "",
     } : { first_name: "", last_name: "", email: "", phone_number: "" },
-    profile_picture: partner.profile_picture || null,
-    description: partner.description || null,
+    profile_picture: partner.profile_picture || undefined,
+    description: partner.description || undefined,
     tax_id: partner.tax_id || undefined,
   };
-
   if (partner.location?.coordinates) {
     formValues.coordinates = [partner.location.coordinates.lat, partner.location.coordinates.lng];
   }
-
-  if (partner.type === 'individual') {
-    if (partner.vehicle_info) {
-      formValues.vehicleType = partner.vehicle_info.type;
-      formValues.plateNumber = partner.vehicle_info.plate_number;
-      if (partner.vehicle_info.details && Array.isArray(partner.vehicle_info.details)) {
-        partner.vehicle_info.details.forEach(detail => {
-          if (detail.key.toLowerCase() === 'make') formValues.vehicleMake = detail.value;
-          if (detail.key.toLowerCase() === 'model') formValues.vehicleModel = detail.value;
-          if (detail.key.toLowerCase() === 'year') formValues.vehicleYear = detail.value;
-        });
-      }
-    }
-    if (partner.cost_per_km !== undefined && partner.cost_per_km !== null) {
-      formValues.cost_per_km = String(partner.cost_per_km);
-    }
+  if (partner.vehicle_info) {
+    formValues.vehicle_type_id = partner.vehicle_info.vehicle_type_id || "";
+    formValues.vehiclePlate = partner.vehicle_info.metadata?.plate ? String(partner.vehicle_info.metadata.plate) : "";
+    formValues.vehicleMake = partner.vehicle_info.metadata?.make ? String(partner.vehicle_info.metadata.make) : "";
+    formValues.vehicleModel = partner.vehicle_info.metadata?.model ? String(partner.vehicle_info.metadata.model) : "";
+    formValues.vehicleYear = partner.vehicle_info.metadata?.year ? String(partner.vehicle_info.metadata.year) : "";
+    formValues.vehicleColor = partner.vehicle_info.metadata?.color ? String(partner.vehicle_info.metadata.color) : "";
   }
-
+  if (partner.cost_per_km !== undefined && partner.cost_per_km !== null) {
+    formValues.cost_per_km = String(partner.cost_per_km);
+  }
   if (partner.type === 'pickup_point') {
     if (partner.flat_fee !== undefined && partner.flat_fee !== null) {
       formValues.flat_fee = String(partner.flat_fee);
     }
   }
-
-  if (partner.type === 'business' && partner.drivers) {
-    // The form expects an array of driver objects. API provides string[].
-    // For editing, this might mean fetching full driver details or handling it in a sub-component.
-    // For now, we'll pass an empty array to avoid type errors if full objects aren't readily available.
-    // formValues.drivers = []; // Or map if you have full driver objects
-  }
-
   if (partner.kyc && partner.kyc.documents && Array.isArray(partner.kyc.documents)) {
-    formValues.kyc_documents = partner.kyc.documents.map((doc: KycDocument): FormKycDocumentValues => {
-      let status: FormKycDocumentValues['status'] = 'pending_verification';
-      if (doc.verified) {
-        status = 'verified';
-      } else if (doc.rejected_at) {
-        status = 'rejected';
-      }
-      // If there's a link, it implies it was uploaded previously.
-      // 'uploaded' could be an initial status if not yet verified/rejected.
-      // For simplicity, we'll use pending_verification if not verified/rejected.
-
-      return {
-        // Assuming API KycDocument does not have a distinct 'id'. If it does, map it here.
-        // For keying in React lists, a unique property like 'link' or index might be used if no id.
-        type: doc.type,
-        number: doc.number || undefined,
-        link: doc.link || undefined,
-        status: status,
-        expires_at: doc.expires_at || null,
-        rejection_reason: doc.rejected_reason || null,
-        // 'file' field will be undefined for existing documents from API
-      };
-    });
+    formValues.kyc_documents = partner.kyc.documents.map((doc: KycDocument) => ({
+      document_type_id: doc.document_type_id || "",
+      number: doc.number || "",
+      link: doc.link || "",
+      expires_at: doc.expires_at || "",
+      status: doc.verified ? 'verified' : (doc.rejected_at ? 'rejected' : 'pending_verification'),
+      rejection_reason: doc.rejected_reason || undefined,
+    }));
   } else {
     formValues.kyc_documents = [];
   }
-
   return formValues;
 };
 
 const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues, partner?: DeliveryPartner | null): Partial<DeliveryPartner> => {
+  const vehicle_metadata = {
+    make: formValues.vehicleMake || "",
+    model: formValues.vehicleModel || "",
+    year: formValues.vehicleYear || "",
+    color: formValues.vehicleColor || "",
+    plate: formValues.vehiclePlate || "",
+  };
+  const detailsArr = [vehicle_metadata.make, vehicle_metadata.model, vehicle_metadata.color, vehicle_metadata.plate].filter(Boolean);
+  const details = detailsArr.join(", ");
+  const vehicle_info = {
+    vehicle_type_id: formValues.vehicle_type_id || "",
+    details,
+    metadata: vehicle_metadata,
+  };
+  const kyc_documents = (formValues.kyc_documents || []).map((doc) => ({
+    document_type_id: doc.document_type_id || "",
+    number: doc.number || "",
+    link: doc.link || "",
+    expires_at: doc.expires_at || "",
+    verified: false,
+  }));
   const apiPayload: Partial<DeliveryPartner> = {
     type: formValues.type,
-    name: formValues.name, // Assuming form provides the correct partner name
-    user: formValues.user, // Assuming form user structure matches API
-    profile_picture: formValues.profile_picture,
-    description: formValues.description,
+    name: formValues.name,
+    user: formValues.user,
+    profile_picture: formValues.profile_picture || undefined,
+    description: formValues.description || undefined,
     tax_id: formValues.tax_id,
+    vehicle_info,
+    kyc: { verified: false, documents: kyc_documents },
+    commission_percent: 10,
+    drivers: [],
   };
-
-  apiPayload.commission_percent = 15.0;
-
   if (formValues.coordinates && formValues.coordinates.length === 2) {
-    apiPayload.location = { 
-      coordinates: { 
+    apiPayload.location = {
+      coordinates: {
         lat: formValues.coordinates[0],
-        lng: formValues.coordinates[1]
+        lng: formValues.coordinates[1],
       },
-      radiusKm: 10.5
+      radiusKm: 10.5,
     };
   }
-
-  if (formValues.type === 'individual') {
-    apiPayload.vehicle_info = {
-      type: formValues.vehicleType || '',
-      plate_number: formValues.plateNumber || '',
-      details: [
-        // Reconstruct details array if needed, or adjust API to accept flat vehicle fields
-        // For simplicity, if vehicleMake, Model, Year are top-level in API's vehicle_info, map them directly
-        // This example assumes they are part of a 'details' array in vehicle_info, which might not be the case for update.
-        // If API expects flat vehicle_info fields: vehicle_make: formValues.vehicleMake, etc.
-      ].filter(detail => detail.value) // Filter out empty details
-    };
-    if (formValues.vehicleMake) apiPayload.vehicle_info.details?.push({key: 'make', value: formValues.vehicleMake});
-    if (formValues.vehicleModel) apiPayload.vehicle_info.details?.push({key: 'model', value: formValues.vehicleModel});
-    if (formValues.vehicleYear) apiPayload.vehicle_info.details?.push({key: 'year', value: formValues.vehicleYear});
-
-    if (formValues.cost_per_km !== undefined && formValues.cost_per_km !== null && formValues.cost_per_km !== '') {
-      apiPayload.cost_per_km = parseFloat(formValues.cost_per_km);
-    }
+  if (formValues.type === "pickup_point" && formValues.flat_fee) {
+    apiPayload.flat_fee = parseFloat(formValues.flat_fee);
   }
-
-  if (formValues.type === 'pickup_point') {
-    if (formValues.flat_fee !== undefined && formValues.flat_fee !== null && formValues.flat_fee !== '') {
-      apiPayload.flat_fee = parseFloat(formValues.flat_fee);
-    }
+  if (formValues.type === "individual" && formValues.cost_per_km) {
+    apiPayload.cost_per_km = parseFloat(formValues.cost_per_km);
   }
-
-  // Handle 'drivers' for business type if formValues.drivers is populated
-  // This would involve mapping formValues.drivers (array of driver objects) to API's expected structure (e.g., array of driver IDs or full objects)
-
-  if (formValues.kyc_documents && Array.isArray(formValues.kyc_documents)) {
-    // This transformation assumes the API expects a list of document metadata.
-    // Actual file uploads for new documents (where formValues.kyc_documents[i].file exists)
-    // would typically be handled by the form component itself, possibly making separate API calls.
-    // The payload here would then include URLs/IDs of newly uploaded files.
-    // For simplicity, we're mapping metadata. If a 'file' object is present, it's ignored in this specific transformation
-    // as the main partner update API usually doesn't take raw file binaries in JSON.
-    apiPayload.kyc = { 
-      ...(partner?.kyc || {}),
-      documents: formValues.kyc_documents as Partial<KycDocument>[],
-    };
-  }
-
   return apiPayload;
 };
 

@@ -18,6 +18,7 @@ export const verificationDocumentSchema = z.object({
   rejection_reason: z.string().optional().nullable(),
   submitted_at: z.string().optional(),
   expires_at: z.string().optional().nullable(),
+  number: z.string().optional(), // <-- Added document number field
 });
 
 // Corresponds to Location type

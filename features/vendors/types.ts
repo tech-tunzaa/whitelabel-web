@@ -27,7 +27,7 @@ export type VerificationDocument = {
     verified_at?: string | null;
     document_type_name?: string;
     document_type_description?: string;
-
+    number?: string; // <-- Added document number field
     // --- Fields for verification document status update response ---
     message?: string,
     vendor_id?: string,

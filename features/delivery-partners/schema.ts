@@ -14,17 +14,23 @@ export const driverSchema = z.object({
   cost_per_km: z.string().optional(),
 });
 
-// Main delivery-partner form schema (mirrors API payload requirements)
+export const vehicleMetadataSchema = z.object({
+  make: z.string().optional(),
+  model: z.string().optional(),
+  year: z.union([z.string(), z.number()]).optional(),
+  color: z.string().optional(),
+  plate: z.string().optional(),
+});
+
 export const formKycDocumentSchema = z.object({
-  id: z.string().optional(), // ID from API KycDocument if available
-  type: z.string(), // Document type, e.g., 'national_id', 'passport'
-  number: z.string().optional(), // Document number
-  link: z.string().optional(), // URL to the document file
-  file: z.any().optional(), // For new File objects (z.instanceof(File) can be used but ensure client-side only)
-  status: z.enum(['pending_verification', 'verified', 'rejected', 'uploaded', 'new']).optional(), // Status of the document
-  expires_at: z.string().optional().nullable(),
+  id: z.string().optional(),
+  document_type_id: z.string(),
+  number: z.string(),
+  link: z.string().optional(),
+  file: z.any().optional(),
+  status: z.enum(['pending_verification', 'verified', 'rejected', 'uploaded', 'new']).optional(),
+  expires_at: z.string().optional(), // always present, can be undefined
   rejection_reason: z.string().optional().nullable(),
-  // Any other fields the DocumentUpload component might need or pass through
 });
 
 export const deliveryPartnerFormSchema = z.object({
@@ -43,12 +49,17 @@ export const deliveryPartnerFormSchema = z.object({
   profile_picture: z.string().optional().nullable(),
   description: z.string().max(500).optional().nullable(),
   flat_fee: z.string().optional(),
-  
   tax_id: z.string().optional(),
   drivers: z.array(driverSchema).optional(),
-
   coordinates: z.tuple([z.number(), z.number()]).optional(),
+  vehicle_type_id: z.string().optional(),
+  vehicle_metadata: vehicleMetadataSchema.optional(),
   kyc_documents: z.array(formKycDocumentSchema).optional(),
+  vehiclePlate: z.string().optional(),
+  vehicleMake: z.string().optional(),
+  vehicleModel: z.string().optional(),
+  vehicleYear: z.string().optional(),
+  vehicleColor: z.string().optional(),
 });
 
 export type DeliveryPartnerFormValues = z.infer<typeof deliveryPartnerFormSchema>;

@@ -22,7 +22,7 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
   configurations: {},
   vehicleTypes: [],
   loading: false,
-    error: null,
+  error: null,
 
   fetchEntityConfiguration: async (entityName: string, tenantId: string) => {
     console.log(`[ConfigurationStore] Attempting to fetch configuration for entity: ${entityName}`);
@@ -66,9 +66,15 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
 
   fetchVehicleTypes: async (tenantId: string) => {
     set({ loading: true, error: null });
+    console.log('[fetchVehicleTypes] Called with tenantId:', tenantId);
     try {
-      const response = await apiClient.get<ApiResponse<VehicleType[]>>(`/configuration/vehicle-types?tenant_id=${tenantId}`);
-      const vehicleTypes = response.data.data || [];
+      const response = await apiClient.get<ApiResponse<{ items: any[] }>>(`/configuration/vehicle-types?tenant_id=${tenantId}`);
+      console.log('[fetchVehicleTypes] Raw API response:', response.data);
+      const vehicleTypes: VehicleType[] = (response.data.items || []).map((vt: any) => ({
+        ...vt,
+        id: vt.vehicle_id || vt.id, // ensure id is present
+      }));
+      console.log('[fetchVehicleTypes] vehicleTypes to set in store:', vehicleTypes);
       set({ vehicleTypes, loading: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';

@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
+import { Copy } from "@/components/ui/copy";
 
 export type VerificationDocument = {
   id: string;
@@ -51,6 +52,7 @@ export type VerificationDocument = {
   rejection_reason?: string | null;
   submitted_at?: string | null;
   verified_at?: string | null;
+  number?: string; // Added number field
 };
 
 export type VerificationActionPayload = {
@@ -202,6 +204,13 @@ export function VerificationDocumentManager({
                 <CardTitle className="text-base font-semibold text-slate-800 leading-tight">
                   {doc.document_type_name || doc.document_type_id} {getStatusBadge(doc.verification_status)}
                 </CardTitle>
+                {doc.number && (
+                  <div className="flex items-center mt-1 text-xs text-muted-foreground gap-1">
+                    <span className="font-mono">Document Number:</span>
+                    <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">{doc.number}</span>
+                    <Copy text={doc.number} size={14} className="ml-1" />
+                  </div>
+                )}
                 {doc.document_type_description && (
                   <p className="text-xs text-slate-500">
                     {doc.document_type_description}
