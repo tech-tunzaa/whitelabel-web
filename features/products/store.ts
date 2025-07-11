@@ -329,10 +329,21 @@ export const useProductStore = create<ProductStore>()(
           headers
         );
         setLoading(false);
-        // Assume response.data.data is an array of batches
-        if (response.data?.data) return response.data.data;
-        if (Array.isArray(response.data)) return response.data;
-        return [];
+
+        let result: any[] = [];
+
+        // Check for paginated response with items array
+        if (response.data?.items && Array.isArray(response.data.items)) {
+          result = response.data.items;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+          result = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          result = response.data;
+        } else {
+          result = [];
+        }
+
+        return result;
       } catch (error: unknown) {
         setStoreError({
           message: error instanceof Error ? error.message : 'Failed to fetch bulk upload batches',

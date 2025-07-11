@@ -25,9 +25,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Store, HelpCircle, FileDown, History, User, FileUp } from "lucide-react";
+import { ArrowLeft, Store, HelpCircle, FileDown, History, User, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { BulkUploadDocsModal } from "@/features/products/components/bulk-upload-docs-modal";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Copy } from "@/components/ui/copy";
 
 export default function BulkUploadPage() {
   const router = useRouter();
@@ -80,7 +82,8 @@ export default function BulkUploadPage() {
     if (selectedVendorId && storeId && tenantId) {
       setLoadingBatches(true);
       fetchBulkUploadBatches(selectedVendorId, storeId, { 'X-Tenant-ID': tenantId }).then((data) => {
-        setBatches(data);
+        const batchArray = data?.items || data || [];
+        setBatches(batchArray);
         setLoadingBatches(false);
       });
     } else {
@@ -375,42 +378,180 @@ export default function BulkUploadPage() {
               <TabsContent value="history" className="space-y-6 animate-fade-in">
                 <Card className="shadow-lg">
                   <CardHeader>
-                    <CardTitle>Existing Batches</CardTitle>
-                    <CardDescription>Review previous bulk uploads for this vendor/store.</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Batch History
+                    </CardTitle>
+                    <CardDescription>
+                      Review and manage previous bulk upload batches for this vendor/store.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {loadingBatches ? (
-                      <Spinner />
-                    ) : batches.length === 0 ? (
-                      <div className="text-muted-foreground text-center">No batches found for this vendor/store.</div>
-                    ) : (
-                      <div className="overflow-x-auto rounded-lg border">
-                        <table className="min-w-full text-sm bg-background">
-                          <thead className="sticky top-0 z-10 bg-muted/60">
-                            <tr>
-                              <th className="px-3 py-2 text-left font-semibold">Batch ID</th>
-                              <th className="px-3 py-2 text-left font-semibold">Status</th>
-                              <th className="px-3 py-2 text-left font-semibold">Created</th>
-                              <th className="px-3 py-2 text-left font-semibold">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {batches.map((batch, idx) => (
-                              <tr key={batch.batch_id} className={`border-t transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''} hover:bg-accent/40`}>
-                                <td className="px-3 py-2 font-mono">{batch.batch_id}</td>
-                                <td className="px-3 py-2">{renderStatusBadge(batch.status)}</td>
-                                <td className="px-3 py-2">{batch.created_at ? new Date(batch.created_at).toLocaleString() : "-"}</td>
-                                <td className="px-3 py-2 flex gap-2">
-                                  <Button size="sm" variant="outline" className="mr-2" title="View details">View</Button>
-                                  {batch.status === "error" && (
-                                    <Button size="sm" variant="destructive" title="Download error report">Download Errors</Button>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div className="flex items-center justify-center py-8">
+                        <Spinner />
                       </div>
+                    ) : batches.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-muted-foreground text-lg mb-2">No batches found</div>
+                        <p className="text-sm text-muted-foreground">
+                          Upload your first batch to see it here.
+                        </p>
+                      </div>
+                    ) : (
+                      <Accordion type="single" collapsible className="w-full">
+                        {batches.map((batch, idx) => (
+                          <AccordionItem key={batch.batch_id} value={batch.batch_id} className="border rounded-lg mb-3 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-background to-muted/20">
+                            <AccordionTrigger className="px-6 py-4 hover:no-underline group">
+                              <div className="flex items-center justify-between w-full pr-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex flex-col items-start">
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-md">
+                                        <span className="font-mono text-sm text-muted-foreground">
+                                          {batch.batch_id?.slice(0, 8)}...
+                                        </span>
+                                        <Copy text={batch.batch_id} size={14} className="opacity-60 hover:opacity-100 transition-opacity" />
+                                      </div>
+                                      {renderStatusBadge(batch.status)}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                                      <span className="font-medium">{batch.filename || 'Unknown file'}</span>
+                                      {batch.total_products && (
+                                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                          {batch.total_products} products
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                                  <div className="text-right">
+                                    <div className="text-xs uppercase tracking-wide">Created</div>
+                                    <div className="font-medium">
+                                      {batch.created_at ? new Date(batch.created_at).toLocaleDateString() : "-"}
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs uppercase tracking-wide">Time</div>
+                                    <div className="font-medium">
+                                      {batch.created_at ? new Date(batch.created_at).toLocaleTimeString() : "-"}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                              <div className="space-y-6">
+                                {/* Batch Details */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  <div className="space-y-4">
+                                    <div className="p-4 bg-muted/30 rounded-lg border">
+                                      <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                                        Batch Information
+                                      </h4>
+                                      <dl className="space-y-2 text-sm">
+                                        <div className="flex justify-between items-center">
+                                          <dt className="text-muted-foreground">Batch ID:</dt>
+                                          <dd className="font-mono text-xs bg-muted px-2 py-1 rounded flex items-center gap-1">
+                                            {batch.batch_id}
+                                            <Copy text={batch.batch_id} size={12} />
+                                          </dd>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <dt className="text-muted-foreground">Status:</dt>
+                                          <dd>{renderStatusBadge(batch.status)}</dd>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <dt className="text-muted-foreground">Filename:</dt>
+                                          <dd className="truncate max-w-[200px] font-medium">{batch.filename || 'N/A'}</dd>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <dt className="text-muted-foreground">Created:</dt>
+                                          <dd className="font-medium">{batch.created_at ? new Date(batch.created_at).toLocaleString() : 'N/A'}</dd>
+                                        </div>
+                                        {batch.updated_at && (
+                                          <div className="flex justify-between items-center">
+                                            <dt className="text-muted-foreground">Updated:</dt>
+                                            <dd className="font-medium">{new Date(batch.updated_at).toLocaleString()}</dd>
+                                          </div>
+                                        )}
+                                      </dl>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    <div className="p-4 bg-muted/30 rounded-lg border">
+                                      <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                        Upload Statistics
+                                      </h4>
+                                      <dl className="space-y-2 text-sm">
+                                        {batch.total_products !== undefined && (
+                                          <div className="flex justify-between items-center">
+                                            <dt className="text-muted-foreground">Total Products:</dt>
+                                            <dd className="font-semibold">{batch.total_products}</dd>
+                                          </div>
+                                        )}
+                                        {batch.valid_products !== undefined && (
+                                          <div className="flex justify-between items-center">
+                                            <dt className="text-muted-foreground">Valid Products:</dt>
+                                            <dd className="text-green-600 font-semibold">{batch.valid_products}</dd>
+                                          </div>
+                                        )}
+                                        {batch.invalid_products !== undefined && (
+                                          <div className="flex justify-between items-center">
+                                            <dt className="text-muted-foreground">Invalid Products:</dt>
+                                            <dd className="text-red-600 font-semibold">{batch.invalid_products}</dd>
+                                          </div>
+                                        )}
+                                        {batch.warning_products !== undefined && (
+                                          <div className="flex justify-between items-center">
+                                            <dt className="text-muted-foreground">Warnings:</dt>
+                                            <dd className="text-yellow-600 font-semibold">{batch.warning_products}</dd>
+                                          </div>
+                                        )}
+                                        {batch.summary?.success_rate !== undefined && (
+                                          <div className="flex justify-between items-center pt-2 border-t">
+                                            <dt className="text-muted-foreground font-medium">Success Rate:</dt>
+                                            <dd className="font-bold text-lg">
+                                              {batch.summary.success_rate > 1
+                                                ? Math.round(batch.summary.success_rate)
+                                                : (batch.summary.success_rate * 100).toFixed(0)
+                                              }%
+                                            </dd>
+                                          </div>
+                                        )}
+                                      </dl>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center justify-between pt-4 border-t">
+                                  <div className="flex gap-3">
+                                    {batch.status === "error" && (
+                                      <Button size="sm" variant="destructive" className="gap-2">
+                                        <FileDown className="h-4 w-4" />
+                                        Download Errors
+                                      </Button>
+                                    )}
+                                    {batch.status === "complete" && (
+                                      <Button size="sm" variant="default" className="gap-2">
+                                        <Copy className="h-4 w-4" />
+                                        Approve Batch
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {batch.batch_id}
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
                     )}
                   </CardContent>
                 </Card>

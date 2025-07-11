@@ -4,6 +4,7 @@ import { useProductStore } from "@/features/products/store";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Info, XCircle, CheckCircle, Loader2, Check, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export interface BulkUploadStatusProps {
   status?: "idle" | "uploading" | "processing" | "error" | "complete";
@@ -103,6 +104,7 @@ export const BulkUploadStatus: React.FC<BulkUploadStatusProps> = ({ status, erro
   const { approveBulkUploadBatch } = useProductStore();
   const { data: session } = useSession();
   const [approving, setApproving] = useState(false);
+  const router = useRouter();
 
   const handleApprove = useCallback(async () => {
     if (!result?.batch_id || !session?.user?.name) return;
@@ -110,12 +112,13 @@ export const BulkUploadStatus: React.FC<BulkUploadStatusProps> = ({ status, erro
     try {
       await approveBulkUploadBatch(result.batch_id, session.user.name, { 'X-Tenant-ID': session.user?.tenant_id });
       toast.success("Batch approved successfully!");
+      router.push("/dashboard/products");
     } catch (err: any) {
       toast.error(err?.message || "Failed to approve batch");
     } finally {
       setApproving(false);
     }
-  }, [approveBulkUploadBatch, result?.batch_id, session?.user?.name]);
+  }, [approveBulkUploadBatch, result?.batch_id, session?.user?.name, router]);
 
   return (
     <div className={`my-8 border-l-4 rounded-xl shadow-sm p-0 transition-colors duration-300 animate-fade-in ${cardBg}`}> 
