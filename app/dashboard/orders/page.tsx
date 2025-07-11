@@ -19,6 +19,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { OrderTable } from "@/features/orders/components/order-table";
 import { useOrderStore } from "@/features/orders/store";
 import type { Order, OrderStatus, OrderFilter } from "@/features/orders/types";
+import Pagination from "@/components/ui/pagination";
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function OrdersPage() {
   const [isTabLoading, setIsTabLoading] = useState(false);
   // Use the DateRange type from react-day-picker that the Calendar component expects
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const pageSize = 10;
+  const pageSize = 20;
 
   // Define tenant headers
   const tenantHeaders = {
@@ -51,8 +52,11 @@ export default function OrdersPage() {
 
   // Define filter based on active tab
   const getFilter = () => {
-    if (activeTab === "all") return {};
-    return { status: activeTab as OrderStatus };
+    const filter: any = {};
+    if (activeTab !== "all") filter.status = activeTab as OrderStatus;
+    filter.skip = (currentPage - 1) * pageSize;
+    filter.limit = pageSize;
+    return filter;
   };
 
   // Function to load orders
@@ -63,22 +67,19 @@ export default function OrdersPage() {
       }
       setStoreError(null);
       const filter = getFilter();
-      
       // Clear previous orders before making a new search
       if (searchTerm) {
-        setOrders([]);
+        setOrders(null);
       }
-      
       const result = await fetchOrders({
         ...filter,
         search: searchTerm,
         dateFrom: dateRange?.from?.toISOString(),
         dateTo: dateRange?.to?.toISOString(),
       }, tenantHeaders);
-      
       // If result is empty and we have a search term, ensure orders are cleared
-      if (searchTerm && (!result || result.length === 0)) {
-        setOrders([]);
+      if (searchTerm && (!result || result.items.length === 0)) {
+        setOrders({ items: [], total: 0, skip: 0, limit: pageSize });
       }
     } catch (error) {
       console.error("Error loading orders:", error);
@@ -87,7 +88,7 @@ export default function OrdersPage() {
           ((error.message.includes("404") && error.message.includes("No orders found")) ||
            error.message.includes("not found") ||
            error.message.includes("404"))) {
-        setOrders([]);
+        setOrders({ items: [], total: 0, skip: 0, limit: pageSize });
         setStoreError(null);
       } else {
         // For other errors, set the error
@@ -190,9 +191,9 @@ export default function OrdersPage() {
   }, [activeTab, currentPage, searchTerm, dateRange]);
   
   // Determine which orders to show based on active tab
-  const displayOrders = activeTab === "all" ? (orders || []) : (orders || []).filter(order => order.status === activeTab);
+  const displayOrders = orders?.items || [];
 
-  if (loading && !orders) {
+  if (loading && (!orders || orders.items.length === 0)) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -208,7 +209,7 @@ export default function OrdersPage() {
     );
   }
 
-  if (storeError && orders?.length === 0 && !isTabLoading) {
+  if (storeError && (!orders || orders.items.length === 0) && !isTabLoading) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -303,15 +304,23 @@ export default function OrdersPage() {
               {isTabLoading ? (
                 <Spinner />
               ) : (
-                <OrderTable
-                  orders={displayOrders}
-                  onViewDetails={handleOrderClick}
-                  onStatusChange={handleOrderStatusChange}
-                />
+                <>
+                  <OrderTable
+                    orders={displayOrders}
+                    onViewDetails={handleOrderClick}
+                    onStatusChange={handleOrderStatusChange}
+                  />
+                </>
               )}
             </CardContent>
           </Card>
         </Tabs>
+        <Pagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={orders?.total || 0}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   )

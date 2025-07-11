@@ -11,6 +11,7 @@ import {
   DeliveryDetails,
   AssignDeliveryPayload,
   AddDeliveryStagePayload,
+  OrderApiResponse,
 } from "./types";
 
 // Helper to safely unwrap API responses, handling multiple formats.
@@ -125,12 +126,14 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       if (filter.dateFrom) params.append("date_from", filter.dateFrom);
       if (filter.dateTo) params.append("date_to", filter.dateTo);
 
+      console.log('[OrderStore] fetchOrders params:', params.toString());
       const response = await apiClient.get<OrderApiResponse>(
         `/orders/?${params.toString()}`,
         undefined,
         headers
       );
 
+      console.log('[OrderStore] raw API response:', response);
       let orderList: OrderListResponse = {
         items: [],
         total: 0,
@@ -138,40 +141,20 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
         limit: filter.limit || 10,
       };
 
-      if (response.data && response.data.data) {
-        if (Array.isArray(response.data.data)) {
-          orderList = {
-            items: (response.data.data as Order[]).map(order => ({
-              ...order,
-              status: order.status?.toLowerCase() || order.status
-            })),
-            total: response.data.data.length,
-            skip: filter.skip || 0,
-            limit: filter.limit || response.data.data.length,
-          };
-        } else {
-          const data = response.data.data as OrderListResponse;
-          orderList = {
-            ...data,
-            items: data.items.map(order => ({
-              ...order,
-              status: order.status?.toLowerCase() || order.status
-            }))
-          };
-        }
-      } else if (response.data && Array.isArray(response.data)) {
+      if (response.data && response.data.items) {
+        const data = response.data;
         orderList = {
-          items: (response.data as Order[]).map(order => ({
+          ...data,
+          items: data.items.map(order => ({
             ...order,
-            status: order.status?.toLowerCase() || order.status
-          })),
-          total: response.data.length,
-          skip: filter.skip || 0,
-          limit: filter.limit || response.data.length,
+            status: (order.status?.toLowerCase() || order.status) as OrderStatus
+          }))
         };
       }
 
-      setOrders(orderList.items);
+      console.log('[OrderStore] processed orderList:', orderList);
+      setOrders(orderList);
+      console.log('[OrderStore] setOrders called with:', orderList);
       setLoading(false);
       return orderList;
     } catch (error: unknown) {
@@ -202,9 +185,9 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       const response = await apiClient.get<ApiResponse<Order>>(endpoint, undefined, headers);
       const orderData = unwrapApiResponse<Order>(response);
       if (orderData) {
-        const processedOrder = {
+        const processedOrder: Order = {
           ...orderData,
-          status: orderData.status?.toLowerCase() || orderData.status
+          status: (orderData.status?.toLowerCase() || orderData.status) as OrderStatus
         };
         setOrder(processedOrder);
         return processedOrder;
@@ -264,14 +247,8 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
             o.order_id === orderId ? { ...o, status } : o
           ),
         };
-      } else if (Array.isArray(state.orders)) {
-        // Defensive: orders is an array, not an object
-        // console.warn('[OrderStore] orders is an array, not an object. This is a bug.');
-        newOrders = state.orders.map((o: Order) =>
-          o.order_id === orderId ? { ...o, status } : o
-        );
       } else {
-        newOrders = null;
+        newOrders = state.orders;
       }
 
       const newOrder =
