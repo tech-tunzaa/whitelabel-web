@@ -193,7 +193,7 @@ export default function OrdersPage() {
   // Determine which orders to show based on active tab
   const displayOrders = orders?.items || [];
 
-  if (loading && (!orders || orders.items.length === 0)) {
+  if (loading && (!orders || orders.items.length === 0) && !isTabLoading) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
