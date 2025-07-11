@@ -39,6 +39,8 @@ export default function DeliveryPage() {
   // Define filter based on active tab
   const getFilters = (): any => {
     const baseFilter: any = {
+      includeOrderNumbers: true,
+      includePartnerNames: true,
       skip: (currentPage - 1) * pageSize,
       limit: pageSize
     };
@@ -155,7 +157,7 @@ export default function DeliveryPage() {
             />
           </div>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); setCurrentPage(1); }}>
           <TabsList className="w-full">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="assigned">Assigned</TabsTrigger>
@@ -165,15 +167,22 @@ export default function DeliveryPage() {
           </TabsList>
         </Tabs>
 
-        <DeliveryTable
-          deliveries={deliveries?.items || []}
-          onDeliveryClick={handleDeliveryClick}
-          activeTab={activeTab}
-        />
+        {isTabLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Spinner />
+          </div>
+        ) : (
+          <DeliveryTable
+            deliveries={deliveries?.items || []}
+            onDeliveryClick={handleDeliveryClick}
+            activeTab={activeTab}
+          />
+        )}
 
         <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil((deliveries?.total || 0) / pageSize)}
+          pageSize={pageSize}
+          totalItems={deliveries?.total || 0}
           onPageChange={setCurrentPage}
         />
       </div>

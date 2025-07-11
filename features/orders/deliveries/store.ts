@@ -79,11 +79,13 @@ export const useDeliveryStore = create<DeliveryStore>()((set, get) => ({
       const params = new URLSearchParams();
       if (filter.skip) params.append('skip', filter.skip.toString());
       if (filter.limit) params.append('limit', filter.limit.toString());
-      if (filter.search) params.append('search', filter.search);
+      if (filter.search) params.append('query', filter.search);
       if (filter.status) params.append('status', filter.status);
       if (filter.stage) params.append('stage', filter.stage);
       if (filter.partnerId) params.append('partner_id', filter.partnerId);
       if (filter.orderId) params.append('order_id', filter.orderId);
+      if (filter.includeOrderNumbers) params.append('include_order_numbers', filter.includeOrderNumbers);
+      if (filter.includePartnerNames) params.append('include_partner_names', filter.includePartnerNames);
 
       const response = await apiClient.get<any>(
         `/deliveries/?${params.toString()}`,
@@ -127,7 +129,7 @@ export const useDeliveryStore = create<DeliveryStore>()((set, get) => ({
     try {
       setActiveAction('fetchDelivery');
       setLoading(true);
-      const response = await apiClient.get<any>(`/deliveries/${id}`, undefined, headers);
+      const response = await apiClient.get<any>(`/deliveries/${id}`, {"include_partner_details": true}, headers);
       const delivery = unwrapApiResponse<Delivery>(response);
       setDelivery(delivery);
       return delivery;

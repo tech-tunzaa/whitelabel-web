@@ -1,333 +1,513 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useParams, useRouter } from 'next/navigation';
-import { useDeliveryStore } from '@/features/orders/deliveries/store';
-import { useOrderStore } from '@/features/orders/store';
-import { format } from 'date-fns';
-import { ArrowLeft, Package, User, MapPin, Phone, Calendar, Clock, CheckCircle, XCircle, Truck, Info, ListOrdered, PackageCheck, Hourglass, AlertCircle, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { format } from "date-fns";
+import { ArrowLeft, User, MapPin, Phone, Calendar, Clock, Package, Truck, PackageCheck, XCircle, Info, Hourglass, Eye, Image as ImageIcon, FileText, MapPin as MapPinIcon } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Spinner } from '@/components/ui/spinner';
-import { ErrorCard } from '@/components/ui/error-card';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DeliveryStage } from '@/features/orders/deliveries/types';
-import { OrderItem } from '@/features/orders/types';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Copy } from "@/components/ui/copy";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { EmptyPlaceholder } from "@/components/ui/empty-placeholder";
+import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 
-const DeliveryStatusBadge = ({ status }: { status: string }) => {
-  const statusStyles: { [key: string]: string } = {
-    assigned: 'bg-blue-100 text-blue-800',
-    at_pickup: 'bg-yellow-100 text-yellow-800',
-    in_transit: 'bg-purple-100 text-purple-800',
-    delivered: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    failed: 'bg-gray-100 text-gray-800',
-  };
-  const statusIcons: { [key: string]: React.ReactNode } = {
-    assigned: <Hourglass className="mr-1.5 h-3 w-3" />,
-    at_pickup: <Package className="mr-1.5 h-3 w-3" />,
-    in_transit: <Truck className="mr-1.5 h-3 w-3" />,
-    delivered: <PackageCheck className="mr-1.5 h-3 w-3" />,
-    cancelled: <XCircle className="mr-1.5 h-3 w-3" />,
-    failed: <Info className="mr-1.5 h-3 w-3" />,
-  };
-  return (
-    <Badge className={`capitalize ${statusStyles[status] || 'bg-gray-100 text-gray-800'}`}>
-      {statusIcons[status] || null}
-      {status.replace(/_/g, ' ')}
-    </Badge>
-  );
-};
-
-const TimelineItem = ({ stage, isLast }: { stage: DeliveryStage; isLast: boolean }) => {
-  return (
-    <div className="flex">
-      <div className="flex flex-col items-center mr-4">
-        <div>
-          <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-full text-primary-foreground">
-            <Truck className="w-4 h-4" />
-          </div>
-        </div>
-        {!isLast && <div className="w-px h-full bg-gray-300" />}
-      </div>
-      <div className="pb-8">
-        <p className="font-semibold capitalize">{stage.stage.replace(/_/g, ' ')}</p>
-        <p className="text-sm text-gray-500">{format(new Date(stage.timestamp), 'PPpp')}</p>
-        {stage.location && (
-          <p className="text-xs text-gray-400">{`Lat: ${stage.location.latitude}, Lon: ${stage.location.longitude}`}</p>
-        )}
-      </div>
-    </div>
-  );
-};
+import { useDeliveryStore } from "@/features/orders/deliveries/store";
+import { useOrderStore } from "@/features/orders/store";
+import { formatDate, formatTime, formatPartnerId } from "@/lib/utils";
 
 export default function DeliveryDetailsPage() {
   const router = useRouter();
   const params = useParams();
-  const { data: session } = useSession();
-  const deliveryId = params.id as string;
-  const tenantId = session?.user?.tenant_id;
+  const session = useSession();
+  const tenantId = session?.data?.user?.tenant_id as string | undefined;
+  const { delivery, loading, storeError, fetchDelivery } = useDeliveryStore();
+  const { order, fetchOrder } = useOrderStore();
+  const [proofModalOpen, setProofModalOpen] = useState(false);
+  const [selectedProof, setSelectedProof] = useState("");
 
-  const {
-    delivery,
-    loading: deliveryLoading,
-    storeError: deliveryError,
-    fetchDelivery,
-  } = useDeliveryStore();
-
-  const {
-    order,
-    loading: orderLoading,
-    storeError: orderError,
-    fetchOrder,
-  } = useOrderStore();
-
+  // Fetch delivery and order details
   useEffect(() => {
-    if (deliveryId && tenantId) {
-      fetchDelivery(deliveryId, { 'X-Tenant-ID': tenantId });
-    }
-  }, [deliveryId, tenantId, fetchDelivery]);
+    if (!params?.id) return;
+    const headers = tenantId ? { "X-Tenant-ID": tenantId } : undefined;
+    fetchDelivery(params.id as string, headers).then((delivery) => {
+      if (delivery?.order_id) {
+        fetchOrder(delivery.order_id, headers);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.id, tenantId]);
 
-  useEffect(() => {
-    // Ensure we have a delivery and its order_id before fetching the order
-    if (delivery?.order_id && tenantId) {
-      fetchOrder(delivery.order_id, { 'X-Tenant-ID': tenantId });
-    }
-  }, [delivery, tenantId, fetchOrder]);
+  if (loading && !delivery) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Delivery Details</h1>
+            <p className="text-muted-foreground">View delivery and order details</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <Spinner />
+        </div>
+      </div>
+    );
+  }
 
-  const handleRetry = () => {
-    if (deliveryId && tenantId) {
-      fetchDelivery(deliveryId, { 'X-Tenant-ID': tenantId });
-    }
+  if (storeError && !loading) {
+    return (
+      <ErrorCard
+        title="Failed to load delivery"
+        error={{ status: storeError.status?.toString() || "Error", message: storeError.message }}
+        buttonText="Retry"
+        buttonAction={() => fetchDelivery(params.id as string)}
+        buttonIcon={ArrowLeft}
+      />
+    );
+  }
+
+  if (!delivery) {
+    return null;
+  }
+
+  // Helper: Delivery status badge
+  const DeliveryStatusBadge = ({ status }: { status: string }) => {
+    const statusStyles: { [key: string]: string } = {
+      assigned: "bg-blue-100 text-blue-800 border-blue-200",
+      at_pickup: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      in_transit: "bg-purple-100 text-purple-800 border-purple-200",
+      delivered: "bg-green-100 text-green-800 border-green-200",
+      cancelled: "bg-red-100 text-red-800 border-red-200",
+      failed: "bg-gray-100 text-gray-800 border-gray-200",
+    };
+    const statusIcons: { [key: string]: React.ReactNode } = {
+      assigned: <Hourglass className="mr-1.5 h-3 w-3" />,
+      at_pickup: <Package className="mr-1.5 h-3 w-3" />,
+      in_transit: <Truck className="mr-1.5 h-3 w-3" />,
+      delivered: <PackageCheck className="mr-1.5 h-3 w-3" />,
+      cancelled: <XCircle className="mr-1.5 h-3 w-3" />,
+      failed: <Info className="mr-1.5 h-3 w-3" />,
+    };
+    return (
+      <Badge className={`capitalize ${statusStyles[status] || "bg-gray-100 text-gray-800"}`}>
+        {statusIcons[status] || null}
+        {status.replace(/_/g, " ")}
+      </Badge>
+    );
   };
 
-  // Combined loading state
-  if (deliveryLoading || (delivery && !order && orderLoading)) {
-    return <Spinner />;
-  }
-
-  // Error state for delivery
-  if (deliveryError) {
+  // Helper: Partner info
+  const PartnerInfo = () => {
+    const partner = delivery.deliveryPartner;
+    if (!partner) return <span className="text-muted-foreground">Not Assigned</span>;
     return (
-      <ErrorCard
-        title="Failed to load delivery details"
-        error={{ status: deliveryError.status?.toString() || "Error", message: deliveryError.message }}
-        buttonText="Retry"
-        buttonAction={handleRetry}
-        buttonIcon={AlertCircle}
-      />
-    );
-  }
-
-  // Not found state for delivery
-  if (!delivery) {
-    return (
-       <ErrorCard
-        title="Delivery Not Found"
-        error={{ message: `No delivery with the ID '${deliveryId}' was found.` }}
-        buttonText="Go Back"
-        buttonAction={() => router.back()}
-        buttonIcon={ArrowLeft}
-      />
-    );
-  }
-  
-  // Error state for order
-  if (orderError) {
-     return (
-      <ErrorCard
-        title="Failed to load order details"
-        error={{ status: orderError.status?.toString() || "Error", message: orderError.message }}
-        buttonText="Retry"
-        buttonAction={() => fetchOrder(delivery.order_id, { 'X-Tenant-ID': tenantId })}
-        buttonIcon={AlertCircle}
-      />
-    );
-  }
-
-  // Not found state for order
-  if (!order) {
-    return (
-       <ErrorCard
-        title="Order Not Found"
-        error={{ message: `The order associated with this delivery could not be loaded.` }}
-        buttonText="Go Back"
-        buttonAction={() => router.back()}
-        buttonIcon={ArrowLeft}
-      />
-    );
-  }
-
-  return (
-    <div className="container mx-auto">
-      <div className="flex items-center justify-between border-b p-4 md:p-6">
-        <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.back()} className="shrink-0">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-            </Button>
-            <div className="flex items-center gap-3">
-                <div className="p-2 bg-muted rounded-full">
-                    <Truck className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Order #{order.order_number}</h1>
-                    <p className="text-muted-foreground text-sm">
-                        Delivery ID: {delivery.id}
-                    </p>
-                </div>
-            </div>
-        </div>
-        <div className="flex items-center gap-2">
-            <DeliveryStatusBadge status={delivery.current_stage} />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-0 p-4 md:p-6">
-        {/* Left Column */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardHeader className='border-b'>
-              <CardTitle className="flex items-center justify-between">
-                <span>Delivery Status</span>
-                <DeliveryStatusBadge status={delivery.current_stage} />
-              </CardTitle>
-              <CardDescription>
-                Delivery ID: {delivery.id}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center">
-                <Package className="mr-3 h-5 w-5 text-gray-500" />
-                <span>Order ID: {delivery.order_id}</span>
-              </div>
-              <div className="flex items-center">
-                <User className="mr-3 h-5 w-5 text-gray-500" />
-                <span>{`Customer: ${order.shipping_address.first_name} ${order.shipping_address.last_name}`}</span>
-              </div>
-              <div className="flex items-center">
-                <Phone className="mr-3 h-5 w-5 text-gray-500" />
-                <a href={`tel:${order.shipping_address.phone}`} className="hover:underline">
-                  {order.shipping_address.phone}
-                </a>
-              </div>
-              <div className="flex items-center">
-                <MapPin className="mr-3 h-5 w-5 text-gray-500" />
-                <span>{order.shipping_address.address_line1}, {order.shipping_address.city}</span>
-              </div>
-              <Separator />
-              <div className="flex items-center">
-                <Calendar className="mr-3 h-5 w-5 text-gray-500" />
-                <span>Created: {format(new Date(delivery.created_at), 'PPp')}</span>
-              </div>
-              {delivery.estimated_delivery_time && (
-                <div className="flex items-center">
-                  <Clock className="mr-3 h-5 w-5 text-gray-500" />
-                  <span>Est. Delivery: {format(new Date(delivery.estimated_delivery_time), 'PPp')}</span>
-                </div>
-              )}
-              {delivery.actual_delivery_time && (
-                <div className="flex items-center">
-                  <CheckCircle className="mr-3 h-5 w-5 text-green-500" />
-                  <span>Delivered: {format(new Date(delivery.actual_delivery_time), 'PPp')}</span>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                onClick={() => router.push(`/dashboard/orders/${delivery.order_id}`)}
-                className="w-full"
-              >
-                <ExternalLink/>
-                View Order Details
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {delivery.deliveryPartner && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Delivery Partner</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarImage src={delivery.deliveryPartner.user.avatar_url} />
-                  <AvatarFallback>{delivery.deliveryPartner.user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">{delivery.deliveryPartner.user.name}</p>
-                  <p className="text-sm text-gray-500">{delivery.deliveryPartner.user.email}</p>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="flex items-center gap-3">
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={partner.profile_picture || ""} alt={partner.name} />
+          <AvatarFallback>{partner.name?.charAt(0) || "P"}</AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium">{partner.name}</p>
+          {partner.user_details?.email && (
+            <p className="text-xs text-muted-foreground">{partner.user_details.email}</p>
           )}
         </div>
+      </div>
+    );
+  };
 
-        {/* Right Column */}
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="timeline">
-            <TabsList className="w-full">
-              <TabsTrigger value="timeline">
-                <Truck className="mr-2 h-4 w-4" />
-                Delivery Timeline
-              </TabsTrigger>
-              <TabsTrigger value="orderItems">
-                <ListOrdered className="mr-2 h-4 w-4" />
-                Order Items
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="timeline">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative">
-                    {delivery.stages.map((stage, index) => (
-                      <TimelineItem key={index} stage={stage} isLast={index === delivery.stages.length - 1} />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="orderItems">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Items ({order.items.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Unit Price</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {order.items.map((item: OrderItem) => (
-                        <TableRow key={item.product_id}>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currency }).format(item.unit_price)}</TableCell>
-                          <TableCell>{new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currency }).format(item.total)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+  // Helper: Customer info
+  const CustomerInfo = () => {
+    if (!order) return null;
+    const addr = order.shipping_address;
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">{addr.first_name} {addr.last_name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Phone className="h-4 w-4 text-muted-foreground" />
+          <a href={`tel:${addr.phone}`} className="hover:underline">{addr.phone}</a>
+        </div>
+        <div className="flex items-start gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+          <span className="text-sm">{addr.address_line1}, {addr.city}, {addr.country}</span>
         </div>
       </div>
+    );
+  };
+
+  // Helper: Order items table
+  const OrderItemsTable = () => {
+    if (!order) return null;
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Qty</TableHead>
+              <TableHead>Unit Price</TableHead>
+              <TableHead>Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {order.items.map((item) => (
+              <TableRow key={item.item_id}>
+                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                <TableCell>{item.quantity}</TableCell>
+                <TableCell>${item.unit_price}</TableCell>
+                <TableCell className="font-medium">${item.total}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  // Helper: Timeline icon and color
+  const stageMeta = {
+    assigned: {
+      icon: <Hourglass className="h-4 w-4" />, color: "bg-blue-100 text-blue-800", label: "Assigned"
+    },
+    at_pickup: {
+      icon: <Package className="h-4 w-4" />, color: "bg-yellow-100 text-yellow-800", label: "At Pickup"
+    },
+    in_transit: {
+      icon: <Truck className="h-4 w-4" />, color: "bg-purple-100 text-purple-800", label: "In Transit"
+    },
+    delivered: {
+      icon: <PackageCheck className="h-4 w-4" />, color: "bg-green-100 text-green-800", label: "Delivered"
+    },
+    cancelled: {
+      icon: <XCircle className="h-4 w-4" />, color: "bg-red-100 text-red-800", label: "Cancelled"
+    },
+    failed: {
+      icon: <Info className="h-4 w-4" />, color: "bg-gray-100 text-gray-800", label: "Failed"
+    },
+  };
+
+  // Helper: Get partner display info for a stage
+  const getPartnerInfo = (partnerId: string) => {
+    // Try to use enriched deliveryPartner if matches
+    if (delivery.deliveryPartner && (delivery.deliveryPartner.partner_id === partnerId || delivery.deliveryPartner._id === partnerId)) {
+      return {
+        name: delivery.deliveryPartner.name,
+        avatar: delivery.deliveryPartner.profile_picture,
+        email: delivery.deliveryPartner.user_details?.email,
+      };
+    }
+    // Fallback: just show ID
+    return { name: null, avatar: null, email: null };
+  };
+
+  // Helper: Render proof preview (image/file)
+  const ProofPreview = ({ proof }: { proof: string }) => {
+    return (
+      <div className="flex items-center gap-2">
+        <img
+          src={proof}
+          alt="Proof"
+          className="h-8 w-8 rounded object-cover border"
+          onClick={() => { setSelectedProof(proof); setProofModalOpen(true); }}
+          style={{ cursor: "pointer" }}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+          onClick={() => { setSelectedProof(proof); setProofModalOpen(true); }}
+        >
+          <Eye className="h-3 w-3 mr-1" />
+          View
+        </Button>
+        <Copy text={proof} size={12} />
+      </div>
+    );
+  };
+
+  // Helper: Render location info
+  const LocationPreview = ({ location }: { location: { latitude?: number; longitude?: number } | null }) => {
+    if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+      return <span className="text-xs text-muted-foreground">Location unavailable</span>;
+    }
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex items-center gap-1 text-xs text-blue-600 cursor-pointer underline">
+              <MapPinIcon className="h-4 w-4" />
+              {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Lat: {location.latitude}, Lng: {location.longitude}
+            <Copy text={`${location.latitude},${location.longitude}`} size={12} className="ml-2" />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
+  // Timeline component (info-rich, with partner names and avatars)
+  const DeliveryTimeline = () => {
+    if (!delivery.stages || delivery.stages.length === 0) {
+      return (
+        <EmptyPlaceholder className="my-4">
+          <div className="flex flex-col items-center gap-2">
+            <Info className="h-6 w-6 text-muted-foreground" />
+            <span className="text-muted-foreground text-sm">No delivery stages yet.</span>
+          </div>
+        </EmptyPlaceholder>
+      );
+    }
+    // Icon mapping for stages
+    const stageIcons = {
+      assigned: Hourglass,
+      picked_up: Truck,
+      in_transit: MapPin,
+      delivered: PackageCheck,
+      cancelled: XCircle,
+      failed: Info,
+      default: Hourglass,
+    };
+    return (
+      <div className="space-y-6">
+        {delivery.stages.map((stage, idx) => {
+          const Icon = stageIcons[stage.stage] || stageIcons.default;
+          const partner = delivery.partner_details?.[stage.partner_id];
+          return (
+            <div key={idx} className="flex items-start gap-4">
+              {/* Timeline icon and vertical line */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Icon className="h-5 w-5" />
+                </div>
+                {idx < delivery.stages.length - 1 && (
+                  <div className="h-8 w-px bg-border my-1" />
+                )}
+              </div>
+              {/* Timeline content */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  {partner?.profile_picture ? (
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={partner.profile_picture} alt={partner.name || "Partner"} />
+                      <AvatarFallback>{partner.name?.charAt(0) || "P"}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Avatar className="h-6 w-6"><AvatarFallback>P</AvatarFallback></Avatar>
+                  )}
+                  <span className="font-medium text-sm">{partner?.name || "Partner"}</span>
+                  <span className="text-xs text-muted-foreground">({formatPartnerId(stage.partner_id)})</span>
+                  <Copy text={stage.partner_id} size={12} />
+                </div>
+                <p className="font-semibold capitalize">
+                  {(stage.stage === "assigned" && idx > 0 ? "reassigned" : stage.stage).replace(/_/g, " ")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(stage.timestamp)} at {formatTime(stage.timestamp)}
+                </p>
+                {/* Proof image if present */}
+                {stage.proof && stage.proof.photo_url && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={stage.proof.photo_url}
+                      alt="Proof"
+                      className="h-12 w-12 rounded object-cover border cursor-pointer"
+                      onClick={() => { setSelectedProof(stage.proof.photo_url); setProofModalOpen(true); }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Delivery summary info (improved UI)
+  const DeliverySummary = () => (
+    <Card>
+      <CardHeader className="pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            Delivery Summary
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2 mt-1">
+            <span className="text-muted-foreground text-xs">Order Number:</span>
+            <span className="font-mono text-xs font-semibold">{order?.order_number}</span>
+            {order?.order_number && <Copy text={order.order_number} size={14} />}
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-2 px-2 py-1 text-xs"
+              onClick={() => router.push(`/dashboard/orders/${order?.order_id}`)}
+              disabled={!order?.order_id}
+            >
+              View Order
+            </Button>
+          </CardDescription>
+        </div>
+        <div className="flex flex-col md:items-end gap-1">
+          <Badge className="capitalize text-xs px-2 py-1">{delivery.current_stage.replace(/_/g, " ")}</Badge>
+          <span className="text-xs text-muted-foreground">{formatDate(delivery.created_at)} {formatTime(delivery.created_at)}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Delivery ID:</span>
+          <span className="ml-1 font-mono text-xs">{delivery.id}</span>
+          <Copy text={delivery.id} size={14} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Order ID:</span>
+          <span className="ml-1 font-mono text-xs">{delivery.order_id}</span>
+          <Copy text={delivery.order_id} size={14} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Current Stage:</span>
+          <span className="ml-1 font-semibold capitalize">{delivery.current_stage.replace(/_/g, " ")}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Created:</span>
+          <span className="ml-1">{formatDate(delivery.created_at)} {formatTime(delivery.created_at)}</span>
+        </div>
+        {delivery.actual_delivery_time && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm">Delivered At:</span>
+            <span className="ml-1">{formatDate(delivery.actual_delivery_time)} {formatTime(delivery.actual_delivery_time)}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header - match order details style */}
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/dashboard/orders/deliveries")}
+            className="shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback>
+                <Truck className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+
+            <div>
+              <div className="flex items-center gap-4 mb-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Delivery: #{delivery.id}
+                  </h1>
+                  <Copy text={delivery.id} size={16} />
+                </div>
+                <Badge className="capitalize" variant="outline">
+                  {delivery.current_stage.replace(/_/g, " ")}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Created: {formatDate(delivery.created_at)} {formatTime(delivery.created_at)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="p-4 space-y-4 overflow-auto">
+        <DeliverySummary />
+        {/* Main content - 2 column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left column - Timeline */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Delivery Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DeliveryTimeline />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column - Order Info, Customer, Items */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Order Info</CardTitle>
+                <CardDescription className="text-sm">ID: {delivery.order_id} <Copy text={delivery.order_id} size={14} /></CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {order && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-sm">Order Number:</span>
+                      <span className="font-medium">{order.order_number}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-sm">Status:</span>
+                      <Badge className="capitalize">{order.status}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-sm">Created:</span>
+                      <span>{format(new Date(order.created_at), "dd MMM, yyyy HH:mm")}</span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Customer Info</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CustomerInfo />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Order Items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OrderItemsTable />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Proof Preview Modal */}
+      <FilePreviewModal
+        isOpen={proofModalOpen}
+        onClose={() => setProofModalOpen(false)}
+        src={selectedProof}
+        alt="Delivery proof"
+      />
     </div>
   );
 }

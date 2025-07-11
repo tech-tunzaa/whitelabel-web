@@ -46,7 +46,7 @@ const PartnerInfo = ({ delivery }: { delivery: Delivery }) => {
   // 2. Fallback to the latest stage if deliveryPartner is not populated
   if (delivery.stages && delivery.stages.length > 0) {
     const latestStage = delivery.stages[delivery.stages.length - 1] as any;
-    const partnerName = latestStage.partner_name;
+    const partnerName = delivery.partner_name;
     const partnerId = latestStage.partner_id;
 
     // Display name if available
@@ -58,7 +58,7 @@ const PartnerInfo = ({ delivery }: { delivery: Delivery }) => {
           </Avatar>
           <div>
             <p className="font-medium">{partnerName}</p>
-            <p className="text-xs text-muted-foreground">ID: {partnerId}</p>
+            <p className="text-xs text-muted-foreground">Partner ID: {partnerId}</p>
           </div>
         </div>
       );
@@ -155,7 +155,7 @@ export function DeliveryTable({
                 >
                   <TableCell className="font-medium">
                     <div className="flex flex-col">
-                      <span className="font-semibold">{delivery.order_id}</span>
+                      <span className="font-semibold">{delivery.order_number}</span>
                       <span className="text-xs text-muted-foreground">Delivery ID: {delivery.id}</span>
                     </div>
                   </TableCell>
