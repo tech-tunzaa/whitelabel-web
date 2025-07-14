@@ -10,10 +10,12 @@ import {
   VerificationDocument,
   ApiResponse,
   AffiliateFormValues,
-  AffiliatesApiResponseData, // Added import
+  AffiliatesApiResponseData,
   VendorPartnerRequest,
   VendorPartnerRequestsApiResponseData,
   VendorPartnerRequestFilter,
+  AffiliateRequest,
+  AffiliateAction,
 } from './types';
 
 interface AffiliateStoreState {
@@ -60,8 +62,10 @@ interface AffiliateStoreState {
     statusData: { status?: Affiliate['status']; is_active?: boolean; rejection_reason?: string },
     headers?: Record<string, string>
   ) => Promise<Affiliate | null>;
-  uploadKycDocuments: (affiliateId: string, documents: VerificationDocument[], headers?: Record<string, string>) => Promise<void>;
-  fetchVendorPartnerRequests: (affiliateId: string, filter?: VendorPartnerRequestFilter, headers?: Record<string, string>) => Promise<void>;
+  fetchAffiliateRequests: (
+    filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string },
+    headers?: Record<string, string>
+  ) => Promise<void>;
 }
 
 const initialPagination = {
@@ -98,10 +102,6 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
           stateUpdate.affiliates = [];
           stateUpdate.totalAffiliates = 0;
           break;
-        case 'fetchVendorPartnerRequests':
-          stateUpdate.vendorPartnerRequests = [];
-          stateUpdate.totalVendorPartnerRequests = 0;
-          break;
       }
     }
     set(stateUpdate);
@@ -118,77 +118,32 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     set({ vendorPartnerRequestsPagination: { skip, limit, currentPage }, totalVendorPartnerRequests: totalRequests, vendorPartnerRequestsLoading: false }),
 
   fetchAffiliates: async (filter: AffiliateFilter = {}, headers?: Record<string, string>) => {
-    const { setActiveAction, setLoading, setError, setAffiliates, setPagination } = get();
-    setActiveAction('fetchList');
+    const { setLoading, setError, setAffiliates } = get();
     setLoading(true);
-    let axiosResponse;
+
     try {
-      const { vendor_id, ...otherFilters } = filter;
-      const queryParams = new URLSearchParams();
-      queryParams.append('skip', (otherFilters.skip ?? initialPagination.skip).toString());
-      queryParams.append('limit', (otherFilters.limit ?? initialPagination.limit).toString());
-      if (otherFilters.search) queryParams.append('search', otherFilters.search);
-      if (otherFilters.status) queryParams.append('status', otherFilters.status);
-      if (typeof otherFilters.is_active === 'boolean') queryParams.append('is_active', String(otherFilters.is_active));
-
-      let url = '/winga';
-      if (vendor_id) {
-        url = `/winga/vendor/${vendor_id}/requests`;
-      }
-
-      axiosResponse = await apiClient.get<any>(
-        url,
-        { params: queryParams },
+      const response = await apiClient.get<ApiResponse<AffiliatesApiResponseData>>(
+        '/winga',
+        filter,
         headers
       );
 
-      const responseData = axiosResponse.data;
-      let foundAffiliates: Affiliate[] | undefined;
-
-      // Proactively search for affiliate data in common response structures
-      if (responseData) {
-          if (Array.isArray(responseData)) {
-              foundAffiliates = responseData; // Case 1: Raw array
-          } else if (Array.isArray((responseData as any).affiliates)) {
-              foundAffiliates = (responseData as any).affiliates; // Case 2: { affiliates: [...] }
-          } else if ((responseData as any).data) {
-              const data = (responseData as any).data;
-              if (Array.isArray(data)) {
-                  foundAffiliates = data; // Case 3: { data: [...] }
-              } else if (Array.isArray(data.affiliates)) {
-                  foundAffiliates = data.affiliates; // Case 4: { data: { affiliates: [...] } }
-              }
-          }
-      }
-
-      if (foundAffiliates) {
-        // Try to find pagination details, otherwise default them
-        const total = (responseData as any)?.total ?? (responseData as any)?.data?.total ?? foundAffiliates.length;
-        const currentPage = (responseData as any)?.currentPage ?? (responseData as any)?.data?.currentPage ?? 1;
-
-        setAffiliates(foundAffiliates);
-        setPagination({
-          skip: filter.skip ?? initialPagination.skip,
-          limit: filter.limit ?? initialPagination.limit,
-          currentPage: currentPage,
-          totalAffiliates: total,
-        });
-        setError(null); // Clear previous errors on success
+      const responseData = response.data;
+      if (responseData?.affiliates) {
+        setAffiliates(responseData.affiliates);
+        setError(null);
       } else {
-        const errorMessage = (responseData as any)?.message || 'Affiliates data not found or invalid response structure.';
-        setError({
-          message: errorMessage,
-          status: axiosResponse?.status,
-          action: 'fetchList',
-        });
+        throw new Error('Invalid response structure from server');
       }
     } catch (err: any) {
       setError({
-        message: err.response?.data?.message || err.message || 'An unexpected error occurred while fetching affiliates.',
+        message: err.response?.data?.message || err.message || 'Failed to fetch affiliates',
         status: err.response?.status,
         details: err.response?.data?.errors || err.stack,
-        action: 'fetchList',
+        action: 'fetchAffiliates',
       });
+    } finally {
+      setLoading(false);
     }
   },
 
@@ -203,7 +158,6 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       const responseData = axiosResponse.data;
       let rawData: any = null;
 
-      // Case 1: Wrapped response
       if (responseData && typeof responseData === 'object' && 'success' in responseData) {
         const coreApiResponse = responseData as CoreApiResponse<any>;
         if (coreApiResponse.success && coreApiResponse.data) {
@@ -211,16 +165,12 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
         } else if (!coreApiResponse.success) {
           throw new Error(coreApiResponse.message || `API returned success:false for affiliate ${id}`);
         }
-      } 
-      // Case 2: Direct object response
-      else if (responseData && typeof responseData === 'object' && ('id' in responseData || 'user_id' in responseData)) {
+      } else if (responseData && typeof responseData === 'object' && ('id' in responseData || 'user_id' in responseData)) {
         rawData = responseData;
       }
 
       if (rawData) {
-        // Normalize data: use user_id as fallback for id
         if (!rawData.id && rawData.user_id) {
-
           rawData.id = rawData.user_id;
         }
 
@@ -230,7 +180,6 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
         }
       }
 
-      // If we fall through, the format is invalid
       throw new Error(`Affiliate data for ${id} not found or invalid response structure.`);
     } catch (err: any) {
       setError({
@@ -257,7 +206,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       const coreApiResponse: CoreApiResponse<Affiliate> = axiosResponse.data;
 
       if (coreApiResponse && coreApiResponse.success && coreApiResponse.data) {
-        const createdAffiliate: Affiliate = coreApiResponse.data as Affiliate; 
+        const createdAffiliate: Affiliate = coreApiResponse.data as Affiliate;
         setAffiliates([createdAffiliate, ...get().affiliates]);
         setLoading(false);
         return createdAffiliate;
@@ -297,7 +246,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       const coreApiResponse: CoreApiResponse<Affiliate> = axiosResponse.data;
 
       if (coreApiResponse && coreApiResponse.success && coreApiResponse.data) {
-        const updatedAffiliateInstance: Affiliate = coreApiResponse.data as Affiliate; 
+        const updatedAffiliateInstance: Affiliate = coreApiResponse.data as Affiliate;
         const currentSingleAffiliate = get().affiliate;
         if (currentSingleAffiliate && currentSingleAffiliate.id === id) {
           setAffiliate(updatedAffiliateInstance);
@@ -332,98 +281,43 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     return updateAffiliate(affiliateId, statusData as Partial<AffiliateFormValues>, headers);
   },
 
-  uploadKycDocuments: async (affiliateId: string, documents: VerificationDocument[], headers?: Record<string, string>) => {
-    const { setActiveAction, setLoading, setError, fetchAffiliate } = get();
-    setActiveAction('uploadKyc');
+  fetchAffiliateRequests: async (
+    filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string } = {},
+    headers?: Record<string, string>
+  ): Promise<{ requests: AffiliateRequest[]; total: number }> => {
+    const { affiliate_id, vendor_id, ...otherFilters } = filter;
+
+    const { setLoading, setError } = get();
     setLoading(true);
-    let axiosResponse;
+    setError(null);
+    
     try {
-      axiosResponse = await apiClient.post<any>( // apiClient.post returns AxiosResponse<CoreApiResponse<any>>
-        `/winga/${affiliateId}/kyc-documents`,
-        { documents }, 
-        headers        
-      );
-      const coreApiResponse: CoreApiResponse<any> = axiosResponse.data;
+      const endpoint = affiliate_id 
+        ? `/winga/affiliate/${affiliate_id}/requests`
+        : `/winga/vendor/${vendor_id}/requests`;
 
-      if (coreApiResponse && coreApiResponse.success) {
-        setLoading(false);
-        fetchAffiliate(affiliateId); 
-      } else {
-
-        setError({
-          message: coreApiResponse?.message || `Failed to upload KYC for affiliate ${affiliateId}.`,
-          status: axiosResponse.status, // HTTP status from the main axios response
-          action: 'uploadKyc',
-        });
-        setLoading(false); 
-      }
-    } catch (err: any) {
-      setLoading(false);
-      setError({
-        message: err.message || 'An unexpected error occurred while uploading KYC documents.',
-        status: err.response?.status || (axiosResponse ? axiosResponse.status : undefined),
-        details: err.response?.data?.errors || err,
-        action: 'uploadKyc',
-      });
-    }
-  },
-
-  fetchVendorPartnerRequests: async (affiliateId: string, filter: VendorPartnerRequestFilter = {}, headers?: Record<string, string>) => {
-    const { setActiveAction, setVendorPartnerRequestsLoading, setVendorPartnerRequestsError, setVendorPartnerRequests, setVendorPartnerRequestsPagination } = get();
-    setActiveAction('fetchVendorPartnerRequests');
-    setVendorPartnerRequestsLoading(true);
-    set({ vendorPartnerRequests: [], vendorPartnerRequestsError: null }); // Reset state
-
-    try {
-      const queryParams = new URLSearchParams();
-      queryParams.append('skip', (filter.skip ?? initialPagination.skip).toString());
-      queryParams.append('limit', (filter.limit ?? initialPagination.limit).toString());
-      if (filter.status) queryParams.append('status', filter.status);
-
-      const axiosResponse = await apiClient.get<any>(
-        `/winga/affiliate/${affiliateId}/requests`,
-        { params: queryParams },
+      const response = await apiClient.get<ApiResponse<{ requests: AffiliateRequest[]; total: number }>>(
+        endpoint,
+        otherFilters,
         headers
       );
 
-      const responseData = axiosResponse.data;
-      let serverPayload: VendorPartnerRequestsApiResponseData | null = null;
-
-      // Case 1: Wrapped response
-      if (responseData && typeof responseData === 'object' && 'success' in responseData) {
-        const coreApiResponse = responseData as CoreApiResponse<VendorPartnerRequestsApiResponseData>;
-        if (coreApiResponse.success && coreApiResponse.data) {
-          serverPayload = coreApiResponse.data;
-        } else if (!coreApiResponse.success) {
-          throw new Error(coreApiResponse.message || 'API returned success:false for vendor partner requests');
-        }
+      const responseData = response.data;
+      if (responseData?.requests) {
+        return responseData;
       }
-      // Case 2: Direct object response
-      else if (responseData && typeof responseData === 'object' && 'requests' in responseData && 'total' in responseData) {
-        serverPayload = responseData as VendorPartnerRequestsApiResponseData;
-      }
-
-      if (serverPayload) {
-        setVendorPartnerRequests(serverPayload.requests || []);
-        setVendorPartnerRequestsPagination({
-          skip: filter.skip ?? initialPagination.skip,
-          limit: filter.limit ?? initialPagination.limit,
-          currentPage: serverPayload.currentPage ?? Math.floor((filter.skip ?? initialPagination.skip) / (filter.limit ?? initialPagination.limit)) + 1,
-          totalRequests: serverPayload.total,
-        });
-      } else {
-        throw new Error('Vendor partner requests data not found or invalid response structure.');
-      }
-    } catch (err: any) {
-      setVendorPartnerRequestsError({
-        message: err.response?.data?.message || err.message || 'An unexpected error occurred.',
-        status: err.response?.status,
-        details: err.response?.data?.errors || err.stack,
-        action: 'fetchVendorPartnerRequests',
+      
+      throw new Error('Invalid response structure from server');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch requests';
+      setError({
+        message: errorMessage,
+        status: error.response?.status,
+        action: 'fetchRequests' as AffiliateAction,
       });
+      throw error;
     } finally {
-        setVendorPartnerRequestsLoading(false);
+      setLoading(false);
     }
-  }
-
+  },
 }));

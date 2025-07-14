@@ -250,7 +250,6 @@ export default function VendorsPage() {
                 onStatusChange={handleStatusChange}
                 activeTab={activeTab}
               />
-              {console.log(vendors)}
               <Pagination
                 currentPage={currentPage}
                 pageSize={pageSize}

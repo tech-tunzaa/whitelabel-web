@@ -16,12 +16,37 @@ export interface PaginationMeta {
   totalPages?: number;
 }
 
-export type AffiliatesApiResponseData = {
-  affiliates: Affiliate[];
+// Base response type for paginated lists
+type PaginatedResponse<T> = {
   total: number;
   currentPage?: number;
-  // Potentially other pagination fields if the API returns them directly in `data`
-  // and not just in `meta`. For now, sticking to what's in the generic type in store.ts.
+  items: T[];
+};
+
+export type AffiliatesApiResponseData = PaginatedResponse<Affiliate> & {
+  affiliates: Affiliate[];
+};
+
+export type AffiliateRequestsApiResponseData = PaginatedResponse<AffiliateRequest> & {
+  requests: AffiliateRequest[];
+};
+
+export type AffiliateRequest = {
+  id: string;
+  affiliate_id: string;
+  request_type: string;
+  vendor_id: string;
+  product_id: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  message: string | null;
+  response_message: string | null;
+  created_at: string;
+  updated_at: string | null;
+  responded_at: string | null;
+  // Joined fields
+  vendor_name?: string;
+  product_name?: string;
+  affiliate_name?: string;
 };
 
 // Verification Document Type
@@ -144,7 +169,9 @@ export type AffiliateAction =
   | 'activate'
   | 'deactivate'
   | 'uploadKyc'
-  | 'fetchVendorPartnerRequests';
+  | 'fetchVendorPartnerRequests'
+  | 'fetchAffiliateRequests'
+  | 'fetchRequests';
 
 export type AffiliateStatus = "pending" | "approved" | "rejected";
 

@@ -69,7 +69,7 @@ import { VerificationDocumentManager, VerificationActionPayload } from "@/compon
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { VendorRejectionModal } from "@/features/vendors/components/vendor-rejection-modal";
 import { useAffiliateStore } from "@/features/affiliates/store";
-import { AffiliateTable } from "@/features/affiliates/components/affiliate-table";
+import { AffiliateRequestsTable } from "@/features/affiliates/components/affiliate-requests-table";
 
 interface VendorPageProps {
   params: {
@@ -996,54 +996,60 @@ export default function VendorPage({ params }: VendorPageProps) {
 
   function AffiliatesTab({ vendorId, tenantId }: AffiliatesTabProps) {
     const router = useRouter();
-    const { fetchAffiliates, updateAffiliateStatus, affiliates, loading } =
-      useAffiliateStore();
+    const { fetchAffiliateRequests } = useAffiliateStore();
+    const [requests, setRequests] = useState<AffiliateRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<{ message: string; status?: number } | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
     const [activeTab, setActiveTab] = useState("all");
+    const [pagination, setPagination] = useState({
+      skip: 0,
+      limit: 10,
+      total: 0,
+    });
   
     // Debounce search query
     useEffect(() => {
       const handler = setTimeout(() => {
         setDebouncedSearchQuery(searchQuery);
-      }, 500); // 500ms delay
+      }, 500);
   
-      return () => {
-        clearTimeout(handler);
-      };
+      return () => clearTimeout(handler);
     }, [searchQuery]);
   
-    // Define filter based on active tab
-    const getFilters = useCallback(() => {
-      const base: any = {
-        skip: 0,
-        limit: 10,
+    // Fetch affiliate requests
+    const fetchRequests = useCallback(async () => {
+      const headers: Record<string, string> = {};
+      if (tenantId) headers["X-Tenant-ID"] = tenantId;
+      
+      const filters = {
         vendor_id: vendorId,
+        skip: pagination.skip,
+        limit: pagination.limit,
+        ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
+        ...(activeTab !== "all" && { status: activeTab }),
       };
-      if (debouncedSearchQuery) base.search = debouncedSearchQuery;
-      if (activeTab !== "all") base.status = activeTab;
-      return base;
-    }, [vendorId, debouncedSearchQuery, activeTab]);
+  
+      try {
+        setLoading(true);
+        const { requests: data, total } = await fetchAffiliateRequests(filters, headers);
+        setRequests(data);
+        setPagination(prev => ({ ...prev, total }));
+        setError(null);
+      } catch (err: any) {
+        setError({
+          message: err.message || 'Failed to fetch affiliates',
+          status: err.status,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }, [vendorId, tenantId, pagination.skip, pagination.limit, debouncedSearchQuery, activeTab]);
   
     useEffect(() => {
-      const headers: Record<string, string> = {};
-      if (tenantId) headers["X-Tenant-ID"] = tenantId;
-      fetchAffiliates(getFilters(), headers);
-    }, [getFilters, tenantId, fetchAffiliates]);
-  
-    const handleStatusChange = async (
-      affiliateId: string,
-      status: string,
-      reason?: string
-    ) => {
-      const headers: Record<string, string> = {};
-      if (tenantId) headers["X-Tenant-ID"] = tenantId;
-      const payload: any = { verification_status: status };
-      if (status === "rejected") payload.rejection_reason = reason || "Rejected";
-      await updateAffiliateStatus(affiliateId, payload, headers);
-      // refresh list
-      fetchAffiliates(getFilters(), headers);
-    };
+      fetchRequests();
+    }, [fetchRequests]);
   
     return (
       <TabsContent value="affiliate" className="space-y-4 mt-4">
@@ -1069,18 +1075,20 @@ export default function VendorPage({ params }: VendorPageProps) {
           </TabsList>
   
           {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Spinner />
-            </div>
-          ) : (
-            <AffiliateTable
-              affiliates={affiliates}
-              onAffiliateClick={(affiliate) =>
-                router.push(`/dashboard/affiliates/${affiliate.id}`)
-              }
-              onStatusChange={handleStatusChange}
-              activeTab={activeTab}
+            <Spinner />
+          ) : error ? (
+            <ErrorCard
+              title="Failed to Load Affiliates"
+              error={{
+                status: error.status?.toString() || "Error",
+                message: error.message || "An unexpected error occurred while loading affiliates."
+              }}
+              buttonText="Retry"
+              buttonAction={fetchRequests}
+              buttonIcon={RefreshCw}
             />
+          ) : (
+            <AffiliateRequestsTable requests={requests} />
           )}
         </Tabs>
       </TabsContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { format } from "date-fns";
@@ -26,7 +26,8 @@ import {
   History,
   CalendarDays,
   Copy,
-  Power
+  Power,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -58,12 +59,220 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useAffiliateStore } from "@/features/affiliates/store";
-import { Affiliate, VerificationDocument, VendorPartnerRequest } from "@/features/affiliates/types";
+import {
+  Affiliate,
+  VerificationDocument,
+  VendorPartnerRequest,
+} from "@/features/affiliates/types";
 import { AffiliateVerificationDialog } from "@/features/affiliates/components";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 import { formatCurrency } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { AffiliateRequestsTable } from "@/features/affiliates/components/affiliate-requests-table";
+
+// Memoized VendorsTab component to prevent unnecessary re-renders
+const VendorsTab = React.memo(function VendorsTab({
+  affiliateId,
+  tenantId,
+}: {
+  affiliateId: string;
+  tenantId?: string;
+}) {
+  // Use a ref to store the current state without causing re-renders
+  const stateRef = useRef({
+    searchQuery: "",
+    activeTab: "all",
+    pagination: {
+      skip: 0,
+      limit: 10,
+      total: 0,
+    },
+  });
+
+  const [requests, setRequests] = useState<AffiliateRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
+  
+  const fetchData = useCallback(async () => {
+    let isMounted = true;
+    
+    const fetchRequest = async () => {
+      try {
+        setLoading(true);
+        const headers = tenantId ? { "X-Tenant-ID": tenantId } : {};
+        const { searchQuery, activeTab, pagination } = stateRef.current;
+        
+        const filters = {
+          affiliate_id: affiliateId,
+          // vendor_id: "3692f16f-d873-4b5d-9bc4-b3c180f4cd64", 
+          skip: pagination.skip,
+          limit: pagination.limit,
+          ...(searchQuery && { search: searchQuery }),
+          ...(activeTab !== "all" && { status: activeTab }),
+        };
+
+        const { fetchAffiliateRequests } = useAffiliateStore.getState();
+        const { requests: data, total } = await fetchAffiliateRequests(filters, headers);
+        
+        if (!isMounted) return;
+        
+        setRequests(data || []);
+        stateRef.current.pagination.total = total || 0;
+        setError(null);
+      } catch (err: any) {
+        if (!isMounted) return;
+        
+        if (err.status === 404) {
+          setRequests([]);
+          stateRef.current.pagination.total = 0;
+          setError({
+            message: 'No vendor partnerships found',
+            status: 404,
+          });
+        } else {
+          setError({
+            message: err.message || 'Failed to fetch vendor partners',
+            status: err.status,
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchRequest, 300);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [affiliateId, tenantId]);
+
+  // Update the ref when state changes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    stateRef.current.searchQuery = e.target.value;
+    stateRef.current.pagination.skip = 0; // Reset to first page
+    fetchData();
+  }, [fetchData]);
+
+  const handleTabChange = useCallback((value: string) => {
+    stateRef.current.activeTab = value;
+    stateRef.current.pagination.skip = 0; // Reset to first page
+    fetchData();
+  }, [fetchData]);
+
+  const handlePageChange = useCallback((newSkip: number) => {
+    stateRef.current.pagination.skip = newSkip;
+    fetchData();
+  }, [fetchData]);
+  
+  const handleStatusChange = async (requestId: string, status: string, reason?: string) => {
+    try {
+      setLoading(true);
+      const headers = tenantId ? { "X-Tenant-ID": tenantId } : {};
+      
+      // Make API call to update the request status
+      const response = await fetch(`/api/affiliates/requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          status,
+          ...(reason && { rejection_reason: reason })
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update request status');
+      }
+      
+      // Update the local state to reflect the change
+      setRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { 
+                ...req, 
+                status, 
+                ...(reason && { rejection_reason: reason }) 
+              } 
+            : req
+        )
+      );
+      
+      // Show success message
+      // You can add a toast notification here if needed
+    } catch (error) {
+      console.error('Failed to update request status:', error);
+      setError({
+        message: 'Failed to update request status',
+        status: 500,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    const cleanup = fetchData();
+    return () => {
+      cleanup.then(cleanupFn => cleanupFn?.());
+    };
+  }, [fetchData]);
+
+  return (
+    <TabsContent value="vendors" className="space-y-4 mt-4">
+      <div className="flex justify-between mb-4">
+        <div className="relative w-[300px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search vendors..."
+            className="pl-8"
+            defaultValue={stateRef.current.searchQuery}
+            onChange={handleSearchChange}
+            disabled={loading}
+          />
+        </div>
+      </div>
+
+      <Tabs value={stateRef.current.activeTab} onValueChange={handleTabChange}>
+        <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+        </TabsList>
+
+        {loading ? (
+          <Spinner />
+        ) : error ? (
+          <ErrorCard
+            title="Failed to Load Vendor Partners"
+            error={{
+              status: error.status?.toString() || "Error",
+              message:
+                error.message ||
+                "An unexpected error occurred while loading vendor partners.",
+            }}
+            buttonText="Retry"
+            buttonAction={() =>
+              handlePageChange(0)
+            }
+            buttonIcon={RefreshCw}
+          />
+        ) : (
+          <AffiliateRequestsTable requests={requests} />
+        )}
+      </Tabs>
+    </TabsContent>
+  );
+});
 
 export default function AffiliateDetailPage() {
   const router = useRouter();
@@ -80,19 +289,16 @@ export default function AffiliateDetailPage() {
     error: storeError,
     fetchAffiliate,
     updateAffiliateStatus,
-    vendorPartnerRequests,
-    vendorPartnerRequestsLoading,
-    vendorPartnerRequestsError,
-    fetchVendorPartnerRequests,
   } = useAffiliateStore();
-
 
   // UI States
   const [activeTab, setActiveTab] = useState("overview");
   const [isUpdating, setIsUpdating] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [pendingAction, setPendingAction] = useState<null | 'approve' | 'reject' | 'activate' | 'deactivate'>(null);
+  const [pendingAction, setPendingAction] = useState<
+    null | "approve" | "reject" | "activate" | "deactivate"
+  >(null);
 
   // Document and Verification States
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -100,7 +306,6 @@ export default function AffiliateDetailPage() {
   const [verificationDoc, setVerificationDoc] =
     useState<VerificationDocument | null>(null);
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
-
 
   // Define tenant headers
   const tenantHeaders = {
@@ -110,40 +315,38 @@ export default function AffiliateDetailPage() {
   // Fetch affiliate by id ONCE
   useEffect(() => {
     if (id && tenantId) {
-      fetchAffiliate(id as string, { 'x-tenant-id': tenantId });
+      fetchAffiliate(id, tenantHeaders);
     }
   }, [id, tenantId, fetchAffiliate]);
 
-  // Fetch vendor partner requests when affiliate is loaded
-  useEffect(() => {
-    if (affiliate && affiliate.id && tenantId) {
-      fetchVendorPartnerRequests(affiliate.id, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId });
-    }
-  }, [affiliate, tenantId, fetchVendorPartnerRequests]);
-
- 
-
   // Unified status change handler
-  const handleStatusChange = async (action: 'approve' | 'reject' | 'activate' | 'deactivate', reason?: string) => {
+  const handleStatusChange = async (
+    action: "approve" | "reject" | "activate" | "deactivate",
+    reason?: string
+  ) => {
     if (!affiliate?.id) return;
     setIsUpdating(true);
     try {
       let statusData: any = {};
       switch (action) {
-        case 'approve':
-          statusData = { status: 'approved', is_active: true };
+        case "approve":
+          statusData = { status: "approved", is_active: true };
           break;
-        case 'reject':
-          statusData = { status: 'rejected', rejection_reason: reason };
+        case "reject":
+          statusData = { status: "rejected", rejection_reason: reason };
           break;
-        case 'activate':
+        case "activate":
           statusData = { is_active: true };
           break;
-        case 'deactivate':
-          statusData = { is_active: false, status: 'inactive' };
+        case "deactivate":
+          statusData = { is_active: false, status: "inactive" };
           break;
       }
-      const result = await updateAffiliateStatus(affiliate.id, statusData, tenantHeaders);
+      const result = await updateAffiliateStatus(
+        affiliate.id,
+        statusData,
+        tenantHeaders
+      );
       if (result) {
         toast.success(`Affiliate ${action}d successfully`);
         fetchAffiliate(affiliate.id, tenantHeaders);
@@ -161,30 +364,23 @@ export default function AffiliateDetailPage() {
   };
 
   // Button handlers
-  const handleApprove = () => handleStatusChange('approve');
-  const handleActivate = () => handleStatusChange('activate');
-  const handleDeactivate = () => handleStatusChange('deactivate');
+  const handleApprove = () => handleStatusChange("approve");
+  const handleActivate = () => handleStatusChange("activate");
+  const handleDeactivate = () => handleStatusChange("deactivate");
   const handleReject = () => {
     setShowRejectDialog(true);
-    setPendingAction('reject');
+    setPendingAction("reject");
   };
   const handleRejectConfirm = () => {
     if (!rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason.');
+      toast.error("Please provide a rejection reason.");
       return;
     }
-    handleStatusChange('reject', rejectionReason.trim());
+    handleStatusChange("reject", rejectionReason.trim());
   };
 
   const handleEdit = () => {
     router.push(`/dashboard/affiliates/${id}/edit`);
-  };
-
-  const handleRefresh = () => {
-    // Refresh affiliate details
-    fetchAffiliate(id as string, tenantHeaders);
-
-    // TODO: refresh vendorPartners as well
   };
 
   // Helper functions
@@ -249,7 +445,7 @@ export default function AffiliateDetailPage() {
     return new Intl.DateTimeFormat("en-US", options).format(dateObj);
   };
 
-  if (loading) {
+  if (loading && !affiliate) {
     return <Spinner />;
   }
 
@@ -269,7 +465,6 @@ export default function AffiliateDetailPage() {
     );
   }
 
-  console.log("Render case: Rendering main content");
   // Main content for an existing affiliate
   return affiliate ? (
     <div className="flex flex-col h-full">
@@ -373,8 +568,7 @@ export default function AffiliateDetailPage() {
               </TabsList>
 
               <OverviewTab />
-              <VendorsTab />
-
+              <VendorsTab affiliateId={affiliate.id} tenantId={tenantId} />
             </Tabs>
           </div>
 
@@ -405,7 +599,8 @@ export default function AffiliateDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Affiliate</AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide a reason for rejecting this affiliate. This information may be shared with the affiliate.
+              Please provide a reason for rejecting this affiliate. This
+              information may be shared with the affiliate.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
@@ -413,12 +608,17 @@ export default function AffiliateDetailPage() {
               className="w-full border rounded p-2 min-h-[80px]"
               placeholder="Enter rejection reason..."
               value={rejectionReason}
-              onChange={e => setRejectionReason(e.target.value)}
+              onChange={(e) => setRejectionReason(e.target.value)}
               disabled={isUpdating}
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isUpdating} onClick={() => setShowRejectDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={isUpdating}
+              onClick={() => setShowRejectDialog(false)}
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRejectConfirm}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -454,12 +654,8 @@ export default function AffiliateDetailPage() {
                     {getInitials(affiliate?.name || "W")}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="text-lg font-medium">
-                  {affiliate?.name}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Affiliate
-                </p>
+                <h3 className="text-lg font-medium">{affiliate?.name}</h3>
+                <p className="text-sm text-muted-foreground">Affiliate</p>
                 {affiliate?.status && (
                   <Badge
                     variant="outline"
@@ -471,9 +667,7 @@ export default function AffiliateDetailPage() {
                         : "text-amber-600 border-amber-200 bg-amber-50"
                     }`}
                   >
-                    {affiliate?.status
-                      .charAt(0)
-                      .toUpperCase() +
+                    {affiliate?.status.charAt(0).toUpperCase() +
                       affiliate?.status.slice(1)}
                   </Badge>
                 )}
@@ -568,7 +762,12 @@ export default function AffiliateDetailPage() {
                   </span>
                   <span className="text-sm font-mono inline-flex items-center gap-2 truncate max-w-xs">
                     <span className="truncate">{affiliate?.id || "N/A"}</span>
-                    <Copy className="h-4 w-4 shrink-0 cursor-pointer" onClick={() => navigator.clipboard.writeText(affiliate?.id || "N/A")} />
+                    <Copy
+                      className="h-4 w-4 shrink-0 cursor-pointer"
+                      onClick={() =>
+                        navigator.clipboard.writeText(affiliate?.id || "N/A")
+                      }
+                    />
                   </span>
                 </div>
               </div>
@@ -579,19 +778,19 @@ export default function AffiliateDetailPage() {
           <div className="col-span-2 space-y-6">
             {/* Biography Card */}
             {affiliate?.bio && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Info className="h-5 w-5 text-primary" />
-                  Biography
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {affiliate.bio}
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5 text-primary" />
+                    Biography
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {affiliate.bio}
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
             {/* Bank Account Details */}
@@ -614,18 +813,14 @@ export default function AffiliateDetailPage() {
                       </div>
 
                       <div>
-                        <p className="text-sm font-medium">
-                          Account Name
-                        </p>
+                        <p className="text-sm font-medium">Account Name</p>
                         <p className="text-sm">
                           {affiliate?.bank_account.account_name}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-sm font-medium">
-                          Account Number
-                        </p>
+                        <p className="text-sm font-medium">Account Number</p>
                         <p className="text-sm font-mono">
                           {affiliate?.bank_account.account_number}
                         </p>
@@ -633,9 +828,7 @@ export default function AffiliateDetailPage() {
 
                       {affiliate?.bank_account.swift_bic && (
                         <div>
-                          <p className="text-sm font-medium">
-                            SWIFT/BIC
-                          </p>
+                          <p className="text-sm font-medium">SWIFT/BIC</p>
                           <p className="text-sm font-mono">
                             {affiliate?.bank_account.swift_bic}
                           </p>
@@ -644,9 +837,7 @@ export default function AffiliateDetailPage() {
 
                       {affiliate?.bank_account.branch_code && (
                         <div>
-                          <p className="text-sm font-medium">
-                            Branch Code
-                          </p>
+                          <p className="text-sm font-medium">Branch Code</p>
                           <p className="text-sm font-mono">
                             {affiliate?.bank_account.branch_code}
                           </p>
@@ -667,95 +858,6 @@ export default function AffiliateDetailPage() {
     );
   }
 
-  function VendorsTab() {
-    const activePartners = vendorPartnerRequests.filter(p => p.status === 'approved' || p.status === 'active');
-
-    const renderContent = () => {
-      if (vendorPartnerRequestsLoading) {
-        return (
-          <div className="flex items-center justify-center py-10">
-            <Spinner />
-          </div>
-        );
-      }
-
-      if (vendorPartnerRequestsError) {
-        return (
-          <ErrorCard
-            title="Failed to Load Partnerships"
-            error={{
-              status: vendorPartnerRequestsError?.status?.toString() || "Error",
-              message: vendorPartnerRequestsError?.message || "An unexpected error occurred."
-            }}
-            buttonText="Retry"
-            buttonAction={() => {
-              if (affiliate?.id && tenantId) {
-                fetchVendorPartnerRequests(affiliate.id, { skip: 0, limit: 10 }, { 'x-tenant-id': tenantId });
-              }
-            }}
-            buttonIcon={RefreshCw}
-          />
-        );
-      }
-
-      if (activePartners.length === 0) {
-        return (
-          <div className="flex flex-col items-center justify-center text-center py-10">
-            <Building className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">No Partnerships</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              This affiliate does not have any vendor partnerships yet.
-            </p>
-          </div>
-        );
-      }
-
-      return (
-        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-          {activePartners.map((partner) => (
-            <li key={partner.vendor_id} className="py-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-10 w-10 border">
-                  {/* Assuming vendor_name exists. Add a fallback. */}
-                  <AvatarFallback>{partner.vendor_name?.charAt(0).toUpperCase() || 'V'}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{partner.vendor_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Joined: {format(new Date(partner.joined_at), "PPP")}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-sm text-green-600">{partner.commission_rate}%</p>
-                <p className="text-xs text-muted-foreground">Commission</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      );
-    };
-
-    return (
-      <TabsContent value="vendors" className="space-y-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <StoreIcon className="h-5 w-5 text-primary" />
-              Active Vendor Partners
-            </CardTitle>
-            <CardDescription>
-              Vendors this affiliate is actively partnered with.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {renderContent()}
-          </CardContent>
-        </Card>
-      </TabsContent>
-    );
-  }
-
   function Sidebar() {
     return (
       <div className="md:col-span-2 space-y-6">
@@ -772,13 +874,21 @@ export default function AffiliateDetailPage() {
               documents={affiliate?.verification_documents || []}
               onApprove={async (documentId) => {
                 if (affiliate?.id) {
-                  await updateAffiliateStatus(affiliate.id, { status: "approved", is_active: true }, tenantHeaders);
+                  await updateAffiliateStatus(
+                    affiliate.id,
+                    { status: "approved", is_active: true },
+                    tenantHeaders
+                  );
                   fetchAffiliate(affiliate.id, tenantHeaders);
                 }
               }}
               onReject={async (documentId, reason) => {
                 if (affiliate?.id) {
-                  await updateAffiliateStatus(affiliate.id, { status: "rejected", rejection_reason: reason }, tenantHeaders);
+                  await updateAffiliateStatus(
+                    affiliate.id,
+                    { status: "rejected", rejection_reason: reason },
+                    tenantHeaders
+                  );
                   fetchAffiliate(affiliate.id, tenantHeaders);
                 }
               }}
@@ -801,8 +911,9 @@ export default function AffiliateDetailPage() {
                 <h4 className="text-sm font-medium">Verification</h4>
                 <div className="flex flex-col gap-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="text-green-500 border-green-200 hover:bg-green-50 hover:text-green-600 w-full justify-start"
+                    className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 w-full justify-start"
                     onClick={handleApprove}
                     disabled={isUpdating}
                   >
@@ -863,7 +974,8 @@ export default function AffiliateDetailPage() {
                     onClick={handleApprove}
                     disabled={isUpdating}
                   >
-                    <Check className="h-4 w-4 mr-2" /> Reconsider Affiliate Approval
+                    <Check className="h-4 w-4 mr-2" /> Reconsider Affiliate
+                    Approval
                   </Button>
                 </div>
               </div>
@@ -884,6 +996,6 @@ export default function AffiliateDetailPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 }
