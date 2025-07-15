@@ -86,9 +86,7 @@ export default function EditProductPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Spinner />
-      </div>
+      <Spinner />
     );
   }
 
@@ -113,7 +111,7 @@ export default function EditProductPage() {
         initialData={product}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
-        title={`Edit ${product.name}`}
+        title={`Edit Product: ${product.name}`}
         description="Update your product information"
         isSubmitting={isSubmitting}
       />

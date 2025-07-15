@@ -147,7 +147,7 @@ export function ProductTable({
                   className="hover:bg-muted/50"
                 >
                   <TableCell
-                    className="font-medium cursor-pointer hover:underline"
+                    className="font-medium cursor-pointer"
                     onClick={() => onProductClick(product)}
                   >
                     <div className="flex items-center gap-3">

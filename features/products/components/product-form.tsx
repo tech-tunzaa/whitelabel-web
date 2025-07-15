@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, X, Plus, Save, Trash } from "lucide-react";
+import { ArrowLeft, X, Plus, Save, Trash, CheckCircle2, XCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -107,7 +107,6 @@ const defaultValues: Partial<ProductFormValues> = {
   is_active: true,
   is_featured: false,
   promotion: null,
-  store_id: "b93e8a0a-3c2f-42c1-8ef0-b05ba15956fb",
 };
 
 interface ProductFormProps {
@@ -171,6 +170,14 @@ export function ProductForm({
   // Get tenant ID from session
   const { data: session } = useSession();
   const tenantId = (session?.user as any)?.tenant_id || "";
+
+  // --- New state for vendor/store logic ---
+  const [selectedVendorId, setSelectedVendorId] = useState<string>(initialData?.vendor_id || "");
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
+  const [stores, setStores] = useState<any[]>([]);
+  const [storeId, setStoreId] = useState<string>(initialData?.store_id || "");
+  const [storeLoading, setStoreLoading] = useState(false);
+  const [storeFound, setStoreFound] = useState(false);
 
   // Helper function to resolve default values for the form
   const getResolvedDefaultValues = () => {
@@ -351,17 +358,80 @@ export function ProductForm({
     externalIsSubmitting || internalIsSubmitting || isImageUploading;
 
   // Load vendors and categories
-  const { vendors, fetchVendors } = useVendorStore();
+  const { vendors, fetchVendors, fetchVendor, fetchStoreByVendor } = useVendorStore();
   const { categories, fetchCategories } = useCategoryStore();
 
+  // Fetch vendors and categories on mount
   useEffect(() => {
-    // Fetch vendors and categories with tenant ID
     if (tenantId) {
       const headers = { "X-Tenant-ID": tenantId };
       fetchVendors({}, headers);
       fetchCategories({}, headers);
     }
   }, [fetchVendors, fetchCategories, tenantId]);
+
+  // Fetch vendor and stores when selectedVendorId changes
+  useEffect(() => {
+    let ignore = false;
+    async function fetchVendorAndStores() {
+      if (selectedVendorId && tenantId) {
+        setStoreLoading(true);
+        try {
+          const headers = { "X-Tenant-ID": tenantId };
+          const vendor = await fetchVendor(selectedVendorId, headers);
+          if (ignore) return;
+          setSelectedVendor(vendor);
+          let vendorStores = [];
+          if (vendor.stores && Array.isArray(vendor.stores) && vendor.stores.length > 0) {
+            vendorStores = vendor.stores;
+          } else {
+            // fallback: fetch stores by vendor if not present
+            vendorStores = await fetchStoreByVendor(selectedVendorId, headers);
+          }
+          setStores(vendorStores);
+          if (vendorStores.length > 0) {
+            setStoreId(vendorStores[0].store_id || "");
+            setStoreFound(true);
+            form.setValue("store_id", vendorStores[0].store_id || "");
+          } else {
+            setStoreId("");
+            setStoreFound(false);
+            form.setValue("store_id", "");
+            toast.error("Selected vendor has no store. Please add a store for this vendor before creating a product.");
+          }
+        } catch {
+          setSelectedVendor(null);
+          setStores([]);
+          setStoreId("");
+          setStoreFound(false);
+          form.setValue("store_id", "");
+        } finally {
+          setStoreLoading(false);
+        }
+      } else {
+        setSelectedVendor(null);
+        setStores([]);
+        setStoreId("");
+        setStoreFound(false);
+        form.setValue("store_id", "");
+      }
+    }
+    fetchVendorAndStores();
+    return () => { ignore = true; };
+  }, [selectedVendorId, tenantId, fetchVendor, fetchStoreByVendor, form]);
+
+  // Keep form store_id in sync with storeId state
+  useEffect(() => {
+    if (storeId) {
+      form.setValue("store_id", storeId);
+    }
+  }, [storeId]);
+
+  // When initialData changes (edit mode), update selectedVendorId and storeId
+  useEffect(() => {
+    if (initialData?.vendor_id) setSelectedVendorId(initialData.vendor_id);
+    if (initialData?.store_id) setStoreId(initialData.store_id);
+  }, [initialData?.vendor_id, initialData?.store_id]);
 
   // Handle form submission
   const handleFormSubmit = async (data: ProductFormValues) => {
@@ -537,31 +607,79 @@ export function ProductForm({
                   <FormLabel>
                     Vendor <RequiredField />
                   </FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a vendor" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {vendors?.items?.map((vendor) => (
-                        <SelectItem
-                          key={vendor.vendor_id}
-                          value={vendor.vendor_id}
-                        >
-                          {vendor.business_name || vendor.display_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        setSelectedVendorId(val);
+                      }}
+                      defaultValue={field.value}
+                      value={selectedVendorId}
+                      disabled={storeLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a vendor" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vendors?.items?.map((vendor) => (
+                          <SelectItem
+                            key={vendor.vendor_id}
+                            value={vendor.vendor_id}
+                          >
+                            {vendor.business_name || vendor.display_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {/* Store found indicator */}
+                    {storeLoading ? (
+                      <span className="text-xs text-muted-foreground animate-pulse">Loading store...</span>
+                    ) : storeFound ? (
+                      <CheckCircle2 aria-label="Store found" className="h-5 w-5 text-green-600" />
+                    ) : selectedVendorId ? (
+                      <XCircle aria-label="No store found" className="h-5 w-5 text-destructive" />
+                    ) : null}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {/* Store selection dropdown if multiple stores */}
+            {stores.length > 1 && (
+              <FormField
+                control={form.control}
+                name="store_id"
+                render={({ field }) => (
+                  <FormItem className="mt-4">
+                    <FormLabel>Store <RequiredField /></FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        setStoreId(val);
+                      }}
+                      value={storeId}
+                      disabled={storeLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a store" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {stores.map((store) => (
+                          <SelectItem key={store.store_id} value={store.store_id}>
+                            {store.store_name || store.store_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
 
           <Card>
@@ -770,18 +888,18 @@ export function ProductForm({
                     Add
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-1">
                   {field.value?.map((tag, index) => (
                     <div
                       key={index}
-                      className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
+                      className="bg-secondary text-secondary-foreground text-sm px-2 py-1 rounded-md flex items-center gap-1.5"
                     >
                       {tag}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-5 w-5 p-0"
+                        className="h-5 w-5 p-0 hover:cursor-pointer hover:text-destructive"
                         onClick={() => removeTag(tag)}
                       >
                         <span className="sr-only">Remove</span>
@@ -836,7 +954,7 @@ export function ProductForm({
                   />
                 </FormControl>
                 <FormDescription>
-                  The original price of the product
+                  Original/base price (strikethrough if discounted)
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -859,7 +977,9 @@ export function ProductForm({
                     placeholder="0.00"
                   />
                 </FormControl>
-                <FormDescription>Current selling price</FormDescription>
+                <FormDescription>
+                  Price buyers pay (discounted)
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -880,7 +1000,7 @@ export function ProductForm({
                   />
                 </FormControl>
                 <FormDescription>
-                  Your cost (not shown to customers)
+                  For profit calculation only (hidden from users)
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1332,7 +1452,7 @@ const VariantsTab = React.memo(
               }
             }}
           >
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg max-h-[95vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingVariantIndex !== null
