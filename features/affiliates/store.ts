@@ -118,7 +118,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     set({ vendorPartnerRequestsPagination: { skip, limit, currentPage }, totalVendorPartnerRequests: totalRequests, vendorPartnerRequestsLoading: false }),
 
   fetchAffiliates: async (filter: AffiliateFilter = {}, headers?: Record<string, string>) => {
-    const { setLoading, setError, setAffiliates } = get();
+    const { setLoading, setError, setAffiliates, setPagination } = get();
     setLoading(true);
 
     try {
@@ -131,6 +131,12 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       const responseData = response.data;
       if (responseData?.affiliates) {
         setAffiliates(responseData.affiliates);
+        setPagination({
+          skip: filter.skip || 0,
+          limit: filter.limit || 10,
+          currentPage: Math.floor((filter.skip || 0) / (filter.limit || 10)) + 1,
+          totalAffiliates: responseData.total || 0,
+        });
         setError(null);
       } else {
         throw new Error('Invalid response structure from server');
@@ -290,9 +296,9 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     const { setLoading, setError } = get();
     setLoading(true);
     setError(null);
-    
+
     try {
-      const endpoint = affiliate_id 
+      const endpoint = affiliate_id
         ? `/winga/affiliate/${affiliate_id}/requests`
         : `/winga/vendor/${vendor_id}/requests`;
 
@@ -306,7 +312,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       if (responseData?.requests) {
         return responseData;
       }
-      
+
       throw new Error('Invalid response structure from server');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch requests';

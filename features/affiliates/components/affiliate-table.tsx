@@ -144,7 +144,7 @@ export function AffiliateTable({
     }
   };
 
-  const getStatusBadge = (affiliate: Affiliate) => {
+  const getApprovalStatusBadge = (affiliate: Affiliate) => {
     if (affiliate.status === "rejected") {
       return <Badge variant="destructive">Rejected</Badge>;
     }
@@ -152,10 +152,7 @@ export function AffiliateTable({
       return <Badge variant="outline">Pending</Badge>;
     }
     if (affiliate.status === "approved") {
-      if (affiliate.is_active) {
-        return <Badge variant="success">Active</Badge>;
-      }
-      return <Badge variant="secondary">Inactive (Approved)</Badge>;
+      return <Badge variant="secondary">Approved</Badge>;
     }
     return <Badge variant="outline">{affiliate.status || "Unknown"}</Badge>;
   };
@@ -187,7 +184,8 @@ export function AffiliateTable({
               <TableHead>Affiliate Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Approval Status</TableHead>
+              {/* <TableHead>Status</TableHead> */}
               <TableHead>Date Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -211,7 +209,8 @@ export function AffiliateTable({
                   <TableCell className="font-medium">{affiliate.name || "N/A"}</TableCell>
                   <TableCell>{affiliate.email || "N/A"}</TableCell>
                   <TableCell>{affiliate.phone || "N/A"}</TableCell>
-                  <TableCell>{getStatusBadge(affiliate)}</TableCell>
+                  <TableCell>{getApprovalStatusBadge(affiliate)}</TableCell>
+                  {/* <TableCell>{getStatusBadge(affiliate)}</TableCell> */}
                   <TableCell>{formatDateSafely(affiliate.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -258,7 +257,7 @@ export function AffiliateTable({
                             </DropdownMenuItem>
                           </>
                         )}
-                        {affiliate.status === "approved" && affiliate.is_active && (
+                        {/* {affiliate.status === "approved" && affiliate.is_active && (
                           <DropdownMenuItem
                             onClick={() => handleLocalStatusChange(affiliate.user_id, 'deactivate')}
                             disabled={processingId === affiliate.user_id}
@@ -282,6 +281,20 @@ export function AffiliateTable({
                               <Power className="mr-2 h-4 w-4 text-green-500" />
                             )}
                             Activate
+                          </DropdownMenuItem>
+                        )} */}
+                        {affiliate.status === "approved" && (
+                          <DropdownMenuItem
+                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'reject')}
+                            disabled={processingId === affiliate.user_id}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            {processingId === affiliate.user_id && actionBeingProcessed === 'reject' ? (
+                              <Spinner size="sm" className="mr-2 h-4 w-4" />
+                            ) : (
+                              <XCircle className="mr-2 h-4 w-4" />
+                            )}
+                            Reject
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

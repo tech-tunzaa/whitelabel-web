@@ -932,7 +932,7 @@ export default function AffiliateDetailPage() {
               </div>
             )}
 
-            {affiliate?.status === "approved" && affiliate.is_active && (
+            {/* {affiliate?.status === "approved" && affiliate.is_active && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2">
                   <Button
@@ -962,6 +962,22 @@ export default function AffiliateDetailPage() {
                   </Button>
                 </div>
               </div>
+            )} */}
+
+            {affiliate?.status === "approved" && (
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
+                    onClick={handleReject}
+                    disabled={isUpdating}
+                  >
+                    <X className="h-4 w-4 mr-2" /> Reject Affiliate
+                  </Button>
+                </div>
+              </div>
             )}
 
             {affiliate?.status === "rejected" && (
@@ -974,7 +990,7 @@ export default function AffiliateDetailPage() {
                     onClick={handleApprove}
                     disabled={isUpdating}
                   >
-                    <Check className="h-4 w-4 mr-2" /> Reconsider Affiliate
+                    <Check className="h-4 w-4 mr-2" /> Approve Affiliate
                     Approval
                   </Button>
                 </div>

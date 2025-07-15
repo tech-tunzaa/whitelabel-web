@@ -37,8 +37,6 @@ export default function AffiliatesPage() {
   const [isTabLoading, setIsTabLoading] = useState(false);
   const pageSize = 10;
 
-  const tenantHeaders = tenantId ? { 'X-Tenant-ID': tenantId } : {};
-
   useEffect(() => {
     const baseFilter: any = {
       skip: (currentPage - 1) * pageSize,
@@ -240,9 +238,7 @@ export default function AffiliatesPage() {
           </TabsList>
           
           {isTabLoading || (loading && affiliates.length === 0) ? (
-            <div className="flex items-center justify-center flex-grow py-10">
-              <Spinner />
-            </div>
+            <Spinner />
           ) : storeError && affiliates.length === 0 ? (
              <ErrorCard
                 title="Failed to load affiliates for this tab"
@@ -287,15 +283,12 @@ export default function AffiliatesPage() {
                 onStatusChange={handleStatusChange}
                 activeTab={activeTab} // Pass activeTab if table needs it for conditional rendering of actions
               />
-              {totalAffiliates > 0 && (
-                <Pagination
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  totalItems={totalAffiliates}
-                  onPageChange={(page) => setCurrentPage(page)}
-                  className="mt-auto pt-4"
-                />
-              )}
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalAffiliates}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
             </div>
           )}
         </Tabs>

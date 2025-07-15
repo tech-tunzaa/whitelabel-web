@@ -23,7 +23,7 @@ import { AffiliateFormValues, affiliateSchema } from "../schema";
 import { RequiredField } from "@/components/ui/required-field";
 import { DocumentUpload, DocumentWithMeta } from "@/components/ui/document-upload";
 import { BankingInfoFields } from "../../../components/ui/banking-info-fields";
-import { DOCUMENT_TYPES } from "@/features/settings/data/document-types";
+import { DOCUMENT_TYPES } from "@/features/configurations/data/document-types";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
@@ -119,9 +119,9 @@ export function AffiliateForm({ initialData, onSubmit, isSubmitting = false, for
     name: "verification_documents",
   });
 
-  // Document types for DocumentUpload
+  // Document types for DocumentUpload (match vendor form)
   const mappedDocumentTypes = useMemo(() => {
-    return DOCUMENT_TYPES.map((docType) => ({
+    return DOCUMENT_TYPES.map((docType: any) => ({
       id: docType.id,
       name: docType.label,
       description: docType.description,
@@ -129,12 +129,28 @@ export function AffiliateForm({ initialData, onSubmit, isSubmitting = false, for
     }));
   }, []);
 
-  // DocumentUpload handlers
+  // DocumentUpload handlers (match vendor form)
   const handleUploadComplete = (doc: DocumentWithMeta) => {
-    appendDocument(doc);
+    if (!doc.document_url) {
+      toast.error("Upload failed: document URL is missing.");
+      console.error("Upload complete callback missing document_url", doc);
+      return;
+    }
+    // Map to the expected affiliate document type structure if needed
+    const newDocument = {
+      document_type: doc.document_type,
+      document_url: doc.document_url,
+      file_name: doc.file_name,
+      expires_at: doc.expires_at,
+      file_id: doc.file_id,
+      verification_status: "pending",
+      number: doc.number,
+    };
+    appendDocument(newDocument as any);
   };
   const handleDeleteDocument = (index: number) => {
     removeDocument(index);
+    toast.info("Document removed from list. Save changes to make it permanent.");
   };
 
   const tabFlow = ["basic", "banking", "documents", "review"];
@@ -408,25 +424,36 @@ export function AffiliateForm({ initialData, onSubmit, isSubmitting = false, for
 
   // Documents Tab
   function DocumentsTab() {
+    // Get the current documents from form state when tab is active
+    const formDocuments = useWatch({
+      control: form.control,
+      name: "verification_documents",
+      defaultValue: [],
+    });
+
+    // Log when documents change in form state (optional, for debugging)
+    useEffect(() => {
+      if (activeTab === "documents") {
+        console.log("Current documents in form state:", formDocuments);
+      }
+    }, [formDocuments, activeTab]);
+
     return (
-      <TabsContent value="documents" className="space-y-4 pt-4">
-          <div>
-            <CardTitle>Verification Documents</CardTitle>
-          </div>
-          <div className="space-y-4">
-            <div className="space-y-4">
-              <DocumentUpload
-                documents={documentFields as DocumentWithMeta[]}
-                documentTypes={mappedDocumentTypes}
-                onUploadComplete={handleUploadComplete}
-                onDelete={handleDeleteDocument}
-                label="Upload Verification Documents"
-                description="Upload identity documents, business licenses, and bank statements."
-                disabled={isSubmitting}
-              />
-            </div>
-            <Separator />
-          </div>
+      <TabsContent value="documents" className="space-y-6 pt-4">
+        <div>
+          <CardTitle>Verification Documents</CardTitle>
+        </div>
+        <div className="space-y-4">
+          <DocumentUpload
+            entityName="winga"
+            documents={documentFields as DocumentWithMeta[]}
+            onUploadComplete={handleUploadComplete}
+            onDelete={handleDeleteDocument}
+            disabled={isSubmitting}
+            label="Affiliate Documents"
+            description="Upload identity documents, business licenses, and bank statements."
+          />
+        </div>
       </TabsContent>
     );
   }
