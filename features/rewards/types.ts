@@ -1,4 +1,5 @@
 export interface RewardsConfig {
+  id: string;
   points_per_tzs: number;
   redemption_points: number;
   redemption_value_tzs: number;
@@ -7,6 +8,7 @@ export interface RewardsConfig {
 }
 
 export interface RewardsConfigResponse {
+  id: string;
   points_per_tzs: number;
   redemption_points: number;
   redemption_value_tzs: number;
@@ -74,13 +76,13 @@ export interface ReferralStats {
 }
 
 export interface RewardsAction {
-  type: 
-    | 'fetchConfig'
-    | 'updateConfig'
-    | 'fetchBalance'
-    | 'fetchReferrals'
-    | 'fetchReferralStats'
-    | 'fetchRedemptions';
+  type:
+  | 'fetchConfig'
+  | 'updateConfig'
+  | 'fetchBalance'
+  | 'fetchReferrals'
+  | 'fetchReferralStats'
+  | 'fetchRedemptions';
   status: 'idle' | 'loading' | 'success' | 'error';
   error?: string;
 }

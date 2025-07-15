@@ -30,7 +30,7 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       }
 
       console.log('Making API request to /rewards/config with tenant ID:', tenantId);
-      const response = await apiClient.get<RewardsConfigResponse>('/rewards/config', undefined,{ 'X-Tenant-ID': tenantId });
+      const response = await apiClient.get<RewardsConfigResponse>('/rewards/config', undefined, { 'X-Tenant-ID': tenantId });
 
       console.log('API Response:', response.data);
 
@@ -39,6 +39,7 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       }
 
       const config: RewardsConfig = {
+        id: response.data.id,
         points_per_tzs: response.data.points_per_tzs,
         redemption_points: response.data.redemption_points,
         redemption_value_tzs: response.data.redemption_value_tzs,
@@ -50,9 +51,9 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       set({ config, loading: false });
     } catch (error) {
       console.error('Failed to fetch rewards config:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error : new Error('Failed to load rewards configuration'),
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -61,7 +62,7 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
   updateConfig: async (updates: Partial<RewardsConfig>, tenantId: string) => {
     console.log('Updating rewards config with:', updates);
     const currentConfig = get().config;
-    
+
     if (!currentConfig) {
       throw new Error('No configuration loaded');
     }
@@ -75,6 +76,7 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       }
 
       const payload = {
+        id: updatedConfig.id,
         points_per_tzs: updatedConfig.points_per_tzs,
         redemption_points: updatedConfig.redemption_points,
         redemption_value_tzs: updatedConfig.redemption_value_tzs,
@@ -88,6 +90,7 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       console.log('Update API response:', response.data);
 
       const config: RewardsConfig = {
+        id: response.data.id,
         points_per_tzs: response.data.points_per_tzs,
         redemption_points: response.data.redemption_points,
         redemption_value_tzs: response.data.redemption_value_tzs,
@@ -98,9 +101,9 @@ export const useRewardsStore = create<RewardsStore>((set, get) => ({
       set({ config, loading: false });
     } catch (error) {
       console.error('Failed to update rewards config:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error : new Error('Failed to update rewards configuration'),
-        loading: false 
+        loading: false
       });
       throw error;
     }

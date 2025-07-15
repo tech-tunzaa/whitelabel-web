@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
+import { ErrorCard } from "@/components/ui/error-card";
 import { RewardsConfig } from "../types";
 import { useRewardsStore } from "../store";
 
