@@ -78,14 +78,8 @@ export const tenantFormSchema = z.object({
   languages: z.array(z.string()).min(1, {
     message: "At least one language is required.",
   }),
-  document_types: z.array(z.string()).min(1, {
-    message: "At least one document type is required.",
-  }),
-  vehicle_types: z.array(z.string()).min(1, {
-    message: "At least one vehicle type is required.",
-  }),
   fee: z.string().optional().or(z.literal("")),
-  trial_ends_at: z.string().optional().or(z.literal("")),
+  trial_ends_at: z.string().optional().nullable(),
   is_active: z.boolean().optional(),
   modules: modulesSchema,
   branding: brandingSchema.optional().nullable(),
