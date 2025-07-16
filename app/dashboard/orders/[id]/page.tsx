@@ -84,6 +84,7 @@ const OrderPage = () => {
   const handleTabChange = (value: "overview" | "payment") => setActiveTab(value);
   const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>({});
   const [currentTransaction, setCurrentTransaction] = useState<any>(null);
+  const [loadingTransactionId, setLoadingTransactionId] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -254,14 +255,17 @@ const OrderPage = () => {
   useEffect(() => {
     const fetchTransactionData = async () => {
       if (expandedTransaction) {
+        setLoadingTransactionId(expandedTransaction);
         try {
           const transaction = await fetchTransaction(expandedTransaction, {
             'X-Tenant-ID': (session?.user as ExtendedUser)?.tenant_id || '',
           });
           setCurrentTransaction(transaction);
+          setLoadingTransactionId(null);
         } catch (error) {
           console.error('Error fetching transaction:', error);
           toast.error('Failed to load transaction details');
+          setLoadingTransactionId(null);
         }
       }
     };
@@ -613,7 +617,7 @@ const OrderPage = () => {
                         <AccordionItem 
                           key={transaction.transaction_id} 
                           value={transaction.transaction_id}
-                          className="border-b-0"
+                          className="border-b"
                         >
                           <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                             <div className="flex w-full items-center justify-between pr-2">
@@ -626,8 +630,9 @@ const OrderPage = () => {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="text-sm font-medium">
+                                <div className="text-sm font-medium flex items-center gap-1">
                                   {transaction.transaction_id}
+                                  <Copy text={transaction.transaction_id} size={14} />
                                 </div>
                                 <Badge 
                                   variant={getTransactionStatusBadgeVariant(transaction.status as any)}
@@ -640,9 +645,9 @@ const OrderPage = () => {
                           </AccordionTrigger>
                           <AccordionContent className="pb-0 pt-2">
                             <div className="px-4 pb-4">
-                              {loading && currentTransaction?.transaction_id === transaction.transaction_id ? (
-                                <div className="flex justify-center py-8">
-                                  <Spinner className="h-6 w-6" />
+                              {loadingTransactionId === transaction.transaction_id ? (
+                                <div className="py-8">
+                                  <Spinner />
                                 </div>
                               ) : currentTransaction?.transaction_id === transaction.transaction_id ? (
                                 <div className="space-y-6">

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import type { User as NextAuthUser } from "next-auth";
 import { toast } from "sonner";
 import {
@@ -42,6 +43,8 @@ import { Order, DeliveryDetails, DeliveryStage } from "@/features/orders/types";
 import { useOrderStore } from "@/features/orders/store";
 import { useDeliveryPartnerStore } from "@/features/delivery-partners/store";
 import { DeliveryPartnerFilter } from "@/features/delivery-partners/types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ExternalLink } from "lucide-react";
 
 interface DeliveryManagementProps {
   order: Order | null;
@@ -80,6 +83,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
   const [isFetchingDelivery, setIsFetchingDelivery] = useState(false);
   const [currentPartnerId, setCurrentPartnerId] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     // Fetch delivery details when component mounts
@@ -217,7 +221,28 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Delivery</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <div>Delivery</div>
+              {deliveryDetails?.id && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="cursor-default">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Go to delivery page"
+                        onClick={() => router.push(`/dashboard/orders/deliveries/${deliveryDetails.id}`)}
+                        >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Go to Delivery Page
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </CardTitle>
             {deliveryDetails && (
               <Badge variant="secondary">
                 {deliveryDetails.current_stage}
