@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiClient, ApiResponse as CoreApiResponse } from '@/lib/api/client'; // Renamed to CoreApiResponse to avoid conflict
+import type { ApiResponse } from '@/lib/api/client';
 import {
   Affiliate,
   AffiliateError,
@@ -16,6 +17,7 @@ import {
   AffiliateRequest,
   AffiliateAction,
   AffiliateLink,
+  AffiliateAnalytics,
 } from './types';
 
 interface AffiliateStoreState {
@@ -40,6 +42,10 @@ interface AffiliateStoreState {
     limit: number;
     currentPage: number;
   };
+
+  analytics: AffiliateAnalytics | null;
+  analyticsLoading: boolean;
+  analyticsError: AffiliateError | null;
 
   setActiveAction: (action: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -71,6 +77,7 @@ interface AffiliateStoreState {
     params?: { skip?: number; limit?: number },
     headers?: Record<string, string>
   ) => Promise<{ links: AffiliateLink[]; total: number }>;
+  fetchAffiliateAnalytics: (headers?: Record<string, string>) => Promise<void>;
 }
 
 const initialPagination = {
@@ -93,6 +100,10 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
   vendorPartnerRequestsError: null,
   totalVendorPartnerRequests: 0,
   vendorPartnerRequestsPagination: { ...initialPagination },
+
+  analytics: null,
+  analyticsLoading: false,
+  analyticsError: null,
 
   setActiveAction: (action) => set({ activeAction: action, error: null }),
   setLoading: (loading) => set({ loading }),
@@ -132,9 +143,8 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
         filter,
         headers
       );
-
       const responseData = response.data;
-      if (responseData?.affiliates) {
+      if (responseData && responseData.affiliates) {
         setAffiliates(responseData.affiliates);
         setPagination({
           skip: filter.skip || 0,
@@ -317,7 +327,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
   fetchAffiliateRequests: async (
     filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string } = {},
     headers?: Record<string, string>
-  ): Promise<{ requests: AffiliateRequest[]; total: number }> => {
+  ): Promise<void> => {
     const { affiliate_id, vendor_id, ...otherFilters } = filter;
 
     const { setLoading, setError } = get();
@@ -334,13 +344,10 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
         otherFilters,
         headers
       );
-
       const responseData = response.data;
-      if (responseData?.requests) {
-        return responseData;
+      if (!responseData?.requests) {
+        throw new Error('Invalid response structure from server');
       }
-
-      throw new Error('Invalid response structure from server');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch requests';
       setError({
@@ -383,6 +390,29 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       throw error;
     } finally {
       setLoading(false);
+    }
+  },
+
+  fetchAffiliateAnalytics: async (headers?: Record<string, string>) => {
+    set({ analyticsLoading: true, analyticsError: null });
+    try {
+      const response = await apiClient.get<AffiliateAnalytics>('/winga/report/analytics', undefined, headers);
+      if (response.data) {
+        set({ analytics: response.data, analyticsLoading: false, analyticsError: null });
+      } else {
+        throw new Error('Invalid analytics response');
+      }
+    } catch (err: any) {
+      set({
+        analytics: null,
+        analyticsLoading: false,
+        analyticsError: {
+          message: err.response?.data?.message || err.message || 'Failed to fetch analytics',
+          status: err.response?.status,
+          action: 'fetchAnalytics',
+          details: err.response?.data?.errors || err.stack,
+        },
+      });
     }
   },
 }));

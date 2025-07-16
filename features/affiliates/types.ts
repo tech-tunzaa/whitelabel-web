@@ -233,3 +233,26 @@ export type AffiliateLink = {
   created_at: string;
   updated_at: string;
 };
+
+// --- Analytics Types ---
+export interface AffiliateAnalytics {
+  total_clicks: number;
+  total_orders: number;
+  total_commission: number;
+  conversion_rate: number;
+  affiliates: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    total: number;
+  };
+  top_affiliates: TopAffiliate[];
+}
+
+export interface TopAffiliate {
+  affiliate_id: string;
+  name: string;
+  email: string;
+  total_commission: number;
+  order_count: number;
+}
