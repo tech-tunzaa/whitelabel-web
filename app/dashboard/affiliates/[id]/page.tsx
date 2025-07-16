@@ -65,7 +65,7 @@ import {
   VendorPartnerRequest,
   AffiliateLink,
 } from "@/features/affiliates/types";
-import { AffiliateVerificationDialog, AffiliateRequestsTable, AffiliateLinksTable } from "@/features/affiliates/components";
+import { AffiliateRejectionDialog, AffiliateRequestsTable, AffiliateLinksTable } from "@/features/affiliates/components";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
@@ -287,7 +287,6 @@ export default function AffiliateDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isUpdating, setIsUpdating] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
   const [pendingAction, setPendingAction] = useState<
     null | "approve" | "reject" | "activate" | "deactivate"
   >(null);
@@ -402,8 +401,8 @@ export default function AffiliateDetailPage() {
         tenantHeaders
       );
       if (result) {
-        toast.success(`Affiliate ${action}d successfully`);
-        fetchAffiliate(affiliate.id, tenantHeaders);
+        await fetchAffiliate(affiliate.id, tenantHeaders); // Only update the current affiliate
+        toast.success(`Affiliate status updated successfully`);
       } else {
         toast.error(`Failed to ${action} affiliate`);
       }
@@ -413,7 +412,6 @@ export default function AffiliateDetailPage() {
       setIsUpdating(false);
       setShowRejectDialog(false);
       setPendingAction(null);
-      setRejectionReason("");
     }
   };
 
@@ -424,13 +422,6 @@ export default function AffiliateDetailPage() {
   const handleReject = () => {
     setShowRejectDialog(true);
     setPendingAction("reject");
-  };
-  const handleRejectConfirm = () => {
-    if (!rejectionReason.trim()) {
-      toast.error("Please provide a rejection reason.");
-      return;
-    }
-    handleStatusChange("reject", rejectionReason.trim());
   };
 
   const handleEdit = () => {
@@ -661,62 +652,21 @@ export default function AffiliateDetailPage() {
         </div>
       </div>
 
-      <AffiliateVerificationDialog
-        action={pendingAction}
-        title={
-          pendingAction === "approve" ? "Approve Affiliate" : "Reject Affiliate"
-        }
-        description={
-          pendingAction === "approve"
-            ? "Are you sure you want to approve this affiliate? This will allow them to operate on the platform."
-            : "Are you sure you want to reject this affiliate? Please provide a reason for rejection."
-        }
-        open={showRejectDialog}
-        onOpenChange={setShowRejectDialog}
-        onConfirm={handleRejectConfirm}
-        confirmLabel={pendingAction === "approve" ? "Approve" : "Reject"}
-        withReason={pendingAction === "reject"}
+      <AffiliateRejectionDialog
+        isOpen={showRejectDialog}
+        onClose={() => setShowRejectDialog(false)}
+        onConfirm={(reason, customReason) => {
+          if (!reason && !customReason) {
+            toast.error("Please provide a rejection reason.");
+            return;
+          }
+          handleStatusChange("reject", reason === "other" ? customReason : reason);
+        }}
+        loading={isUpdating}
+        title="Reject Affiliate"
+        description="Please provide a reason for rejecting this affiliate. This information may be shared with the affiliate."
+        actionText="Reject"
       />
-
-      {/* Reject Dialog */}
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Affiliate</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please provide a reason for rejecting this affiliate. This
-              information may be shared with the affiliate.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <textarea
-              className="w-full border rounded p-2 min-h-[80px]"
-              placeholder="Enter rejection reason..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              disabled={isUpdating}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={isUpdating}
-              onClick={() => setShowRejectDialog(false)}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRejectConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isUpdating || !rejectionReason.trim()}
-            >
-              {isUpdating ? (
-                <Spinner size="sm" className="mr-2 h-4 w-4" />
-              ) : null}
-              Confirm Rejection
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   ) : null;
 
@@ -1076,7 +1026,6 @@ export default function AffiliateDetailPage() {
                     disabled={isUpdating}
                   >
                     <Check className="h-4 w-4 mr-2" /> Approve Affiliate
-                    Approval
                   </Button>
                 </div>
               </div>

@@ -249,32 +249,54 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
     setLoading(true);
     let axiosResponse;
     try {
-      axiosResponse = await apiClient.patch<Affiliate>( // apiClient.put returns AxiosResponse<CoreApiResponse<Affiliate>>
-        `/winga/${id}`,
-        payload,
-        headers
-      );
-      const coreApiResponse: CoreApiResponse<Affiliate> = axiosResponse.data;
+      axiosResponse = await apiClient.patch<Affiliate>(`/winga/${id}`, payload, headers);
 
-      if (coreApiResponse && coreApiResponse.success && coreApiResponse.data) {
-        const updatedAffiliateInstance: Affiliate = coreApiResponse.data as Affiliate;
+      // Handle both wrapped and direct object responses
+      const responseData = axiosResponse.data;
+
+      // If response is a plain affiliate object
+      if (responseData && typeof responseData === 'object' && 'id' in responseData && 'tenant_id' in responseData) {
+        const updatedAffiliateInstance: Affiliate = responseData as Affiliate;
         const currentSingleAffiliate = get().affiliate;
         if (currentSingleAffiliate && currentSingleAffiliate.id === id) {
           setAffiliate(updatedAffiliateInstance);
         }
-        fetchAffiliates();
         setLoading(false);
         return updatedAffiliateInstance;
-      } else {
-        const errorMessage = coreApiResponse?.message || `Failed to update affiliate ${id} or invalid response structure.`;
-        setError({
-          message: errorMessage,
-          status: axiosResponse?.status, // HTTP status from the main axios response
-          action: 'update',
-        });
-        setLoading(false);
-        return null;
       }
+
+      // If response is wrapped in { success, data }
+      if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+        const coreApiResponse = responseData as CoreApiResponse<Affiliate>;
+        if (coreApiResponse.success && coreApiResponse.data) {
+          const updatedAffiliateInstance: Affiliate = coreApiResponse.data as Affiliate;
+          const currentSingleAffiliate = get().affiliate;
+          if (currentSingleAffiliate && currentSingleAffiliate.id === id) {
+            setAffiliate(updatedAffiliateInstance);
+          }
+          setLoading(false);
+          return updatedAffiliateInstance;
+        } else {
+          const errorMessage = coreApiResponse?.message || `Failed to update affiliate ${id} or invalid response structure.`;
+          setError({
+            message: errorMessage,
+            status: axiosResponse?.status,
+            action: 'update',
+          });
+          setLoading(false);
+          return null;
+        }
+      }
+
+      // If neither, treat as error
+      const errorMessage = `Failed to update affiliate ${id}: Unexpected response structure.`;
+      setError({
+        message: errorMessage,
+        status: axiosResponse?.status,
+        action: 'update',
+      });
+      setLoading(false);
+      return null;
     } catch (err: any) {
       const errorResponseMessage = err.response?.data?.message || err.message;
       setError({

@@ -67,10 +67,6 @@ export function AffiliateTable({
   activeTab = "all",
 }: AffiliateTableProps) {
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectAffiliateId, setRejectAffiliateId] = useState<string | null>(null);
-  const [rejectionType, setRejectionType] = useState("incomplete_information"); // Default rejection type
-  const [customReason, setCustomReason] = useState("");
   const router = useRouter();
   const [actionBeingProcessed, setActionBeingProcessed] = useState<string | null>(null);
 
@@ -79,49 +75,9 @@ export function AffiliateTable({
     action: 'approve' | 'reject' | 'activate' | 'deactivate'
   ) => {
     if (!onStatusChange || !affiliateId) return;
-
-    if (action === 'reject') {
-      setRejectAffiliateId(affiliateId);
-      setRejectionType("incomplete_information"); // Reset to default
-      setCustomReason("");
-      setShowRejectDialog(true);
-      return;
-    }
-
-    try {
-      setProcessingId(affiliateId);
-      await onStatusChange(affiliateId, action);
-    } catch (error) {
-      console.error(`Failed to ${action} affiliate:`, error);
-      // Potentially show a toast notification here
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleRejectConfirm = async () => {
-    if (!rejectAffiliateId) return;
-
-    let reason = rejectionType;
-    if (rejectionType === "other") {
-      if (!customReason.trim()) {
-        // Maybe show a toast error: Custom reason cannot be empty
-        return;
-      }
-      reason = customReason.trim();
-    }
-
-    try {
-      setProcessingId(rejectAffiliateId); // Show spinner on the dialog button
-      await onStatusChange(rejectAffiliateId, 'reject', reason);
-      setShowRejectDialog(false);
-      setRejectAffiliateId(null);
-    } catch (error) {
-      console.error("Failed to reject affiliate:", error);
-      // Potentially show a toast notification here
-    } finally {
-      setProcessingId(null); // Clear spinner on dialog button
-    }
+    setProcessingId(affiliateId);
+    await onStatusChange(affiliateId, action);
+    setProcessingId(null);
   };
 
   const getRejectionReasonText = (type: string) => {
@@ -129,7 +85,7 @@ export function AffiliateTable({
       case 'incomplete_information': return 'Incomplete Information: Required affiliate details are missing or unclear.';
       case 'policy_violation': return 'Policy Violation: Affiliate practices do not align with platform policies.';
       case 'suspected_fraud': return 'Suspected Fraudulent Activity: Concerns about the legitimacy of the affiliate.';
-      case 'other': return customReason || 'Other reason not specified.';
+      case 'other': return 'Other reason not specified.';
       default: return type; // For custom reasons already processed
     }
   };
@@ -225,18 +181,17 @@ export function AffiliateTable({
                         <DropdownMenuItem onClick={() => onAffiliateClick(affiliate)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/${affiliate.user_id}/edit`)}>
-                           {/* Ensure edit route is correct, might need affiliate.user_id or affiliate.user_id */}
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/${affiliate.id}/edit`)}>
                           <FileEdit className="mr-2 h-4 w-4" /> Edit Affiliate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {affiliate.status === "pending" && (
                           <>
                             <DropdownMenuItem
-                              onClick={() => handleLocalStatusChange(affiliate.user_id, 'approve')}
-                              disabled={processingId === affiliate.user_id}
+                              onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
+                              disabled={processingId === affiliate.id}
                             >
-                              {processingId === affiliate.user_id && actionBeingProcessed === 'approve' ? (
+                              {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
                                 <Spinner size="sm" className="mr-2 h-4 w-4" />
                               ) : (
                                 <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
@@ -244,11 +199,11 @@ export function AffiliateTable({
                               Approve
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleLocalStatusChange(affiliate.user_id, 'reject')}
-                              disabled={processingId === affiliate.user_id}
+                              onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
+                              disabled={processingId === affiliate.id}
                               className="text-destructive focus:text-destructive focus:bg-destructive/10"
                             >
-                              {processingId === affiliate.user_id && actionBeingProcessed === 'reject' ? (
+                              {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
                                 <Spinner size="sm" className="mr-2 h-4 w-4" />
                               ) : (
                                 <XCircle className="mr-2 h-4 w-4" />
@@ -259,10 +214,10 @@ export function AffiliateTable({
                         )}
                         {/* {affiliate.status === "approved" && affiliate.is_active && (
                           <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'deactivate')}
-                            disabled={processingId === affiliate.user_id}
+                            onClick={() => handleLocalStatusChange(affiliate.id, 'deactivate')}
+                            disabled={processingId === affiliate.id}
                           >
-                            {processingId === affiliate.user_id && actionBeingProcessed === 'deactivate' ? (
+                            {processingId === affiliate.id && actionBeingProcessed === 'deactivate' ? (
                               <Spinner size="sm" className="mr-2 h-4 w-4" />
                             ) : (
                               <PowerOff className="mr-2 h-4 w-4" />
@@ -272,10 +227,10 @@ export function AffiliateTable({
                         )}
                         {affiliate.status === "approved" && !affiliate.is_active && (
                           <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'activate')}
-                            disabled={processingId === affiliate.user_id}
+                            onClick={() => handleLocalStatusChange(affiliate.id, 'activate')}
+                            disabled={processingId === affiliate.id}
                           >
-                            {processingId === affiliate.user_id && actionBeingProcessed === 'activate' ? (
+                            {processingId === affiliate.id && actionBeingProcessed === 'activate' ? (
                               <Spinner size="sm" className="mr-2 h-4 w-4" />
                             ) : (
                               <Power className="mr-2 h-4 w-4 text-green-500" />
@@ -285,16 +240,29 @@ export function AffiliateTable({
                         )} */}
                         {affiliate.status === "approved" && (
                           <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.user_id, 'reject')}
-                            disabled={processingId === affiliate.user_id}
+                            onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
+                            disabled={processingId === affiliate.id}
                             className="text-destructive focus:text-destructive focus:bg-destructive/10"
                           >
-                            {processingId === affiliate.user_id && actionBeingProcessed === 'reject' ? (
+                            {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
                               <Spinner size="sm" className="mr-2 h-4 w-4" />
                             ) : (
                               <XCircle className="mr-2 h-4 w-4" />
                             )}
                             Reject
+                          </DropdownMenuItem>
+                        )}
+                        {affiliate.status === "rejected" && (
+                          <DropdownMenuItem
+                            onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
+                            disabled={processingId === affiliate.id}
+                          >
+                            {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
+                              <Spinner size="sm" className="mr-2 h-4 w-4" />
+                            ) : (
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                            )}
+                            Approve
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -307,68 +275,6 @@ export function AffiliateTable({
         </Table>
       </div>
       {/* Pagination is now handled by the parent page */}
-
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Affiliate: {affiliates.find(v => v.id === rejectAffiliateId)?.name || ''}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Please select a reason for rejecting this affiliate. This information may be shared with the affiliate.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4 space-y-3">
-            <RadioGroup value={rejectionType} onValueChange={setRejectionType} className="space-y-2">
-              <Label className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer">
-                <RadioGroupItem value="incomplete_information" id="incomplete_information" />
-                <span>Incomplete Information</span>
-              </Label>
-              <Label className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer">
-                <RadioGroupItem value="policy_violation" id="policy_violation" />
-                <span>Policy Violation</span>
-              </Label>
-              <Label className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer">
-                <RadioGroupItem value="suspected_fraud" id="suspected_fraud" />
-                <span>Suspected Fraudulent Activity</span>
-              </Label>
-              <Label className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted cursor-pointer">
-                <RadioGroupItem value="other" id="other" />
-                <span>Other Reason</span>
-              </Label>
-            </RadioGroup>
-
-            {rejectionType === "other" && (
-              <div className="mt-3">
-                <Label htmlFor="custom-rejection-reason" className="mb-1 block">Custom Reason</Label>
-                <Textarea
-                  id="custom-rejection-reason"
-                  placeholder="Provide a specific reason for rejection..."
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={processingId === rejectAffiliateId} onClick={() => setShowRejectDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault(); // Prevent dialog closing immediately if validation fails
-                handleRejectConfirm();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={processingId === rejectAffiliateId || (rejectionType === "other" && !customReason.trim())}
-            >
-              {processingId === rejectAffiliateId ? (
-                <Spinner size="sm" className="mr-2 h-4 w-4" />
-              ) : (
-                <AlertTriangle className="mr-2 h-4 w-4" />
-              )}
-              Confirm Rejection
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

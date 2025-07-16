@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { Affiliate, AffiliateFilter } from "@/features/affiliates/types";
 import { AffiliateTable } from "@/features/affiliates/components/affiliate-table";
+import { AffiliateRejectionDialog } from "@/features/affiliates/components";
 
 export default function AffiliatesPage() {
   const router = useRouter();
@@ -36,8 +37,12 @@ export default function AffiliatesPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
   const pageSize = 10;
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
+  const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
+  const [pendingAction, setPendingAction] = useState<null | 'approve' | 'reject' | 'activate' | 'deactivate'>(null);
 
-  useEffect(() => {
+  const getFilters = () => {
     const baseFilter: any = {
       skip: (currentPage - 1) * pageSize,
       limit: pageSize,
@@ -59,30 +64,35 @@ export default function AffiliatesPage() {
       default:
         filters = baseFilter;
     }
+    return filters;
+  };
+
+  useEffect(() => {
     if (tenantId) {
-      fetchAffiliates(filters, { 'X-Tenant-ID': tenantId });
+      fetchAffiliates(getFilters(), { 'X-Tenant-ID': tenantId });
     }
   }, [currentPage, pageSize, searchQuery, activeTab, tenantId, fetchAffiliates]);
 
   const handleAffiliateClick = (affiliate: Affiliate) => {
-    router.push(`/dashboard/affiliates/${affiliate.user_id}`);
+    router.push(`/dashboard/affiliates/${affiliate.id}`);
   };
 
   const handleStatusChange = async (
     affiliateId: string,
     action: 'approve' | 'reject' | 'activate' | 'deactivate',
     rejectionReason?: string
-  ) => {
+  ): Promise<void> => {
     if (!tenantId) {
       console.error("Tenant ID is missing, cannot update status.");
       toast.error("Tenant ID is missing, cannot update status.");
       return;
     }
+    setRejectLoading(action === 'reject');
     try {
       let statusData: any = {};
       switch (action) {
         case 'approve':
-          statusData = { status: 'approved', is_active: true };
+          statusData = { status: 'approved' };
           break;
         case 'reject':
           statusData = { status: 'rejected', rejection_reason: rejectionReason };
@@ -95,15 +105,36 @@ export default function AffiliatesPage() {
           break;
       }
       const result = await updateAffiliateStatus(affiliateId, statusData, { 'X-Tenant-ID': tenantId });
-      if (result) {
-        toast.success(`Affiliate ${action}d successfully`);
+      if (result && !(result as any).error) {
+        await fetchAffiliates(getFilters(), { 'X-Tenant-ID': tenantId });
+        toast.success(`Affiliate status updated successfully`);
       } else {
         toast.error(`Failed to ${action} affiliate`);
       }
     } catch (error) {
       console.error("Failed to update affiliate status:", error);
       toast.error(`Failed to ${action} affiliate`);
+    } finally {
+      setRejectLoading(false);
+      setShowRejectDialog(false);
+      setSelectedAffiliate(null);
+      setPendingAction(null);
     }
+  };
+
+  const handleReject = (affiliate: Affiliate) => {
+    setSelectedAffiliate(affiliate);
+    setShowRejectDialog(true);
+    setPendingAction('reject');
+  };
+
+  const handleRejectConfirm = (reason: string, customReason?: string) => {
+    if (!selectedAffiliate) return;
+    if (!reason && !customReason) {
+      toast.error("Please provide a rejection reason.");
+      return;
+    }
+    handleStatusChange(selectedAffiliate.id, 'reject', reason === 'other' ? customReason : reason);
   };
 
   const handleTabChange = (value: string) => {
@@ -262,7 +293,7 @@ export default function AffiliatesPage() {
                         filters = { ...baseFilter, status: "pending" };
                         break;
                       case "approved":
-                        filters = { ...baseFilter, status: "approved", is_active: true };
+                        filters = { ...baseFilter, status: "approved" };
                         break;
                       case "rejected":
                         filters = { ...baseFilter, status: "rejected" };
@@ -280,7 +311,14 @@ export default function AffiliatesPage() {
               <AffiliateTable
                 affiliates={affiliates} // Pass the affiliates from the store
                 onAffiliateClick={handleAffiliateClick}
-                onStatusChange={handleStatusChange}
+                onStatusChange={async (id, action, rejectionReason) => {
+                  const affiliate = affiliates.find(a => a.id === id);
+                  if (action === 'reject' && affiliate) {
+                    handleReject(affiliate);
+                  } else {
+                    await handleStatusChange(id, action, rejectionReason);
+                  }
+                }}
                 activeTab={activeTab} // Pass activeTab if table needs it for conditional rendering of actions
               />
               <Pagination
@@ -288,6 +326,15 @@ export default function AffiliatesPage() {
                 pageSize={pageSize}
                 totalItems={totalAffiliates}
                 onPageChange={(page) => setCurrentPage(page)}
+              />
+              <AffiliateRejectionDialog
+                isOpen={showRejectDialog}
+                onClose={() => setShowRejectDialog(false)}
+                onConfirm={handleRejectConfirm}
+                loading={rejectLoading}
+                title="Reject Affiliate"
+                description="Please provide a reason for rejecting this affiliate. This information may be shared with the affiliate."
+                actionText="Reject"
               />
             </div>
           )}

@@ -4,3 +4,4 @@ export { AffiliateVerificationDialog } from './affiliate-verification-dialog';
 export { BankingInfoFields } from '../../../components/ui/banking-info-fields';
 export * from './affiliate-requests-table';
 export * from './affiliate-links-table';
+export * from './affiliate-rejection-dialog';
