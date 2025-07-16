@@ -8,7 +8,6 @@ import {
   CreateAffiliatePayload,
   UpdateAffiliatePayload,
   VerificationDocument,
-  ApiResponse,
   AffiliateFormValues,
   AffiliatesApiResponseData,
   VendorPartnerRequest,
@@ -16,6 +15,7 @@ import {
   VendorPartnerRequestFilter,
   AffiliateRequest,
   AffiliateAction,
+  AffiliateLink,
 } from './types';
 
 interface AffiliateStoreState {
@@ -66,6 +66,11 @@ interface AffiliateStoreState {
     filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string },
     headers?: Record<string, string>
   ) => Promise<void>;
+  fetchAffiliateLinks: (
+    affiliateId: string,
+    params?: { skip?: number; limit?: number },
+    headers?: Record<string, string>
+  ) => Promise<{ links: AffiliateLink[]; total: number }>;
 }
 
 const initialPagination = {
@@ -320,6 +325,38 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
         message: errorMessage,
         status: error.response?.status,
         action: 'fetchRequests' as AffiliateAction,
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  },
+
+  fetchAffiliateLinks: async (
+    affiliateId: string,
+    params: { skip?: number; limit?: number } = {},
+    headers?: Record<string, string>
+  ): Promise<{ links: AffiliateLink[]; total: number }> => {
+    const { setLoading, setError } = get();
+    setLoading(true);
+    setError(null);
+    try {
+      const endpoint = `/winga/affiliate/${affiliateId}/links`;
+      const response = await apiClient.get<any>(endpoint, params, headers);
+      const responseData = response.data;
+      if (responseData && Array.isArray(responseData.links)) {
+        return {
+          links: responseData.links,
+          total: responseData.total || responseData.links.length || 0,
+        };
+      }
+      throw new Error('Invalid response structure from server');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch affiliate links';
+      setError({
+        message: errorMessage,
+        status: error.response?.status,
+        action: 'fetchAffiliateLinks',
       });
       throw error;
     } finally {

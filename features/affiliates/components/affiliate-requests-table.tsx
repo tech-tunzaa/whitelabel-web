@@ -163,13 +163,6 @@ export function AffiliateRequestsTable({ requests = [] }: AffiliateRequestsTable
                     </TableCell>
                     <TableCell>{getStatusBadge(request.status)}</TableCell>
                     <TableCell>{formatDate(request.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      {request.status !== 'pending' && (
-                        <Badge variant={request.status === 'approved' ? 'success' : 'destructive'}>
-                          {request.status}
-                        </Badge>
-                      )}
-                    </TableCell>
                   </TableRow>
                   {expandedRows[request.id] && (
                     <TableRow className="bg-muted/10">

@@ -63,14 +63,15 @@ import {
   Affiliate,
   VerificationDocument,
   VendorPartnerRequest,
+  AffiliateLink,
 } from "@/features/affiliates/types";
-import { AffiliateVerificationDialog } from "@/features/affiliates/components";
+import { AffiliateVerificationDialog, AffiliateRequestsTable, AffiliateLinksTable } from "@/features/affiliates/components";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { VerificationDocumentManager } from "@/components/ui/verification-document-manager";
 import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 import { formatCurrency } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { AffiliateRequestsTable } from "@/features/affiliates/components/affiliate-requests-table";
+import Pagination from "@/components/ui/pagination";
 
 // Memoized VendorsTab component to prevent unnecessary re-renders
 const VendorsTab = React.memo(function VendorsTab({
@@ -91,82 +92,77 @@ const VendorsTab = React.memo(function VendorsTab({
     },
   });
 
-  const [requests, setRequests] = useState<AffiliateRequest[]>([]);
+  const [requests, setRequests] = useState<any[]>([]); // Use any[] to avoid AffiliateRequest error
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
-  
-  const fetchData = useCallback(async () => {
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
+  const fetchData = useCallback(async (pageArg = page, searchArg = search) => {
     let isMounted = true;
-    
     const fetchRequest = async () => {
       try {
         setLoading(true);
         const headers = tenantId ? { "X-Tenant-ID": tenantId } : {};
-        const { searchQuery, activeTab, pagination } = stateRef.current;
-        
+        const { activeTab } = stateRef.current;
         const filters = {
           affiliate_id: affiliateId,
-          // vendor_id: "3692f16f-d873-4b5d-9bc4-b3c180f4cd64", 
-          skip: pagination.skip,
-          limit: pagination.limit,
-          ...(searchQuery && { search: searchQuery }),
+          skip: (pageArg - 1) * pageSize,
+          limit: pageSize,
+          ...(searchArg && { search: searchArg }),
           ...(activeTab !== "all" && { status: activeTab }),
         };
-
         const { fetchAffiliateRequests } = useAffiliateStore.getState();
-        const { requests: data, total } = await fetchAffiliateRequests(filters, headers);
-        
+        const result = await fetchAffiliateRequests(filters, headers) as any;
         if (!isMounted) return;
-        
-        setRequests(data || []);
-        stateRef.current.pagination.total = total || 0;
+        setRequests(result?.requests || []);
+        setTotal(result?.total || 0);
         setError(null);
       } catch (err: any) {
         if (!isMounted) return;
-        
-        if (err.status === 404) {
-          setRequests([]);
-          stateRef.current.pagination.total = 0;
-          setError({
-            message: 'No vendor partnerships found',
-            status: 404,
-          });
-        } else {
-          setError({
-            message: err.message || 'Failed to fetch vendor partners',
-            status: err.status,
-          });
-        }
+        setRequests([]);
+        setTotal(0);
+        setError({
+          message: err.message || 'Failed to fetch vendor partners',
+          status: err.status,
+        });
       } finally {
         if (isMounted) {
           setLoading(false);
         }
       }
     };
-
     const timer = setTimeout(fetchRequest, 300);
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [affiliateId, tenantId]);
+  }, [affiliateId, tenantId, page, pageSize, search]);
 
-  // Update the ref when state changes
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    stateRef.current.searchQuery = e.target.value;
-    stateRef.current.pagination.skip = 0; // Reset to first page
-    fetchData();
+    setSearch(e.target.value);
+    setPage(1);
+    fetchData(1, e.target.value);
   }, [fetchData]);
 
   const handleTabChange = useCallback((value: string) => {
     stateRef.current.activeTab = value;
-    stateRef.current.pagination.skip = 0; // Reset to first page
-    fetchData();
-  }, [fetchData]);
+    setPage(1);
+    fetchData(1, search);
+  }, [fetchData, search]);
 
-  const handlePageChange = useCallback((newSkip: number) => {
-    stateRef.current.pagination.skip = newSkip;
-    fetchData();
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    fetchData(newPage, search);
+  }, [fetchData, search]);
+
+  useEffect(() => {
+    const cleanup = fetchData();
+    return () => {
+      cleanup.then(cleanupFn => cleanupFn?.());
+    };
   }, [fetchData]);
   
   const handleStatusChange = async (requestId: string, status: string, reason?: string) => {
@@ -217,14 +213,6 @@ const VendorsTab = React.memo(function VendorsTab({
     }
   };
 
-  // Initial data fetch
-  useEffect(() => {
-    const cleanup = fetchData();
-    return () => {
-      cleanup.then(cleanupFn => cleanupFn?.());
-    };
-  }, [fetchData]);
-
   return (
     <TabsContent value="vendors" className="space-y-4 mt-4">
       <div className="flex justify-between mb-4">
@@ -234,13 +222,12 @@ const VendorsTab = React.memo(function VendorsTab({
             type="search"
             placeholder="Search vendors..."
             className="pl-8"
-            defaultValue={stateRef.current.searchQuery}
+            value={search}
             onChange={handleSearchChange}
             disabled={loading}
           />
         </div>
       </div>
-
       <Tabs value={stateRef.current.activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="all">All</TabsTrigger>
@@ -248,7 +235,6 @@ const VendorsTab = React.memo(function VendorsTab({
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
         </TabsList>
-
         {loading ? (
           <Spinner />
         ) : error ? (
@@ -261,13 +247,19 @@ const VendorsTab = React.memo(function VendorsTab({
                 "An unexpected error occurred while loading vendor partners.",
             }}
             buttonText="Retry"
-            buttonAction={() =>
-              handlePageChange(0)
-            }
+            buttonAction={() => handlePageChange(1)}
             buttonIcon={RefreshCw}
           />
         ) : (
-          <AffiliateRequestsTable requests={requests} />
+          <>
+            <AffiliateRequestsTable requests={requests} />
+            <Pagination
+              currentPage={page}
+              pageSize={pageSize}
+              totalItems={total}
+              onPageChange={handlePageChange}
+            />
+          </>
         )}
       </Tabs>
     </TabsContent>
@@ -306,6 +298,68 @@ export default function AffiliateDetailPage() {
   const [verificationDoc, setVerificationDoc] =
     useState<VerificationDocument | null>(null);
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+
+  // Affiliate Links State
+  const [links, setLinks] = useState<AffiliateLink[]>([]);
+  const [linksTotal, setLinksTotal] = useState(0);
+  const [linksPage, setLinksPage] = useState(1);
+  const [linksPageSize] = useState(10);
+  const [linksSearch, setLinksSearch] = useState("");
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linksError, setLinksError] = useState<string | null>(null);
+  const [linksActiveTab, setLinksActiveTab] = useState('all');
+
+  // Fetch affiliate links
+  const fetchLinks = useCallback(
+    async (page = linksPage, search = linksSearch, activeTab = linksActiveTab) => {
+      if (!affiliate?.id || !tenantId) return;
+      setLinksLoading(true);
+      setLinksError(null);
+      try {
+        const { fetchAffiliateLinks } = useAffiliateStore.getState();
+        const filters: any = {
+          skip: (page - 1) * linksPageSize,
+          limit: linksPageSize,
+          ...(search ? { search } : {}),
+        };
+        if (activeTab === 'active') filters.is_active = true;
+        if (activeTab === 'inactive') filters.is_active = false;
+        const { links, total } = await fetchAffiliateLinks(
+          affiliate.id,
+          filters,
+          { "X-Tenant-ID": tenantId }
+        );
+        setLinks(links);
+        setLinksTotal(total);
+      } catch (err: any) {
+        setLinksError(err?.message || 'Failed to fetch affiliate links');
+      } finally {
+        setLinksLoading(false);
+      }
+    },
+    [affiliate?.id, tenantId, linksPage, linksPageSize, linksSearch, linksActiveTab]
+  );
+
+  useEffect(() => {
+    if (affiliate?.id && tenantId) {
+      fetchLinks();
+    }
+  }, [affiliate?.id, tenantId, fetchLinks]);
+
+  const handleLinksPageChange = (page: number) => {
+    setLinksPage(page);
+    fetchLinks(page, linksSearch, linksActiveTab);
+  };
+  const handleLinksSearchChange = (value: string) => {
+    setLinksSearch(value);
+    setLinksPage(1);
+    fetchLinks(1, value, linksActiveTab);
+  };
+  const handleLinksTabChange = (tab: string) => {
+    setLinksActiveTab(tab);
+    setLinksPage(1);
+    fetchLinks(1, linksSearch, tab);
+  };
 
   // Define tenant headers
   const tenantHeaders = {
@@ -565,10 +619,41 @@ export default function AffiliateDetailPage() {
                 <TabsTrigger value="vendors" className="gap-1">
                   <StoreIcon className="h-4 w-4" /> Vendor Partners
                 </TabsTrigger>
+                <TabsTrigger value="links" className="gap-1">
+                  <LinkIcon className="h-4 w-4" /> Affiliate Links
+                </TabsTrigger>
               </TabsList>
 
               <OverviewTab />
               <VendorsTab affiliateId={affiliate.id} tenantId={tenantId} />
+              <TabsContent value="links" className="space-y-4 mt-4">
+                {linksLoading ? (
+                  <Spinner />
+                ) : linksError ? (
+                  <ErrorCard
+                    title="Failed to Load Affiliate Links"
+                    error={{
+                      status: "Error",
+                      message: linksError,
+                    }}
+                    buttonText="Retry"
+                    buttonAction={() => fetchLinks()}
+                    buttonIcon={RefreshCw}
+                  />
+                ) : (
+                  <AffiliateLinksTable
+                    links={links}
+                    total={linksTotal}
+                    page={linksPage}
+                    pageSize={linksPageSize}
+                    onPageChange={handleLinksPageChange}
+                    search={linksSearch}
+                    onSearchChange={handleLinksSearchChange}
+                    activeTab={linksActiveTab}
+                    onTabChange={handleLinksTabChange}
+                  />
+                )}
+              </TabsContent>
             </Tabs>
           </div>
 

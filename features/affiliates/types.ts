@@ -72,10 +72,10 @@ export type Affiliate = {
   id: string;
   tenant_id: string;
   name: string;
-  email?: string;  
-  phone?: string;  
+  email?: string;
+  phone?: string;
   website?: string;
-  user_id?: string; 
+  user_id?: string;
   bio?: string;
   social_media?: {
     instagram?: string;
@@ -114,11 +114,11 @@ export type AffiliateListResponse = {
     tenant_id: string;
     user_id: string;
     name: string;
-    email?: string;  
-    phone?: string;  
-    website?: string;   
+    email?: string;
+    phone?: string;
+    website?: string;
     bio?: string;
-    status: string;   
+    status: string;
     bank_account: {
       bank_name: string;
       account_number: string;
@@ -179,7 +179,7 @@ export type AffiliateStatus = "pending" | "approved" | "rejected";
 // user_id and tenant_id will be added in the store/onSubmit handler.
 export type CreateAffiliatePayload = AffiliateFormValues & {
   vendor_id: string; // Added vendor_id as it's essential for creation
-  user_id: string; 
+  user_id: string;
   tenant_id: string;
 };
 
@@ -215,4 +215,21 @@ export type VendorPartnerRequestFilter = {
   limit?: number;
   status?: VendorPartnerRequestStatus;
   // any other filterable fields
+};
+
+// Affiliate Link Type
+export type AffiliateLink = {
+  id: string;
+  affiliate_id: string;
+  request_id: string;
+  code: string;
+  vendor_id: string;
+  product_id: string;
+  is_active: boolean;
+  expiry_date: string | null;
+  clicks: number;
+  orders: number;
+  total_commission: number;
+  created_at: string;
+  updated_at: string;
 };
