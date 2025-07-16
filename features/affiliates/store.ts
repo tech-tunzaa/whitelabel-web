@@ -71,7 +71,7 @@ interface AffiliateStoreState {
   fetchAffiliateRequests: (
     filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string },
     headers?: Record<string, string>
-  ) => Promise<void>;
+  ) => Promise<{ requests: AffiliateRequest[]; total: number }>;
   fetchAffiliateLinks: (
     affiliateId: string,
     params?: { skip?: number; limit?: number },
@@ -327,7 +327,7 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
   fetchAffiliateRequests: async (
     filter: AffiliateFilter & { affiliate_id?: string; vendor_id?: string } = {},
     headers?: Record<string, string>
-  ): Promise<void> => {
+  ): Promise<{ requests: AffiliateRequest[]; total: number }> => {
     const { affiliate_id, vendor_id, ...otherFilters } = filter;
 
     const { setLoading, setError } = get();
@@ -348,6 +348,11 @@ export const useAffiliateStore = create<AffiliateStoreState>()((set, get) => ({
       if (!responseData?.requests) {
         throw new Error('Invalid response structure from server');
       }
+      // Optionally update store state here if needed
+      return {
+        requests: responseData.requests,
+        total: responseData.total || responseData.requests.length || 0,
+      };
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch requests';
       setError({
