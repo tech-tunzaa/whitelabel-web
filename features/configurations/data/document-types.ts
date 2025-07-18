@@ -79,11 +79,6 @@ export const DOCUMENT_TYPES: DocumentTypeOption[] = [
     slug: 'lease_agreement',
     name: 'Lease Agreement',
     description: 'Business premises lease agreement'
-  },
-  {
-    slug: 'other',
-    name: 'Other Document',
-    description: 'Any other relevant document'
   }
 ];
 

@@ -16,10 +16,12 @@ export interface VehicleType {
   description: string;
   is_active: boolean;
   tenant_id?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface TenantVehicleType extends VehicleType {
   tenant_id: string;
+  metadata?: Record<string, any>;
 }
 
 export interface EntityConfiguration {

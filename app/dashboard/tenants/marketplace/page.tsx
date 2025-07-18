@@ -44,6 +44,9 @@ export default function MarketplacePage() {
       await tenantStore.updateTenant(tenantId, data);
       toast.success("Marketplace settings updated successfully");
       setIsEditing(false);
+      const result = { id: tenantId };
+      console.log('[MarketplacePage] Returning result to TenantForm:', result);
+      return result; // <-- Return the correct tenantId
     } catch (error) {
       console.error("Error updating marketplace settings:", error);
       toast.error("Failed to update marketplace settings. Please try again.");
@@ -134,7 +137,24 @@ export default function MarketplacePage() {
       <div className="flex-1 p-4 overflow-auto">
         {tenant && (
           <TenantForm
-            initialData={tenant}
+            initialData={{
+              ...tenant,
+              tenant_id: typeof tenant.tenant_id === 'string' ? tenant.tenant_id : tenant.id,
+              plan: tenant.plan === 'monthly' || tenant.plan === 'quarterly' || tenant.plan === 'annually' ? tenant.plan : undefined,
+              banners: tenant.banners === null ? [] : tenant.banners,
+              branding: {
+                ...tenant.branding,
+                logoUrl: tenant.branding?.logoUrl === null ? undefined : tenant.branding?.logoUrl,
+                theme: {
+                  ...tenant.branding?.theme,
+                  logo: {
+                    primary: tenant.branding?.theme?.logo?.primary === null ? undefined : tenant.branding?.theme?.logo?.primary,
+                    secondary: tenant.branding?.theme?.logo?.secondary === null ? undefined : tenant.branding?.theme?.logo?.secondary,
+                    icon: tenant.branding?.theme?.logo?.icon === null ? undefined : tenant.branding?.theme?.logo?.icon,
+                  },
+                },
+              },
+            }}
             onSubmit={onSubmit}
             onCancel={handleCancelEdit}
             isEditable={isEditing}

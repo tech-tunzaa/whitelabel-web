@@ -9,13 +9,15 @@ interface ConfigurationState {
   configurations: Record<string, EntityConfiguration>;
   loading: boolean;
   error: string | null;
+  fetchDocumentTypes: (tenantId: string) => Promise<DocumentType[]>;
+  fetchEntities: (tenantId: string) => Promise<any[]>;
   fetchEntityConfiguration: (entityName: string, tenantId: string) => Promise<void>;
   fetchVehicleTypes: (tenantId: string) => Promise<void>;
   createDocumentType: (tenantId: string, data: { name: string; description: string; metadata: any }) => Promise<DocumentType | null>;
-  saveEntityConfiguration: (entityName: string, tenantId: string, data: { document_types: { document_type_id: string; is_required: boolean }[] }) => Promise<void>;
+  saveEntityConfiguration: (entityName: string, tenantId: string, data: { document_types: { document_type_id: string; is_required: boolean }[] }, mode: 'create' | 'update') => Promise<void>;
   createVehicleType: (tenantId: string, data: { name: string; description: string; is_active: boolean }) => Promise<void>;
   updateVehicleType: (vehicleTypeId: string, data: Partial<VehicleType>) => Promise<void>;
-  deleteVehicleType: (vehicleTypeId: string) => Promise<void>;
+  deleteVehicleType: (vehicleTypeId: string, tenantId: string) => Promise<void>;
 }
 
 export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
@@ -24,8 +26,30 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
   loading: false,
   error: null,
 
+  // Fetch all document types for a tenant
+  fetchDocumentTypes: async (tenantId: string): Promise<DocumentType[]> => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiClient.get(`/configuration/document-types?tenant_id=${tenantId}`);
+      let items: DocumentType[] = [];
+      if (response.data && typeof response.data === 'object') {
+        if ('success' in response.data && response.data.success && response.data.data && Array.isArray(response.data.data.items)) {
+          items = response.data.data.items;
+        } else if ('items' in response.data && Array.isArray(response.data.items)) {
+          items = response.data.items;
+        }
+      }
+      set({ loading: false });
+      return items;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
+      set({ error: errorMessage, loading: false });
+      toast.error(`Failed to fetch document types: ${errorMessage}`);
+      return [];
+    }
+  },
+
   fetchEntityConfiguration: async (entityName: string, tenantId: string) => {
-    console.log(`[ConfigurationStore] Attempting to fetch configuration for entity: ${entityName}`);
     set({ loading: true, error: null });
     try {
       const response = await apiClient.get<ApiResponse<EntityConfiguration>>(
@@ -66,15 +90,12 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
 
   fetchVehicleTypes: async (tenantId: string) => {
     set({ loading: true, error: null });
-    console.log('[fetchVehicleTypes] Called with tenantId:', tenantId);
     try {
       const response = await apiClient.get<ApiResponse<{ items: any[] }>>(`/configuration/vehicle-types?tenant_id=${tenantId}`);
-      console.log('[fetchVehicleTypes] Raw API response:', response.data);
       const vehicleTypes: VehicleType[] = (response.data.items || []).map((vt: any) => ({
         ...vt,
         id: vt.vehicle_id || vt.id, // ensure id is present
       }));
-      console.log('[fetchVehicleTypes] vehicleTypes to set in store:', vehicleTypes);
       set({ vehicleTypes, loading: false });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
@@ -83,26 +104,34 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
     }
   },
 
-  saveEntityConfiguration: async (entityName, tenantId, data) => {
+  saveEntityConfiguration: async (entityName, tenantId, data, mode: 'create' | 'update') => {
     set({ loading: true, error: null });
     try {
-      await apiClient.put(`/configuration/entities/${entityName}?tenant_id=${tenantId}`, data);
-      // Refetch the configuration to get the updated, populated data
-      await get().fetchEntityConfiguration(entityName, tenantId);
-      toast.success(`${entityName} configuration saved successfully.`);
+      if (mode === 'update') {
+        await apiClient.put(`/configuration/entities/${entityName}`, { ...data, tenant_id: tenantId });
+        // await get().fetchEntityConfiguration(entityName, tenantId);
+        toast.success(`${entityName} configuration updated successfully.`);
+      } else if (mode === 'create') {
+        await apiClient.post(`/configuration/entities`, { ...data, name: entityName, tenant_id: tenantId });
+        // await get().fetchEntityConfiguration(entityName, tenantId);
+        toast.success(`${entityName} configuration created successfully.`);
+      } else {
+        throw new Error('Invalid mode for saveEntityConfiguration');
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
       set({ error: errorMessage, loading: false });
       toast.error(`Failed to save ${entityName} configuration: ${errorMessage}`);
-      throw error; // Re-throw to be caught by the calling function
+      throw error;
     }
+    set({ loading: false });
   },
 
   createDocumentType: async (tenantId, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.post<ApiResponse<DocumentType>>(`/configuration/document-types?tenant_id=${tenantId}`, data);
-      const newDocType = response.data.data;
+      const response = await apiClient.post<ApiResponse<DocumentType>>(`/configuration/document-types`, { ...data, tenant_id: tenantId });
+      const newDocType = response.data.data as DocumentType;
       if (newDocType) {
         toast.success(`Document type '${data.name}' created.`);
         return newDocType;
@@ -119,8 +148,8 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
   createVehicleType: async (tenantId: string, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.post<ApiResponse<VehicleType>>(`/configuration/vehicle-types?tenant_id=${tenantId}`, data);
-      const newVehicleType = response.data.data;
+      const response = await apiClient.post<ApiResponse<VehicleType>>(`/configuration/vehicle-types`, { ...data, tenant_id: tenantId });
+      const newVehicleType = response.data.data as VehicleType;
       if (newVehicleType) {
         set((state) => ({ vehicleTypes: [...state.vehicleTypes, newVehicleType], loading: false }));
         toast.success('Vehicle type created successfully.');
@@ -132,18 +161,22 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
     }
   },
 
-  updateVehicleType: async (vehicleTypeId: string, data) => {
+  updateVehicleType: async (vehicleTypeId: string, data: Partial<VehicleType>) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.put<ApiResponse<VehicleType>>(`/configuration/vehicle-types/${vehicleTypeId}`, data);
-      const updatedVehicleType = response.data.data;
-      if (updatedVehicleType) {
-        set((state) => ({
-          vehicleTypes: state.vehicleTypes.map((vt) => vt.id === vehicleTypeId ? updatedVehicleType : vt),
-          loading: false,
-        }));
-        toast.success('Vehicle type updated successfully.');
+      // Always include tenant_id in the payload
+      let tenant_id = data.tenant_id;
+      if (!tenant_id) {
+        // Try to get tenant_id from the current vehicleType in store
+        const vt = (get().vehicleTypes || []).find(v => v.id === vehicleTypeId);
+        tenant_id = vt?.tenant_id;
       }
+      await apiClient.put(`/configuration/vehicle-types/${vehicleTypeId}`, { ...data, tenant_id });
+      set((state) => ({
+        vehicleTypes: state.vehicleTypes.map((vt) => vt.id === vehicleTypeId ? { ...vt, ...data } : vt),
+        loading: false,
+      }));
+      toast.success('Vehicle type updated successfully.');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
       set({ error: errorMessage, loading: false });
@@ -151,10 +184,11 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
     }
   },
 
-  deleteVehicleType: async (vehicleTypeId: string) => {
+  deleteVehicleType: async (vehicleTypeId: string, tenantId: string) => {
     set({ loading: true, error: null });
     try {
-      await apiClient.delete(`/configuration/vehicle-types/${vehicleTypeId}`);
+      // Use axios directly to send a body with DELETE
+      await apiClient.delete(`/configuration/vehicle-types/${vehicleTypeId}`, { tenant_id: tenantId });
       set((state) => ({
         vehicleTypes: state.vehicleTypes.filter((vt) => vt.id !== vehicleTypeId),
         loading: false,
@@ -167,4 +201,20 @@ export const useConfigurationStore = create<ConfigurationState>((set, get) => ({
     }
   },
 
+  // Fetch all entity configurations for a tenant
+  fetchEntities: async (tenantId: string): Promise<any[]> => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiClient.get(`/configuration/entities?tenant_id=${tenantId}`);
+      // Assume response.data.items is the array of entities
+      const items = response.data.items || [];
+      set({ loading: false });
+      return items;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
+      set({ error: errorMessage, loading: false });
+      toast.error(`Failed to fetch entities: ${errorMessage}`);
+      return [];
+    }
+  },
 }));

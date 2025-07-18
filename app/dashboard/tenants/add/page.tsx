@@ -26,13 +26,13 @@ export default function TenantAddPage() {
       };
 
       const newTenant = await tenantStore.createTenant(tenantData);
+
       toast.success("Tenant created successfully");
       
       // Navigate to the tenant details page for the newly created tenant
-      if (newTenant && newTenant.id) {
-        router.push(`/dashboard/tenants/${newTenant.id}`);
-      } else {
-        router.push("/dashboard/tenants");
+      if (newTenant && newTenant.tenant_id) {
+        return { id: newTenant.tenant_id }; // <-- Return the backend response
+        router.push(`/dashboard/tenants/${newTenant.tenant_id}`);
       }
     } catch (error) {
       console.error("Error creating tenant:", error);

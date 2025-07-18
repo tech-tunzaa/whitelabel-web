@@ -41,6 +41,8 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
+import { TenantConfiguration, TenantConfigurationHandle } from "./extra-config-fields";
+import { useConfigurationStore } from '@/features/configurations/store';
 
 import {
   countries,
@@ -52,6 +54,7 @@ import {
 import { platformModules } from "@/features/settings/data/modules";
 import { tenantFormSchema } from "../schema";
 import { TenantFormValues } from "../types";
+import { saveConfigurations } from './extra-config-fields';
 
 // Default values for the form, providing a good starting point.
 const defaultValues: Partial<TenantFormValues> = {
@@ -59,12 +62,16 @@ const defaultValues: Partial<TenantFormValues> = {
   country_code: "TZ",
   currency: "TZS",
   languages: ["en-US", "sw"],
-  document_types: ["id_card", "passport"],
-  vehicle_types: ["motorcycle", "car"],
   is_active: true,
   banners: [],
   branding: {
+    logoUrl: "",
     theme: {
+      logo: {
+        primary: "",
+        secondary: "",
+        icon: "",
+      },
       colors: {
         primary: "#3182CE",
         secondary: "#E2E8F0",
@@ -88,7 +95,7 @@ const defaultValues: Partial<TenantFormValues> = {
 };
 
 interface TenantFormProps {
-  onSubmit: (data: TenantFormValues) => void;
+  onSubmit: (data: TenantFormValues) => Promise<any>; // Allow promise for response
   onCancel?: () => void;
   initialData?: Partial<TenantFormValues> & { id?: string };
   isEditable?: boolean;
@@ -116,6 +123,37 @@ export function TenantForm({
       ? externalIsSubmitting
       : internalIsSubmitting;
   const [formError, setFormError] = useState<string | null>(null);
+  // 1. Add state for configurations and vehicleTypes in the parent
+  const [configurations, setConfigurations] = useState<Record<string, any>>({});
+  const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  const { fetchVehicleTypes, fetchEntities } = useConfigurationStore();
+  const [configActiveTab, setConfigActiveTab] = useState('delivery');
+
+  // 2. Fetch initial data when tenantId changes
+  useEffect(() => {
+    async function fetchInitialConfig() {
+      if (!initialData?.tenant_id) return;
+      setIsConfigLoading(true);
+      await fetchVehicleTypes(initialData.tenant_id);
+      setVehicleTypes(useConfigurationStore.getState().vehicleTypes || []);
+      const entities = await fetchEntities(initialData.tenant_id);
+      const configObj: Record<string, any> = {};
+      for (const entity of entities) {
+        configObj[entity.name] = {
+          ...entity,
+          document_types: Array.isArray(entity.document_types) ? entity.document_types : [],
+        };
+      }
+      setConfigurations(configObj);
+      setIsConfigLoading(false);
+    }
+    fetchInitialConfig();
+  }, [initialData?.tenant_id, fetchVehicleTypes, fetchEntities]);
+
+  // 3. Remove configRef and pass state/setters to TenantConfiguration
+  // Ref for TenantConfiguration
+  // const configRef = useRef<TenantConfigurationHandle>(null);
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
@@ -164,24 +202,20 @@ export function TenantForm({
   };
   
   const handleFileUpload = useCallback((file: File, fieldName: string) => {
-    console.log(`Uploading file for ${fieldName}:`, file);
     // This is a placeholder. In a real app, you'd upload the file
     // and call form.setValue(fieldName, uploadedUrl)
   }, []);
 
-
-
   // Handle form submission with error handling and validation navigation
   const handleFormSubmit = useCallback(
-    async (data: TenantFormValues, e?: React.BaseSyntheticEvent) => {
+    async (data: TenantFormValues) => {
       try {
         setFormError(null);
         setInternalIsSubmitting(true);
 
-        // Make a clean copy of form data
+        // 1. Prepare the tenant data payload
         const dataToSubmit = JSON.parse(JSON.stringify(data));
 
-        // Construct the user object
         dataToSubmit.user = {
           first_name: data.first_name,
           last_name: data.last_name,
@@ -189,62 +223,60 @@ export function TenantForm({
           phone_number: data.admin_phone,
         };
 
-        // Remove fields that are not part of the final payload
         delete dataToSubmit.first_name;
         delete dataToSubmit.last_name;
+        delete dataToSubmit.admin_email;
+        delete dataToSubmit.admin_phone;
 
-        // Modules are already part of the form data, so no manual handling is needed.
-        if (isSuperOwner) {
-          console.debug("Submitting with modules:", dataToSubmit.modules);
-        } else {
-          // Ensure modules are not sent if user is not a super owner
-          delete dataToSubmit.modules;
-        }
-
-        // Remove restricted fields for non-superOwner users
         if (!isSuperOwner) {
-          // These fields should be excluded for non-superOwner users
-          const restrictedFields = [
-            "modules",
-            "fee",
-            "plan",
-            "trial_ends_at",
-            "is_active",
-          ];
-
-          // Remove each restricted field from the submission data
-          restrictedFields.forEach((field) => {
-            if (field in dataToSubmit) {
-              delete dataToSubmit[field as keyof TenantFormValues];
-            }
-          });
-
-          // Log what we're actually submitting for debugging
-          console.debug("Submitting tenant data (filtered):", dataToSubmit);
-        } else {
-          console.debug("Submitting tenant data (super_owner):", dataToSubmit);
+          delete dataToSubmit.modules;
+          delete dataToSubmit.fee;
+          delete dataToSubmit.plan;
+          delete dataToSubmit.trial_ends_at;
+          delete dataToSubmit.is_active;
         }
 
-        await onSubmit(dataToSubmit);
+        // 2. Submit tenant data and get the ID from the response
+        const response = await onSubmit(dataToSubmit);
+        const tenantId = response?.id || id;
 
+        if (!tenantId) {
+          throw new Error('Failed to get tenant ID after submission.');
+        }
+
+        // 4. On submit, call saveConfigurations with parent's state
+        // console.log('[TenantForm] Submitting configurations:', configurations);
+        // console.log('[TenantForm] Submitting vehicleTypes:', vehicleTypes);
+        await saveConfigurations(tenantId, configurations, vehicleTypes);
+
+        toast.success(`Tenant ${id ? 'updated' : 'created'} successfully!`);
+        if (!id) { // If it was a new tenant, reset form or navigate
+            form.reset();
+        }
         setActiveTab("details");
+
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "An error occurred";
+          error instanceof Error ? error.message : "An unexpected error occurred.";
         setFormError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setInternalIsSubmitting(false);
       }
     },
-    [onSubmit, isSuperOwner]
+    [onSubmit, isSuperOwner, id, form, configurations, vehicleTypes]
   );
+
+  // Import the saveConfigurations function from extra-config-fields
+  // (You may need to export it from that file)
+  // import { saveConfigurations } from './extra-config-fields';
+  // For now, assume it is available in scope
 
   const handleDeleteBanner = async (resourceId: string, bannerId: string) => {
     if (!resourceId) {
       toast.error("Cannot delete banner: Tenant ID is missing.");
       return;
     }
-    console.log("Deleting banner:", { resourceId, bannerId });
     toast.promise(
       new Promise<void>(async (resolve, reject) => {
         try {
@@ -257,7 +289,6 @@ export function TenantForm({
           form.setValue("banners", updatedBanners, { shouldDirty: true });
           resolve();
         } catch (error) {
-          console.error("Failed to delete banner:", error);
           reject(error);
         }
       }),
@@ -278,7 +309,6 @@ export function TenantForm({
       toast.error("Cannot update banners: Tenant ID is missing.");
       return;
     }
-    console.log("Updating tenant resource for banners:", { resourceId, data });
     toast.info(
       "Banner order saved locally. Submit the form to persist changes."
     );
@@ -293,10 +323,8 @@ export function TenantForm({
       domain: "details",
       admin_email: "details",
       admin_phone: "details",
-      plan: "details",
-      fee: "details",
       branding: "branding",
-      banners: "banners",
+      banners: "branding",
       country_code: "configuration",
       currency: "configuration",
       languages: "configuration",
@@ -313,7 +341,6 @@ export function TenantForm({
       }
     }
     toast.error("Please fix the validation errors before submitting");
-    console.error("Form validation errors:", errors);
   };
 
   // If there's a form error and we're not in the loading state, show error card
@@ -391,7 +418,7 @@ export function TenantForm({
                             Next
                           </Button>
                         ) : (
-                          <Button type="submit" disabled={isSubmitting}>
+                          <Button type="submit" disabled={isSubmitting || isConfigLoading}>
                             {isSubmitting ? (
                               <>
                                 <Spinner size="sm" color="white" />
@@ -550,106 +577,29 @@ export function TenantForm({
           <>
             <Separator />
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Subscription Details</h3>
-              <div className="grid gap-6 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="plan"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Billing Plan <RequiredField />
-                      </FormLabel>
-                      <Select
-                        disabled={!isEditable}
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a billing plan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                          <SelectItem value="annually">Annually</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Select the billing plan for the tenant
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subscription Fee</FormLabel>
-                      <FormControl>
-                        <Input {...field} readOnly={!isEditable} />
-                      </FormControl>
-                      <FormDescription>
-                        Monthly subscription amount
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
               <h3 className="text-lg font-medium">Status</h3>
-              <div className="grid gap-6 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="is_active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={!isEditable}
-                          className="disabled:opacity-80"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Active Status</FormLabel>
-                        <FormDescription>
-                          Toggle to activate or deactivate the tenant account
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="trial_ends_at"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Trial End Date
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="datetime-local"
-                          {...field}
-                          readOnly={!isEditable}
-                        />
-                      </FormControl>
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!isEditable}
+                        className="disabled:opacity-80"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Active Status</FormLabel>
                       <FormDescription>
-                        Set the date when the trial period ends
+                        Toggle to activate or deactivate the tenant account
                       </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
           </>
         )}
@@ -1050,59 +1000,20 @@ export function TenantForm({
               />
             </div>
 
-            <Separator className="my-4" />
+            <Separator className="my-6 mt-8" />
 
-            <div className="space-y-4">
-              <h4 className="text-md font-medium">Document & Vehicle Types</h4>
-              <div className="grid gap-6 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="document_types"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Document Types <RequiredField />
-                      </FormLabel>
-                      <MultiSelect
-                        placeholder="Select document types"
-                        selected={field.value || []}
-                        options={documentTypes.map((type) => ({
-                          value: type.value,
-                          label: type.label,
-                        }))}
-                        onChange={(selected) => field.onChange(selected)}
-                        className="w-full"
-                        readOnly={!isEditable}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vehicle_types"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Vehicle Types <RequiredField />
-                      </FormLabel>
-                      <MultiSelect
-                        placeholder="Select vehicle types"
-                        selected={field.value || []}
-                        options={vehicleTypes.map((type) => ({
-                          value: type.value,
-                          label: type.label,
-                        }))}
-                        onChange={(selected) => field.onChange(selected)}
-                        className="w-full"
-                        readOnly={!isEditable}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+            {/* Extra Configuration Fields - now controlled */}
+            <TenantConfiguration
+              tenantId={initialData?.tenant_id}
+              isEditable={isEditable}
+              configurations={configurations}
+              setConfigurations={setConfigurations}
+              vehicleTypes={vehicleTypes}
+              setVehicleTypes={setVehicleTypes}
+              loading={isConfigLoading}
+              activeTab={configActiveTab}
+              setActiveTab={setConfigActiveTab}
+            />
           </div>
         </div>
       </TabsContent>

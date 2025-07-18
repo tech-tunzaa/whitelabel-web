@@ -39,6 +39,9 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
     try {
       await tenantStore.updateTenant(tenantId, data);
       toast.success("Tenant updated successfully");
+      const result = { id: tenantId };
+      console.log('[TenantEditPage] Returning result to TenantForm:', result);
+      return result; // <-- Return the correct tenantId
     } catch (error) {
       toast.error("Failed to update tenant. Please try again.");
     } finally {
@@ -116,7 +119,24 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
         {tenant && (
           <TenantForm 
             id="marketplace-tenant-form"
-            initialData={tenant}
+            initialData={{
+              ...tenant,
+              tenant_id: typeof tenant.tenant_id === 'string' ? tenant.tenant_id : tenant.id,
+              plan: tenant.plan === 'monthly' || tenant.plan === 'quarterly' || tenant.plan === 'annually' ? tenant.plan : undefined,
+              banners: tenant.banners === null ? [] : tenant.banners,
+              branding: {
+                ...tenant.branding,
+                logoUrl: tenant.branding?.logoUrl === null ? undefined : tenant.branding?.logoUrl,
+                theme: {
+                  ...tenant.branding?.theme,
+                  logo: {
+                    primary: tenant.branding?.theme?.logo?.primary === null ? undefined : tenant.branding?.theme?.logo?.primary,
+                    secondary: tenant.branding?.theme?.logo?.secondary === null ? undefined : tenant.branding?.theme?.logo?.secondary,
+                    icon: tenant.branding?.theme?.logo?.icon === null ? undefined : tenant.branding?.theme?.logo?.icon,
+                  },
+                },
+              },
+            }}
             onSubmit={handleSubmit} 
             isSubmitting={isSubmitting}
           />

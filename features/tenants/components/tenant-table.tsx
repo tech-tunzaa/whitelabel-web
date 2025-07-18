@@ -206,7 +206,7 @@ export function TenantTable({
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDeactivateTenant(tenant.id);
+                              onDeactivateTenant(tenant.tenant_id);
                             }}
                           >
                             Deactivate
@@ -215,7 +215,7 @@ export function TenantTable({
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              onActivateTenant(tenant.id);
+                              onActivateTenant(tenant.tenant_id);
                             }}
                           >
                             Activate
