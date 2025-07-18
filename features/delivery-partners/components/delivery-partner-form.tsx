@@ -113,28 +113,6 @@ const partnerTypes = [
   },
 ];
 
-const vehicleTypes = [
-  {
-    id: "boda",
-    label: "Boda Boda",
-    description: "Motorcycle taxi service",
-    icon: "🏍️",
-  },
-  { id: "car", label: "Car", description: "Car delivery service", icon: "🚗" },
-  {
-    id: "truck",
-    label: "Truck",
-    description: "Truck delivery service",
-    icon: "🚚",
-  },
-  {
-    id: "bicycle",
-    label: "Bicycle",
-    description: "Bicycle delivery service",
-    icon: "🚲",
-  },
-];
-
 interface DeliveryPartnerFormProps {
   onSubmit: (data: DeliveryPartnerFormValues) => void;
   onCancel?: () => void;
@@ -326,7 +304,7 @@ export function DeliveryPartnerForm({
         make: "Toyota",
         model: "Corolla",
         year: "2020",
-        color: "Red",
+        color: "Black",
         plate: plateNumber,
       };
 
@@ -961,34 +939,35 @@ export function DeliveryPartnerForm({
                 </FormItem>
               )}
             />
-            {/* Color */}
-            <FormField
-              control={form.control}
-              name="vehicleColor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Color</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter vehicle color..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Make */}
-            <FormField
-              control={form.control}
-              name="vehicleMake"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Make</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Enter vehicle make..." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Color and Make */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="vehicleColor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Color</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter vehicle color..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vehicleMake"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Make</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter vehicle make..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             {/* Model and Year */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -1337,7 +1316,7 @@ export function DeliveryPartnerForm({
             national ID, business registration, etc.
           </p>
           <DocumentUpload
-            entityName="DELIVERY"
+            entityName="delivery"
             id={`delivery-partner-docs-${initialData?._id || "new"}`}
             label="Upload KYC Documents"
             description="Upload one or more documents. Ensure the images are clear."

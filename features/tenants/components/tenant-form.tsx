@@ -1005,7 +1005,7 @@ export function TenantForm({
             {/* Extra Configuration Fields - now controlled */}
             <TenantConfiguration
               tenantId={initialData?.tenant_id}
-              isEditable={isEditable}
+              isEditable={true}
               configurations={configurations}
               setConfigurations={setConfigurations}
               vehicleTypes={vehicleTypes}

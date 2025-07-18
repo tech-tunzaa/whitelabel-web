@@ -16,7 +16,7 @@ export const VEHICLE_TYPES: VehicleTypeOption[] = [
         icon: '🏍'
     },
     {
-        slug: 'bajaj',
+        slug: 'bajaji',
         name: 'Bajaji',
         description: '',
         icon: '🛺'

@@ -219,7 +219,7 @@ export default function DeliveryPartnerEditPage({ params }: DeliveryPartnerEditP
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Edit Delivery Partner: {partner.companyName}
+              Edit Delivery Partner: {partner.name}
             </h1>
             <p className="text-muted-foreground">
               Update delivery partner information and settings
