@@ -12,13 +12,13 @@ export const VEHICLE_TYPES: VehicleTypeOption[] = [
     {
         slug: 'boda-boda',
         name: 'Boda Boda',
-        description: '',
+        description: 'Motorcycle',
         icon: '🏍'
     },
     {
         slug: 'bajaji',
         name: 'Bajaji',
-        description: '',
+        description: 'Bajaji',
         icon: '🛺'
     },
     {
@@ -30,7 +30,7 @@ export const VEHICLE_TYPES: VehicleTypeOption[] = [
     {
         slug: 'central-truck',
         name: 'Central Truck',
-        description: '',
+        description: 'Central Truck',
         icon: '🚚'
     },
 ]

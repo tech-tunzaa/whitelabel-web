@@ -272,7 +272,7 @@ export const TenantConfiguration = ({
                         placeholder="Description"
                         value={doc.description || ''}
                         onChange={e => updateDocumentType(entity, index, 'description', e.target.value)}
-                        disabled={!isEditable || loading}
+                        readOnly={!isEditable || loading}
                         className="flex-grow min-w-[180px] mt-2"
                       />
                     </div>
@@ -368,7 +368,7 @@ export const TenantConfiguration = ({
                       placeholder="Description"
                       value={vt.description || ''}
                       onChange={e => handleUpdateVehicleType(vt.id, { description: e.target.value })}
-                      disabled={!isEditable || loading}
+                      readOnly={!isEditable || loading}
                       className="flex-grow min-w-[180px]"
                     />
                   </div>

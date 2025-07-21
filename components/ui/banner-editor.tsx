@@ -149,6 +149,7 @@ function SortableBannerItem({
                 previewAlt={banner.alt_text || "Banner image"}
                 buttonText="Upload Banner"
                 className="mb-2 transition-all duration-200 hover:shadow-md"
+                readOnly={readOnly}
               />
               {!banner.image_url && (
                 <FormMessage>Please upload a banner image</FormMessage>
@@ -166,7 +167,7 @@ function SortableBannerItem({
                   value={banner.title}
                   onChange={(e) => onUpdate(index, "title", e.target.value)}
                   placeholder="Enter banner title"
-                  disabled={readOnly}
+                  readOnly={readOnly}
                   className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
                 />
               </div>
@@ -178,7 +179,7 @@ function SortableBannerItem({
                   value={banner.alt_text || ""}
                   onChange={(e) => onUpdate(index, "alt_text", e.target.value)}
                   placeholder="Describe this image (for accessibility)"
-                  disabled={readOnly}
+                  readOnly={readOnly}
                   className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
                 />
               </div>
@@ -199,7 +200,7 @@ function SortableBannerItem({
                 }}
                 min="1"
                 placeholder="Order position"
-                disabled={readOnly}
+                readOnly={readOnly}
                 className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
               />
               <p className="text-xs text-muted-foreground mt-1">Banners display in ascending order (lowest first)</p>

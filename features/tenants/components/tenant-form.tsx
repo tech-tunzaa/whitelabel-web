@@ -358,7 +358,7 @@ export function TenantForm({
 
   return (
     <fieldset disabled={isSubmitting}>
-      <Card className="mx-4">
+      <Card className="">
         <CardContent className="p-6">
           <Form {...form}>
             <form
@@ -573,36 +573,49 @@ export function TenantForm({
           </div>
         </div>
 
-        {isSuperOwner && (
-          <>
-            <Separator />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Status</h3>
-              <FormField
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={!isEditable}
-                        className="disabled:opacity-80"
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Active Status</FormLabel>
-                      <FormDescription>
-                        Toggle to activate or deactivate the tenant account
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
+        <Separator />
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Status</h3>
+          {isSuperOwner && (
+            <FormField
+              control={form.control}
+              name="is_active"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!isEditable && isSuperOwner}
+                      className="disabled:opacity-80"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Active Status</FormLabel>
+                    <FormDescription>
+                      Toggle to activate or deactivate the tenant account
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+          )}
+          {!isSuperOwner && (
+            <div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 py-6">
+              <Switch
+                checked={form.getValues("is_active")}
+                disabled
+                className="disabled:opacity-80"
               />
+              <div className="space-y-1 leading-none ms-2">
+                <FormLabel>Active Status</FormLabel>
+                <FormDescription>
+                  You do not have permission to change the status.
+                </FormDescription>
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </TabsContent>
     );
   }
@@ -1005,7 +1018,7 @@ export function TenantForm({
             {/* Extra Configuration Fields - now controlled */}
             <TenantConfiguration
               tenantId={initialData?.tenant_id}
-              isEditable={true}
+              isEditable={isEditable}
               configurations={configurations}
               setConfigurations={setConfigurations}
               vehicleTypes={vehicleTypes}

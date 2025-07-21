@@ -194,7 +194,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
           ...vendor,
           verification_status:
             vendor.verification_status &&
-            typeof vendor.verification_status === "string"
+              typeof vendor.verification_status === "string"
               ? vendor.verification_status.toLowerCase()
               : vendor.verification_status,
         }));
@@ -634,11 +634,11 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         const patched = vendor.verification_documents.map((d) =>
           d.document_type_id === payload.document_type_id
             ? {
-                ...d,
-                ...(finalDoc || {}),
-                verification_status: payload.verification_status,
-                rejection_reason: payload.rejection_reason ?? null,
-              }
+              ...d,
+              ...(finalDoc || {}),
+              verification_status: payload.verification_status,
+              rejection_reason: payload.rejection_reason ?? null,
+            }
             : d
         );
         setVendor({ ...vendor, verification_documents: patched });

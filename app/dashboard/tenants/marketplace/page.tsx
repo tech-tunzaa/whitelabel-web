@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Edit, ArrowLeft } from "lucide-react";
+import { Edit, ArrowLeft, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
@@ -12,6 +12,7 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
 import { useTenantStore } from "@/features/tenants/store";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function MarketplacePage() {
   const router = useRouter();
@@ -135,6 +136,12 @@ export default function MarketplacePage() {
       </div>
 
       <div className="flex-1 p-4 overflow-auto">
+        {!isEditing && (
+          <Alert className="flex items-center gap-2 mb-4 px-3 py-2 rounded-md bg-blue-50 text-blue-900 text-sm border border-blue-200">
+            <Info className="h-4 w-4 text-blue-500" />
+            Marketplace settings are <span className="font-medium">view only</span>. Click <span className="font-medium">Customize Marketplace</span> to make changes.
+          </Alert>
+        )}
         {tenant && (
           <TenantForm
             initialData={{
