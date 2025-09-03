@@ -74,6 +74,7 @@ const defaultValues: Partial<VendorFormValues> = {
   verification_documents: [],
   country: "Tanzania",
   commission_rate: "0",
+  business_name: "",
   bank_account: {
     bank_name: "",
     account_number: "",
@@ -162,7 +163,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
           },
         }
       : { ...defaultValues, tenant_id: isSuperOwner ? "" : tenantId },
-    mode: "onBlur",
+    mode: "onSubmit",
   });
 
   const watchedTenantId = form.watch("tenant_id");
@@ -199,6 +200,11 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       "contact_phone",
       "commission_rate",
     ],
+    store: [
+      "stores.0.store_name",
+      "stores.0.description",
+      "stores.0.categories",
+    ],
     address: [
       "address_line1",
       "city",
@@ -211,6 +217,7 @@ export const VendorForm: React.FC<VendorFormProps> = ({
       "bank_account.account_name",
       "bank_account.account_number",
     ],
+    documents: ["verification_documents"],
   };
 
   const nextTab = async () => {
@@ -247,7 +254,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
   const handleDeleteDocument = (index: number) => {
     // Simply remove the document from the field array without any server call
     removeDocument(index);
-    toast.info("Document removed from list. Save changes to make it permanent.");
+    toast.info(
+      "Document removed from list. Save changes to make it permanent."
+    );
   };
 
   const handleUploadComplete = (doc: DocumentWithMeta) => {
@@ -312,23 +321,55 @@ export const VendorForm: React.FC<VendorFormProps> = ({
 
   const handleFormError = (errors: any) => {
     console.log("Validation errors:", errors);
-    const firstErrorField = Object.keys(errors)[0];
-    if (firstErrorField) {
-      const fieldRoot = firstErrorField.split(".")[0];
-      for (const tabName in tabFields) {
+
+    // Find the first error field and determine which tab it belongs to
+    const findTabForField = (fieldPath: string): Tab | null => {
+      for (const [tabName, fields] of Object.entries(tabFields)) {
         if (
-          tabFields[tabName as Tab]?.some(
-            (field) => field === firstErrorField || field === fieldRoot
-          )
+          fields?.some((field) => {
+            // Check exact match or if the error field starts with the tab field
+            return (
+              fieldPath === field ||
+              fieldPath.startsWith(field + ".") ||
+              field.startsWith(fieldPath + ".")
+            );
+          })
         ) {
-          if (activeTab !== tabName) {
-            setActiveTab(tabName as Tab);
-          }
-          break;
+          return tabName as Tab;
         }
       }
+
+      // Handle nested field paths by checking root level
+      const fieldRoot = fieldPath.split(".")[0];
+      for (const [tabName, fields] of Object.entries(tabFields)) {
+        if (fields?.some((field) => field.startsWith(fieldRoot + "."))) {
+          return tabName as Tab;
+        }
+      }
+
+      return null;
+    };
+
+    // Get all error field paths and find the first tab with errors
+    const errorFields = Object.keys(errors);
+    let targetTab: Tab | null = null;
+
+    for (const fieldPath of errorFields) {
+      targetTab = findTabForField(fieldPath);
+      if (targetTab) {
+        break;
+      }
     }
-    toast.error("Please fix the validation errors before submitting.");
+
+    // Navigate to the tab with the first error
+    if (targetTab && activeTab !== targetTab) {
+      setActiveTab(targetTab);
+      toast.error(
+        `Please fix the validation errors in the ${targetTab} section.`
+      );
+    } else {
+      toast.error("Please fix the validation errors before submitting.");
+    }
   };
 
   const {
@@ -1308,7 +1349,9 @@ export const VendorForm: React.FC<VendorFormProps> = ({
                           <li key={index}>
                             {doc.document_type_name}: {doc.file_name}
                             {doc.number && (
-                              <span className="ml-2 text-xs text-muted-foreground">Number: {doc.number}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                Number: {doc.number}
+                              </span>
                             )}
                             {doc.expiry_date && (
                               <span className="ml-2 text-muted-foreground">

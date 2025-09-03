@@ -39,7 +39,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
       <div className="grid gap-6 md:grid-cols-2">
         <FormField
           control={control}
-          name={`${fieldPrefix}.store_name`}
+          name={`${fieldPrefix}.store_name` as any}
           render={({ field }) => (
             <FormItem>
               <FormLabel>
@@ -63,7 +63,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
       <div className="space-y-4">
         <FormField
           control={control}
-          name={`${fieldPrefix}.description`}
+          name={`${fieldPrefix}.description` as any}
           render={({ field }) => (
             <FormItem>
               <FormLabel>
@@ -89,7 +89,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
       <div className="space-y-4">
         <FormField
           control={control}
-          name={`${fieldPrefix}.branding.logo_url`}
+          name={`${fieldPrefix}.branding.logo_url` as any}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Store Logo</FormLabel>
@@ -116,7 +116,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
       <div className="space-y-4">
         <FormField
           control={control}
-          name={`${fieldPrefix}.categories`}
+          name={`${fieldPrefix}.categories` as any}
           render={({ field }) => {
             const selected = Array.isArray(field.value)
               ? field.value.map((id) => String(id || ""))
@@ -147,7 +147,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
           {/* Return Policy */}
           <FormField
             control={control}
-            name={`${fieldPrefix}.return_policy`}
+            name={`${fieldPrefix}.return_policy` as any}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Return Policy</FormLabel>
@@ -169,7 +169,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
           {/* Shipping Policy */}
           <FormField
             control={control}
-            name={`${fieldPrefix}.shipping_policy`}
+            name={`${fieldPrefix}.shipping_policy` as any}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Shipping Policy</FormLabel>
@@ -192,7 +192,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
         {/* General Policy */}
         <FormField
           control={control}
-          name={`${fieldPrefix}.general_policy`}
+          name={`${fieldPrefix}.general_policy` as any}
           render={({ field }) => (
             <FormItem>
               <FormLabel>General Terms & Conditions</FormLabel>
@@ -217,7 +217,7 @@ const VendorStoreForm: React.FC<VendorStoreFormProps> = ({
         <h4 className="text-md font-medium">Store Banners</h4>
         <FormField
           control={control}
-          name={`${fieldPrefix}.banners`}
+          name={`${fieldPrefix}.banners` as any}
           render={({ field }) => (
             <FormItem>
               <FormControl>

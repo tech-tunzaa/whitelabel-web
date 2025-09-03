@@ -313,7 +313,7 @@ export default function VendorPage({ params }: VendorPageProps) {
   const vendorEmail = vendor?.contact_email || vendor?.email || "";
   // Get the first store from the array if available
   const firstStore = storeData && storeData.length > 0 ? storeData[0] : null;
-  const vendorLogo = firstStore?.branding?.logo_url || vendor?.store?.branding?.logo_url ||  vendor?.logo || "/placeholder.svg";
+  const vendorLogo = firstStore?.branding?.logo_url || "/placeholder.svg";
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Not specified";

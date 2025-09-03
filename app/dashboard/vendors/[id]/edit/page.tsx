@@ -110,7 +110,7 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
     );
   }
 
-  return (
+  return vendor ? (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center">
@@ -157,5 +157,5 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
         />
       </div>
     </div>
-  );
+  ) : null;
 }

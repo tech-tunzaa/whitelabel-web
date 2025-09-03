@@ -30,7 +30,13 @@ export const locationSchema = z.object({
 // Corresponds to StoreBranding type
 export const storeBrandingSchema = z.object({
   logo_url: z.string().optional().nullable(),
-  favicon_url: z.string().optional(),
+  colors: z.object({
+    primary: z.string().optional(),
+    secondary: z.string().optional(),
+    accent: z.string().optional(),
+    text: z.string().optional(),
+    background: z.string().optional(),
+  })
 }).optional();
 
 // Corresponds to StoreBanner type
@@ -47,10 +53,10 @@ export const storeSchema = z.object({
   tenant_id: z.string().optional(),
   vendor_id: z.string().optional(),
   store_name: z.string().min(2, "Store name must be at least 2 characters"),
-  description: z.string().optional(),
+  description: z.string().min(1, "Store description is required"),
   branding: storeBrandingSchema,
   banners: z.array(storeBannerSchema).optional(),
-  categories: z.array(z.string()).optional(),
+  categories: z.array(z.string()).min(1, "At least one category is required"),
   general_policy: z.string().optional().nullable(),
   return_policy: z.string().optional().nullable(),
   shipping_policy: z.string().optional().nullable(),
@@ -104,3 +110,4 @@ export const vendorFormSchema = z.object({
   stores: z.array(storeSchema).optional(),
   user: userSchema,
 });
+

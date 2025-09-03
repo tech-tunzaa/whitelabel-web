@@ -82,12 +82,12 @@ export function BankingInfoFields({ form, fieldPrefix = "bank_account" }: Bankin
 
       <FormField
         control={form.control}
-        name={name("swift_bic")}
+        name={name("swift_code")}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>SWIFT/BIC (Optional)</FormLabel>
+            <FormLabel>SWIFT Code (Optional)</FormLabel>
             <FormControl>
-              <Input placeholder="SWIFT/BIC" {...field} />
+              <Input placeholder="SWIFT Code" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
