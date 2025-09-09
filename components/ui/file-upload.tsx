@@ -6,7 +6,7 @@ import { Label } from "./label"
 import { Input } from "./input"
 import { cn } from "@/lib/utils"
 import { Trash, Plus, X, Eye, FileIcon, AlertTriangle, Check, Loader } from "lucide-react"
-import { isPdfFile } from "@/lib/services/file-upload.service"
+import { isPdfFile, uploadFile } from "@/lib/services/file-upload.service"
 import { DocumentTypeIcon } from "@/components/ui/document-type-icon"
 import { FilePreviewModal } from "@/components/ui/file-preview-modal"
 
@@ -87,25 +87,27 @@ export function FileUpload({
     const objectUrl = URL.createObjectURL(selectedFile);
     setPreview(objectUrl);
     
-    // Notify parent component about the file change
+    // Upload the file to storage API
     if (onChange) {
-      // Simulate a file upload - in a real app, you'd upload the file to a server here
       setUploading(true);
       try {
-        // For the demo, we're just using a timeout to simulate upload
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Upload to server using the same service as image upload
+        const response = await uploadFile(selectedFile, false); // false for non-image files
         
-        // In a real app, you'd get the file URL from the server response
-        const uploadedFileUrl = objectUrl || "";
+        // Use CDN URL from response
+        const serverUrl = response.fileCDNUrl;
+        setFileUrl(serverUrl);
         
-        setFileUrl(uploadedFileUrl);
-        setUploading(false);
-        
-        // Pass the file URL and file object to the parent component
-        onChange(uploadedFileUrl, selectedFile);
+        // Pass the server URL and file object to the parent component
+        onChange(serverUrl, selectedFile);
       } catch (error) {
-        console.error("Error uploading file:", error);
-        setError("Failed to upload file. Please try again.");
+        console.error("File upload error:", error);
+        setError(error instanceof Error ? error.message : "Failed to upload file. Please try again.");
+        
+        // Keep the local preview but indicate error
+        setFileUrl(objectUrl);
+        onChange(objectUrl, selectedFile);
+      } finally {
         setUploading(false);
       }
     }

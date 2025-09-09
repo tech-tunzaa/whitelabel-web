@@ -42,6 +42,12 @@ export type TenantModules = {
   inventory: boolean;
 };
 
+export type TenantMetadata = {
+  terms_conditions?: string | null;
+  privacy_policy?: string | null;
+  banners?: Banner[] | null;
+};
+
 export type User = {
   user_id?: string;
   first_name: string;
@@ -67,7 +73,7 @@ export type Tenant = {
   modules: TenantModules;
   branding: TenantBranding | null;
   banners: Banner[] | null;
-  metadata: Record<string, any>;
+  metadata: TenantMetadata;
   created_at: string;
   updated_at: string;
   billing_history: Array<{

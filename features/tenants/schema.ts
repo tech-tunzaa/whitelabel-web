@@ -51,6 +51,12 @@ export const brandingSchema = z.object({
 
 export const modulesSchema = z.record(z.boolean()).optional().nullable();
 
+export const metadataSchema = z.object({
+  terms_conditions: z.string().url("Invalid URL").optional().nullable(),
+  privacy_policy: z.string().url("Invalid URL").optional().nullable(),
+  banners: z.array(bannerSchema).optional().nullable(),
+}).optional().nullable();
+
 export const tenantFormSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
@@ -84,6 +90,7 @@ export const tenantFormSchema = z.object({
   modules: modulesSchema,
   branding: brandingSchema.optional().nullable(),
   banners: z.array(bannerSchema).optional().nullable(),
+  metadata: metadataSchema,
 });
 
 export type TenantFormValues = z.infer<typeof tenantFormSchema>;

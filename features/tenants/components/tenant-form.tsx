@@ -41,6 +41,7 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { BannerEditor } from "@/components/ui/banner-editor";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
+import { FileUpload } from "@/components/ui/file-upload";
 import { TenantConfiguration, TenantConfigurationHandle } from "./extra-config-fields";
 import { useConfigurationStore } from '@/features/configurations/store';
 
@@ -113,7 +114,7 @@ export function TenantForm({
 }: TenantFormProps) {
   const { data: session } = useSession();
   const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super";
+  const isSuperOwner = userRole === "super"; // TODO:
   const isAddPage = !initialData?.id;
 
   const [activeTab, setActiveTab] = useState("details");
@@ -896,21 +897,39 @@ export function TenantForm({
           </div>
 
           <Separator className="mt-14" />
-          <FormField
-            control={form.control}
-            name="banners"
-            render={({ field }) => (
-              <BannerEditor
-                banners={field.value ?? []}
-                onChange={field.onChange}
-                readOnly={!isEditable}
-                resourceId={id || initialData?.id || ""}
-                entityId={id || initialData?.id || ""}
-                onDeleteBanner={handleDeleteBanner}
-                onUpdateResource={handleUpdateTenant}
-              />
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="banners"
+              render={({ field }) => (
+                <BannerEditor
+                  banners={field.value ?? []}
+                  onChange={field.onChange}
+                  readOnly={!isEditable}
+                  resourceId={id || initialData?.id || ""}
+                  entityId={id || initialData?.id || ""}
+                  onDeleteBanner={handleDeleteBanner}
+                  onUpdateResource={handleUpdateTenant}
+                />
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="metadata.banners"
+              render={({ field }) => (
+                <BannerEditor
+                  banners={field.value ?? []}
+                  onChange={field.onChange}
+                  readOnly={!isEditable}
+                  resourceId={id || initialData?.id || ""}
+                  entityId={id || initialData?.id || ""}
+                  onDeleteBanner={handleDeleteBanner}
+                  onUpdateResource={handleUpdateTenant}
+                />
+              )}
+            />
+          </div>
         </div>
       </TabsContent>
     );
@@ -1007,6 +1026,55 @@ export function TenantForm({
                       className="w-full"
                       readOnly={!isEditable}
                     />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Legal Documents */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="metadata.terms_conditions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Terms & Conditions</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        label="Upload Terms & Conditions"
+                        description="Upload your terms and conditions document (PDF format recommended)"
+                        value={field.value || ""}
+                        onChange={(fileUrl) => field.onChange(fileUrl)}
+                        onRemove={() => field.onChange("")}
+                        disabled={!isEditable}
+                        accept=".pdf"
+                        maxSizeMB={10}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="metadata.privacy_policy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Privacy Policy</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        label="Upload Privacy Policy"
+                        description="Upload your privacy policy document (PDF format recommended)"
+                        value={field.value || ""}
+                        onChange={(fileUrl) => field.onChange(fileUrl)}
+                        onRemove={() => field.onChange("")}
+                        disabled={!isEditable}
+                        accept=".pdf"
+                        maxSizeMB={10}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
