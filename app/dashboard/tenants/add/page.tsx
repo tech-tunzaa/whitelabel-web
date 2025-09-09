@@ -9,8 +9,9 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function TenantAddPage() {
+function TenantAddPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const tenantStore = useTenantStore();
@@ -87,3 +88,5 @@ export default function TenantAddPage() {
     </div>
   );
 }
+
+export default withAuthorization(TenantAddPage, "tenants:create");

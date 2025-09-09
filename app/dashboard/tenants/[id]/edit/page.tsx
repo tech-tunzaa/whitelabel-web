@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { TenantForm } from "@/features/tenants/components/tenant-form";
 import { useTenantStore } from "@/features/tenants/store";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
 interface TenantEditPageProps {
   params: {
@@ -16,7 +17,7 @@ interface TenantEditPageProps {
   };
 }
 
-export default function TenantEditPage({ params }: TenantEditPageProps) {
+function TenantEditPage({ params }: TenantEditPageProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const tenantStore = useTenantStore();
@@ -145,3 +146,5 @@ export default function TenantEditPage({ params }: TenantEditPageProps) {
     </div>
   ) : null;
 }
+
+export default withAuthorization(TenantEditPage, "tenants:update");

@@ -1,167 +1,61 @@
 /**
- * Centralized Authentication Module
- *
- * This module provides a simple, centralized authentication system using
- * Zustand for state management and the API client for server communication.
+ * Role extraction utilities for authentication
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import api from './api';
-
-// Types
 export interface AuthUser {
-  user_id: string;
-  first_name: string;
-  last_name: string;
+  id: string;
+  name: string;
   email: string;
-  phone_number?: string;
-  active_profile_role?: string;
-  profiles?: {
-    profile_id: string;
-    role: string;
-    display_name: string | null;
-    is_active: boolean;
-    metadata: Record<string, any>;
-  }[];
-  roles?: { role: string; }[];
-  is_verified: boolean;
-  tenant_id?: string | null;
-  name?: string;
-  provider?: string;
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
+  roles: string[];
 }
 
 export interface CustomUser {
-  email: string;
-  token: string;
+  id: string;
   name: string;
-  role: "super" | "admin" | "sub_admin" | "support";
-  tenant_id: string;
-  accessToken: string;
+  email: string;
+  role?: string;
+  roles?: string[];
+  token?: string;
+  accessToken?: string;
+  tenant_id?: string;
 }
 
-// Role mapping from API roles to application roles
-const ROLE_MAP: Record<string, "super" | "admin" | "sub_admin" | "support"> = {
-  'super': 'super',
-  'admin': 'admin',
-  'staff': 'sub_admin',
-  'support': 'support',
-  'buyer': 'admin',   // Map buyer role to admin by default
-  'vendor': 'admin',  // Map vendor role to admin by default
-};
-
-/**
- * Maps an API role to the application's internal role system
- */
-export function mapApiRole(apiRole: string): "super" | "admin" | "sub_admin" | "support" {
-  return ROLE_MAP[apiRole] || 'admin';
-}
-
-/**
- * Extracts the role from the user data
- */
-export function extractUserRole(user: AuthUser): string {
-  // Per user request, the 'roles' array is the single source of truth.
-  // 'active_profile_role' and 'profiles' are ignored.
-  
-  // The 'super' role has the highest priority.
-  if (user.roles?.some(r => r.role === 'super')) {
-    return 'super';
-  }
-  
-  // If not 'super', and other roles exist, return the first one from the list.
-  // The order of roles in the API response now determines the fallback role.
-  if (user.roles && user.roles.length > 0) {
-    return user.roles[0].role;
-  }
-  
-  // Default fallback if no roles are assigned at all.
-  return 'admin';
-}
-
-/**
- * Authentication store using Zustand
- */
 export interface AuthState {
   user: AuthUser | null;
-  isAuthenticated: boolean;
+  permissions: string[];
   isLoading: boolean;
   error: string | null;
+  setUser: (user: AuthUser | null) => void;
+  fetchPermissions: (userId: string, headers?: Record<string, string>) => Promise<void>;
+  hasPermission: (permission: string) => boolean;
+  hasRole: (role: string) => boolean;
+  canAccess: (requiredPermission?: string, requiredRole?: string) => boolean;
+}
+export function extractUserRoles(user: any): string[] {
+  if (!user) return [];
   
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  clearError: () => void;
-}
-
-/**
- * Centralized auth store
- */
-export const useAuthStore = create<AuthState>()(persist(
-  (set) => ({
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-    error: null,
-    
-    login: async (email, password) => {
-      try {
-        set({ isLoading: true, error: null });
-        const userData = await api.auth.login(email, password);
-        set({
-          user: userData,
-          isAuthenticated: true,
-          isLoading: false
-        });
-      } catch (error: any) {
-        set({
-          error: error.message || 'Login failed',
-          isLoading: false
-        });
-      }
-    },
-    
-    logout: () => {
-      api.auth.logout();
-      set({
-        user: null,
-        isAuthenticated: false
-      });
-    },
-    
-    clearError: () => set({ error: null })
-  }),
-  {
-    name: 'auth-storage',
-    partialize: (state) => ({
-      user: state.user,
-      isAuthenticated: state.isAuthenticated
-    })
+  // Check if rolesData exists (from dashboard layout)
+  if (user.rolesData && Array.isArray(user.rolesData)) {
+    return user.rolesData.map((r: any) => typeof r === 'string' ? r : r.role).filter(Boolean);
   }
-));
-
-// For backward compatibility with existing code
-export async function authenticateUser(email: string, password: string): Promise<AuthUser> {
-  return api.auth.login(email, password);
+  
+  // Extract roles from API response format: roles: [{ role: "admin", description: "..." }]
+  if (user.roles && Array.isArray(user.roles)) {
+    return user.roles.map((r: any) => typeof r === 'string' ? r : r.role).filter(Boolean);
+  }
+  
+  // Fallback to other possible sources
+  if (user.active_profile_role) {
+    return [user.active_profile_role];
+  }
+  
+  if (user.profiles && Array.isArray(user.profiles)) {
+    return user.profiles.map((p: any) => p.role).filter(Boolean);
+  }
+  
+  return [];
 }
 
-export async function refreshAuthToken(): Promise<{ access_token: string; refresh_token: string }> {
-  const refreshToken = api.auth.getRefreshToken() || '';
-  return api.auth.refreshToken(refreshToken);
-}
-
-export function logoutUser(): void {
-  api.auth.logout();
-}
-
-// Export the auth module
 export default {
-  useAuthStore,
-  mapApiRole,
-  extractUserRole,
-  authenticateUser,
-  refreshAuthToken,
-  logoutUser
+  extractUserRoles
 };

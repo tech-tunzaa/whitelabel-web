@@ -26,6 +26,7 @@ import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tenant } from "../types";
 import { useTenantStore } from "../store";
 import { Card, CardContent } from "@/components/ui/card";
+import { Can } from "@/components/auth/can";
 
 interface TenantTableProps {
   tenants: Tenant[];
@@ -184,43 +185,48 @@ export function TenantTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/tenants/${tenant.tenant_id}`);
-                          }}
-                        >
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/tenants/${tenant.tenant_id}/edit`);
-                          }}
-                        >
-                          Marketplace Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-
-                        {tenant.is_active ? (
+                        <Can permission="tenants:read" role="super">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDeactivateTenant(tenant.tenant_id);
+                              router.push(`/dashboard/tenants/${tenant.tenant_id}`);
                             }}
                           >
-                            Deactivate
+                            View Details
                           </DropdownMenuItem>
-                        ) : (
+                        </Can>
+                        <Can permission="tenants:update">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              onActivateTenant(tenant.tenant_id);
+                              router.push(`/dashboard/tenants/${tenant.tenant_id}/edit`);
                             }}
                           >
-                            Activate
+                            Marketplace Settings
                           </DropdownMenuItem>
-                        )}
+                        </Can>
+                        <Can permission="tenants:update">
+                          <DropdownMenuSeparator />
+                          {tenant.is_active ? (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeactivateTenant(tenant.tenant_id);
+                              }}
+                            >
+                              Deactivate
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onActivateTenant(tenant.tenant_id);
+                              }}
+                            >
+                              Activate
+                            </DropdownMenuItem>
+                          )}
+                        </Can>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

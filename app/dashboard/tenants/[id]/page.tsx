@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { useTenantStore } from "@/features/tenants/store";
 import { Tenant } from "@/features/tenants/types";
 import { TenantBillingTab } from '@/features/tenants/components/tenant-billing-tab';
+import { withAuthorization } from "@/components/auth/with-authorization";
 
 interface TenantPageProps {
   params: {
@@ -26,7 +27,7 @@ interface TenantPageProps {
   };
 }
 
-export default function TenantPage({ params }: TenantPageProps) {
+function TenantPage({ params }: TenantPageProps) {
   const router = useRouter();
   const tenantStore = useTenantStore();
   const tenantId = params.id;
@@ -407,3 +408,5 @@ export default function TenantPage({ params }: TenantPageProps) {
     </div>
   ) : null;
 }
+
+export default withAuthorization(TenantPage, { permission: "tenants:read", role: "super" });

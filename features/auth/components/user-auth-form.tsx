@@ -84,25 +84,48 @@ export default function UserAuthForm() {
     startTransition(async () => {
       try {
         // First authenticate directly with our API to get tokens
-        // This ensures we have the tokens in localStorage
+        let apiAuthSuccess = false;
         try {
           const apiAuthResult = await api.auth.login(data.email, data.password);
-          console.log('API Auth result:', apiAuthResult);
           
           // Store tokens directly in localStorage
           if (apiAuthResult.access_token) {
             localStorage.setItem('token', apiAuthResult.access_token);
             localStorage.setItem('refresh_token', apiAuthResult.refresh_token);
-            console.log('Tokens stored in localStorage:', {
-              token: apiAuthResult.access_token.slice(0, 10) + '...',
-              refresh: apiAuthResult.refresh_token.slice(0, 10) + '...'
-            });
+            apiAuthSuccess = true;
           }
         } catch (apiError) {
-          console.error('Direct API auth failed (will try NextAuth):', apiError);
+          setAuthError('Invalid credentials');
+          toast.error('Invalid credentials');
+          return;
+        }
+
+        // If API auth succeeded, still need NextAuth for middleware authentication
+        if (apiAuthSuccess) {
+          // Now proceed with NextAuth to set up the session for middleware
+          const result = await signIn("credentials", {
+            email: data.email,
+            password: data.password,
+            callbackUrl: callbackUrl ?? "/dashboard",
+            redirect: false,
+          });
+
+          if (result?.ok || !result?.error) {
+            toast.success("Signed in successfully");
+            
+            const redirectUrl = callbackUrl ?? "/dashboard";
+            
+            // Use window.location.href for more reliable redirect
+            window.location.href = redirectUrl;
+          } else {
+            // Still redirect since API auth worked
+            toast.success("Signed in successfully");
+            window.location.href = callbackUrl ?? "/dashboard";
+          }
+          return;
         }
         
-        // Then proceed with NextAuth to set up the session
+        // Only try NextAuth if direct API failed
         const result = await signIn("credentials", {
           email: data.email,
           password: data.password,
@@ -114,25 +137,6 @@ export default function UserAuthForm() {
           setAuthError(result.error);
           toast.error(result.error);
         } else if (result?.ok) {
-          // Double-check that we have tokens in localStorage
-          const token = localStorage.getItem('token');
-          if (!token) {
-            console.warn('Token not found after successful login, fetching directly');
-            // As a last resort, try to get the token from the session
-            try {
-              const apiAuthResult = await api.auth.login(data.email, data.password);
-              if (apiAuthResult.access_token) {
-                localStorage.setItem('token', apiAuthResult.access_token);
-                localStorage.setItem('refresh_token', apiAuthResult.refresh_token);
-                console.log('Tokens fetched and stored');
-              }
-            } catch (e) {
-              console.error('Failed to fetch tokens directly:', e);
-            }
-          } else {
-            console.log('Token found in localStorage after login');
-          }
-          
           toast.success("Signed in successfully");
           router.push(callbackUrl ?? "/dashboard");
         }

@@ -2,7 +2,8 @@ import { NextAuthConfig } from "next-auth";
 import CredentialProvider from "next-auth/providers/credentials";
 import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
-import { authenticateUser, extractUserRole, mapApiRole } from "./core";
+import { api } from "./core";
+import { extractUserRoles } from "./core/auth";
 import type { CustomUser } from "./core";
 
 // CustomUser type is imported from the centralized core module
@@ -30,30 +31,31 @@ const authConfig = {
       async authorize(credentials: any, req: any): Promise<CustomUser | null> {
         try {
           if (!credentials?.email || !credentials?.password) {
-            console.error('No credentials provided');
+            console.error('NextAuth: No credentials provided');
             return null;
           }
           
-          // Use the centralized auth module to authenticate
-          const userData = await authenticateUser(credentials.email, credentials.password);
+          // Use the API client to authenticate
+          const userData = await api.auth.login(credentials.email, credentials.password);
           
-          // Extract and map the user role using our centralized utility functions
-          const apiRole = extractUserRole(userData);
-          const mappedRole = mapApiRole(apiRole);
+          // Extract roles using the updated function
+          const roles = extractUserRoles(userData);
           
           // Create the CustomUser object required by NextAuth
           const user: CustomUser = {
+            id: userData.user_id,
             email: userData.email,
             token: userData.access_token,
             name: `${userData.first_name} ${userData.last_name}`,
-            role: mappedRole,
+            role: roles[0] || 'user', // Use first role for backward compatibility
+            roles: roles, // Store all roles
             accessToken: userData.access_token,
             tenant_id: userData.tenant_id || '4c56d0c3-55d9-495b-ae26-0d922d430a42',
           };
           
           return user;
         } catch (error) {
-          console.error('Authentication error:', error);
+          console.error('NextAuth: Authentication error:', error);
           return null;
         }
       },

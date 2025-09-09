@@ -24,19 +24,13 @@ import {
 import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
-import navigationData from "./sidebar-data";
-
-type ExtendedUser = {
-  role: string;
-};
+import { navigationData, NavItem } from "./sidebar-data";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import useAuthStore from "@/features/auth/store";
 
 // Use the imported navigation data instead of redefining it inline
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
+
   navMain: navigationData.navMain,
   navSecondary: navigationData.navSecondary,
   navClouds: navigationData.navClouds,
@@ -49,12 +43,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
   const { data: session } = useSession();
+  const { can, hasRole, isLoading } = usePermissions();
+  const userFromStore = useAuthStore((state) => state.user);
 
-  const user = session?.user
+  const user = userFromStore
     ? {
-        name: session.user.name || "User",
-        email: session.user.email || "",
-        avatar: session.user.image || "/avatars/default.jpg",
+        name: userFromStore.name,
+        email: userFromStore.email,
+        avatar: session?.user?.image || "/avatars/default.jpg", // Still get avatar from session for now
       }
     : {
         name: "Guest",
@@ -62,22 +58,26 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
         avatar: "/avatars/default.jpg",
       };
 
-  // Filter navigation items based on user role
-  const userRole = (session?.user as ExtendedUser)?.role;
-
-  // Consistent filtering logic for both main and secondary navigation
-  const filterByRole = (item: any) => {
-    if (!userRole) return false;
-    // Check if roles is a string (for single role) or an array
-    if (typeof item.roles === "string") {
-      return item.roles === userRole;
-    }
-    // Check if the item has a roles array and if it includes the user's role
-    return Array.isArray(item.roles) && item.roles.includes(userRole);
+  const filterByPermissionAndRole = (item: NavItem) => {
+    // Check permission requirement
+    const hasRequiredPermission = !item.requiredPermission || can(item.requiredPermission);
+    
+    // Check role requirement
+    const hasRequiredRole = !item.requiredRole || hasRole(item.requiredRole);
+    
+    // Both conditions must be met
+    return hasRequiredPermission && hasRequiredRole;
   };
 
-  const filteredNavMain = data.navMain.filter(filterByRole);
-  const filteredNavSecondary = data.navSecondary.filter(filterByRole);
+  const filteredNavMain = React.useMemo(() => {
+    if (isLoading) return [];
+    return data.navMain.filter(filterByPermissionAndRole);
+  }, [can, hasRole, isLoading]);
+
+  const filteredNavSecondary = React.useMemo(() => {
+    if (isLoading) return [];
+    return data.navSecondary.filter(filterByPermissionAndRole);
+  }, [can, hasRole, isLoading]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -140,7 +140,6 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
                       <SidebarMenuSubItem key={subItem.title}>
                         <SidebarMenuSubButton asChild>
                           <a href={subItem.url}>
-                            <subItem.icon />
                             <span>{subItem.title}</span>
                           </a>
                         </SidebarMenuSubButton>

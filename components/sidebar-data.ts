@@ -25,49 +25,67 @@ import {
 } from "@tabler/icons-react";
 
 // Create a separate file for navigation data to ensure consistency
-export const navigationData = {
+import { Permission, Role } from "@/features/auth/types";
+
+export interface NavItem {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  requiredPermission?: Permission;
+  requiredRole?: Role;
+  items?: Omit<NavItem, 'icon' | 'items'>[];
+}
+
+export interface NavigationData {
+  navMain: NavItem[];
+  navSecondary: NavItem[];
+  navClouds: NavItem[];
+}
+
+export const navigationData: NavigationData = {
   navMain: [
     {
       title: "Tenants",
       url: "/dashboard/tenants",
       icon: IconChartBar,
-      roles: ["super"],
+      requiredPermission: "tenants:read",
+      requiredRole: "super",
     },
     {
       title: "Categories",
       url: "/dashboard/categories",
       icon: IconCategory,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "categories:read",
     },
     {
       title: "Products & Services",
       url: "/dashboard/products",
       icon: IconPackage,
-      roles: ["super", "admin", "sub_admin", "support"],
+      requiredPermission: "products:read",
     },
     {
       title: "Vendors",
       url: "/dashboard/vendors",
       icon: IconUsers,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "vendors:read",
     },
     {
       title: "Affiliates (Mawinga)",
       url: "/dashboard/affiliates",
       icon: IconUserCode,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "affiliates:read",
     },
     {
       title: "Delivery Partners",
       url: "/dashboard/delivery-partners",
       icon: IconTruck,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "delivery-partners:read",
     },
     {
       title: "Orders",
       url: "/dashboard/orders",
       icon: IconListDetails,
-      roles: ["super", "admin", "sub_admin", "support"],
+      requiredPermission: "orders:read",
       items: [
         {
           title: "Deliveries",
@@ -90,33 +108,33 @@ export const navigationData = {
       title: "Rewards & Referrals",
       url: "/dashboard/rewards",
       icon: IconGift,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "rewards:read",
     },
     {
       title: "Support Tickets",
       url: "/dashboard/support",
       icon: IconHelp,
-      roles: ["super", "admin", "sub_admin", "support"],
+      requiredPermission: "support:read",
     },
     {
       title: "Vendor Loans",
-      url: "#",
+      url: "/dashboard/vendor-loans/requests",
       icon: IconCreditCard,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "vendor-loans:read",
       items: [
         {
           title: "Providers",
-          url: "/dashboard/loans/providers",
+          url: "/dashboard/vendor-loans/providers",
           icon: IconBusinessplan,
         },
         {
           title: "Products",
-          url: "/dashboard/loans/products",
+          url: "/dashboard/vendor-loans/products",
           icon: IconPackages,
         },
         {
           title: "Loan Requests",
-          url: "/dashboard/loans/requests",
+          url: "/dashboard/vendor-loans/requests",
           icon: IconListDetails,
         }
       ],
@@ -128,118 +146,111 @@ export const navigationData = {
       title: "Marketplace Settings",
       url: "/dashboard/tenants/marketplace",
       icon: IconSettings2,
-      roles: ["admin"],
+      requiredPermission: "settings:update",
     },
     {
       title: "Settings & Configurations",
       url: "/dashboard/settings",
       icon: IconSettings,
-      roles: ["super"],
+      requiredPermission: "settings:read",
     },
     {
       title: "Users",
       url: "/dashboard/auth/users",
       icon: IconUsers,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "users:read",
     },
     {
       title: "User Roles",
       url: "/dashboard/auth/roles",
       icon: IconUserShield,
-      roles: ["super", "admin", "sub_admin"],
+      requiredPermission: "roles:read",
     },
     {
       title: "Get Help",
       url: "#",
       icon: IconHelp,
-      roles: ["admin", "sub_admin", "support"],
     },
     {
       title: "Search",
       url: "#",
       icon: IconSearch,
-      roles: ["super", "admin", "sub_admin", "support"],
     },
   ],
 
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      role: "admin",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-          role: "admin",
-        },
-        {
-          title: "Archived",
-          url: "#",
-          role: "admin",
-        },
-      ],
-    },
-  ],
+  // navClouds: [
+  //   {
+  //     title: "Capture",
+  //     icon: IconCamera,
+  //     url: "#",
+  //     requiredPermission: "capture:read",
+  //     items: [
+  //       {
+  //         title: "Active Proposals",
+  //         url: "#",
+  //       },
+  //       {
+  //         title: "Archived",
+  //         url: "#",
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     title: "Proposal",
+  //     icon: IconFileDescription,
+  //     url: "#",
+  //     requiredPermission: "proposals:read",
+  //     items: [
+  //       {
+  //         title: "Active Proposals",
+  //         url: "#",
+  //       },
+  //       {
+  //         title: "Archived",
+  //         url: "#",
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     title: "Prompts",
+  //     icon: IconFileAi,
+  //     url: "#",
+  //     role: "admin",
+  //     items: [
+  //       {
+  //         title: "Active Proposals",
+  //         url: "#",
+  //         role: "admin",
+  //       },
+  //       {
+  //         title: "Archived",
+  //         url: "#",
+  //         role: "admin",
+  //       },
+  //     ],
+  //   },
+  // ],
 
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-      role: "admin",
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-      role: "admin",
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
-      role: "sub_admin",
-    },
-  ],
+  // documents: [
+  //   {
+  //     name: "Data Library",
+  //     url: "#",
+  //     icon: IconDatabase,
+  //     role: "admin",
+  //   },
+  //   {
+  //     name: "Reports",
+  //     url: "#",
+  //     icon: IconReport,
+  //     role: "admin",
+  //   },
+  //   {
+  //     name: "Word Assistant",
+  //     url: "#",
+  //     icon: IconFileWord,
+  //     role: "sub_admin",
+  //   },
+  // ],
 };
 
 export default navigationData;
