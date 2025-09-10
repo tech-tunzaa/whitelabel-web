@@ -10,12 +10,13 @@ import { AffiliateForm } from "@/features/affiliates/components";
 import { useAffiliateStore } from "@/features/affiliates/store";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
 interface EditAffiliatePageProps {
   params: { id: string };
 }
 
-export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
+function EditAffiliatePage({ params }: EditAffiliatePageProps) {
   const { data: session } = useSession();
   const { id } = params;
   const router = useRouter();
@@ -138,3 +139,5 @@ export default function EditAffiliatePage({ params }: EditAffiliatePageProps) {
     </div>
   );
 }
+
+export default withAuthorization(EditAffiliatePage, { permission: "affiliates:update" });

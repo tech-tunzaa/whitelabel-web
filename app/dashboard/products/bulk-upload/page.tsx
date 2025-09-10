@@ -30,8 +30,9 @@ import { toast } from "sonner";
 import { BulkUploadDocsModal } from "@/features/products/components/bulk-upload-docs-modal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy } from "@/components/ui/copy";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function BulkUploadPage() {
+function BulkUploadPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const tenantId = (session?.user as any)?.tenant_id;
@@ -565,3 +566,5 @@ export default function BulkUploadPage() {
     </div>
   );
 }
+
+export default withAuthorization(BulkUploadPage, { permission: "products:create" });

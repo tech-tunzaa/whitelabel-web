@@ -17,10 +17,12 @@ import { useCategoryStore } from "@/features/categories/store";
 import { CategoryFilter } from "@/features/categories/types";
 import { CategoryTable } from "@/features/categories/components/category-table";
 import { DeleteCategoryDialog } from "@/features/categories/components/delete-category-dialog";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
 import { Category } from "@/features/categories/types";
 
-export default function CategoriesPage() {
+function CategoriesPage() {
   const { t } = useTranslation(['categories', 'common']);
   const router = useRouter();
   const session = useSession();
@@ -132,10 +134,12 @@ export default function CategoriesPage() {
             <h1 className="text-2xl font-bold tracking-tight">{t('title')}</h1>
             <p className="text-muted-foreground">{t('description')}</p>
           </div>
-          <Button onClick={handleAddCategory}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('add_category')}
-          </Button>
+          <Can permission="categories:create">
+            <Button onClick={handleAddCategory}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('add_category')}
+            </Button>
+          </Can>
         </div>
         <div className="flex items-center justify-center h-64">
           <Spinner />
@@ -152,10 +156,12 @@ export default function CategoriesPage() {
             <h1 className="text-2xl font-bold tracking-tight">{t('title')}</h1>
             <p className="text-muted-foreground">{t('description')}</p>
           </div>
-          <Button onClick={handleAddCategory}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('add_category')}
-          </Button>
+          <Can permission="categories:create">
+            <Button onClick={handleAddCategory}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('add_category')}
+            </Button>
+          </Can>
         </div>
         <div>
           <ErrorCard
@@ -180,10 +186,12 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t('title')}</h1>
           <p className="text-muted-foreground">{t('description')}</p>
         </div>
-        <Button onClick={handleAddCategory}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('add_category')}
-        </Button>
+        <Can permission="categories:create">
+          <Button onClick={handleAddCategory}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('add_category')}
+          </Button>
+        </Can>
       </div>
 
       <div className="p-4 space-y-4">
@@ -241,3 +249,5 @@ export default function CategoriesPage() {
     </div>
   );
 }
+
+export default withAuthorization(CategoriesPage, { permission: "categories:read" });

@@ -8,8 +8,9 @@ import { useSession } from "next-auth/react";
 import { ProductForm } from "@/features/products/components/product-form";
 import { useProductStore } from "@/features/products/store";
 import { ProductFormValues } from "@/features/products/schema";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function AddProductPage() {
+function AddProductPage() {
   const router = useRouter();
   const { createProduct } = useProductStore();
   const { data: session } = useSession();
@@ -56,3 +57,5 @@ export default function AddProductPage() {
     </div>
   );
 }
+
+export default withAuthorization(AddProductPage, { permission: "products:create" });

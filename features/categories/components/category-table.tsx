@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Can } from "@/components/auth/can";
 import { Category } from "../types";
 
 interface CategoryTableProps {
@@ -97,30 +98,36 @@ export function CategoryTable({
                         <span>{t('actions.view')}</span>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => onEdit(category)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      <span>{t('actions.edit')}</span>
-                    </DropdownMenuItem>
-                    {onToggleStatus && (
-                      <DropdownMenuItem onClick={() => onToggleStatus(category, !category.is_active)}>
-                        {category.is_active ? (
-                          <>
-                            <PowerOff className="mr-2 h-4 w-4" />
-                            <span>{t('actions.deactivate')}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Power className="mr-2 h-4 w-4" />
-                            <span>{t('actions.activate')}</span>
-                          </>
-                        )}
+                    <Can permission="categories:update">
+                      <DropdownMenuItem onClick={() => onEdit(category)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>{t('actions.edit')}</span>
                       </DropdownMenuItem>
+                    </Can>
+                    {onToggleStatus && (
+                      <Can permission="categories:update">
+                        <DropdownMenuItem onClick={() => onToggleStatus(category, !category.is_active)}>
+                          {category.is_active ? (
+                            <>
+                              <PowerOff className="mr-2 h-4 w-4" />
+                              <span>{t('actions.deactivate')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Power className="mr-2 h-4 w-4" />
+                              <span>{t('actions.activate')}</span>
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      </Can>
                     )}
-                    <Separator />
-                    <DropdownMenuItem onClick={() => onDelete(category)}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      <span>{t('actions.delete')}</span>
-                    </DropdownMenuItem>
+                    <Can permission="categories:delete">
+                      <Separator />
+                      <DropdownMenuItem onClick={() => onDelete(category)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>{t('actions.delete')}</span>
+                      </DropdownMenuItem>
+                    </Can>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </td>

@@ -13,8 +13,9 @@ import { useProductStore } from "@/features/products/store";
 import { Product } from "@/features/products/types";
 import { ProductForm } from "@/features/products/components/product-form";
 import { ProductFormValues } from "@/features/products/schema";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function EditProductPage() {
+function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
@@ -118,3 +119,5 @@ export default function EditProductPage() {
     </div>
   );
 }
+
+export default withAuthorization(EditProductPage, { permission: "products:update" });

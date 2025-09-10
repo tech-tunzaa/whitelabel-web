@@ -190,7 +190,7 @@ export default function UserAuthForm() {
 
           <Button
             disabled={loading}
-            className="ml-auto w-full text-xs font-bold uppercase"
+            className="ml-auto w-full text-xs font-bold uppercase mt-8"
             type="submit"
           >
             Login

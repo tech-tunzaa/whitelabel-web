@@ -9,8 +9,9 @@ import { useAffiliateStore } from "@/features/affiliates/store";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "next-auth/react";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function AddAffiliatePage() {
+function AddAffiliatePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const {
@@ -90,3 +91,5 @@ export default function AddAffiliatePage() {
     </div>
   );
 }
+
+export default withAuthorization(AddAffiliatePage, { permission: "affiliates:create" });

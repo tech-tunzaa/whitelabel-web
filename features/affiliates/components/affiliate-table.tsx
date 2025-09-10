@@ -48,6 +48,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
+import { Can } from "@/components/auth/can";
 
 interface AffiliateTableProps {
   affiliates: Affiliate[];
@@ -181,35 +182,41 @@ export function AffiliateTable({
                         <DropdownMenuItem onClick={() => onAffiliateClick(affiliate)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/${affiliate.id}/edit`)}>
-                          <FileEdit className="mr-2 h-4 w-4" /> Edit Affiliate
-                        </DropdownMenuItem>
+                        <Can permission="affiliates:update">
+                          <DropdownMenuItem onClick={() => router.push(`/dashboard/affiliates/${affiliate.id}/edit`)}>
+                            <FileEdit className="mr-2 h-4 w-4" /> Edit Affiliate
+                          </DropdownMenuItem>
+                        </Can>
                         <DropdownMenuSeparator />
                         {affiliate.status === "pending" && (
                           <>
-                            <DropdownMenuItem
-                              onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
-                              disabled={processingId === affiliate.id}
-                            >
-                              {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
-                                <Spinner size="sm" className="mr-2 h-4 w-4" />
-                              ) : (
-                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                              )}
-                              Approve
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
-                              disabled={processingId === affiliate.id}
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                            >
-                              {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
-                                <Spinner size="sm" className="mr-2 h-4 w-4" />
-                              ) : (
-                                <XCircle className="mr-2 h-4 w-4" />
-                              )}
-                              Reject
-                            </DropdownMenuItem>
+                            <Can permission="affiliates:approve">
+                              <DropdownMenuItem
+                                onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
+                                disabled={processingId === affiliate.id}
+                              >
+                                {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
+                                  <Spinner size="sm" className="mr-2 h-4 w-4" />
+                                ) : (
+                                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                                )}
+                                Approve
+                              </DropdownMenuItem>
+                            </Can>
+                            <Can permission="affiliates:reject">
+                              <DropdownMenuItem
+                                onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
+                                disabled={processingId === affiliate.id}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                              >
+                                {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
+                                  <Spinner size="sm" className="mr-2 h-4 w-4" />
+                                ) : (
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Reject
+                              </DropdownMenuItem>
+                            </Can>
                           </>
                         )}
                         {/* {affiliate.status === "approved" && affiliate.is_active && (
@@ -239,31 +246,35 @@ export function AffiliateTable({
                           </DropdownMenuItem>
                         )} */}
                         {affiliate.status === "approved" && (
-                          <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
-                            disabled={processingId === affiliate.id}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          >
-                            {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
-                              <Spinner size="sm" className="mr-2 h-4 w-4" />
-                            ) : (
-                              <XCircle className="mr-2 h-4 w-4" />
-                            )}
-                            Reject
-                          </DropdownMenuItem>
+                          <Can permission="affiliates:reject">
+                            <DropdownMenuItem
+                              onClick={() => handleLocalStatusChange(affiliate.id, 'reject')}
+                              disabled={processingId === affiliate.id}
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            >
+                              {processingId === affiliate.id && actionBeingProcessed === 'reject' ? (
+                                <Spinner size="sm" className="mr-2 h-4 w-4" />
+                              ) : (
+                                <XCircle className="mr-2 h-4 w-4" />
+                              )}
+                              Reject
+                            </DropdownMenuItem>
+                          </Can>
                         )}
                         {affiliate.status === "rejected" && (
-                          <DropdownMenuItem
-                            onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
-                            disabled={processingId === affiliate.id}
-                          >
-                            {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
-                              <Spinner size="sm" className="mr-2 h-4 w-4" />
-                            ) : (
-                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                            )}
-                            Approve
-                          </DropdownMenuItem>
+                          <Can permission="affiliates:approve">
+                            <DropdownMenuItem
+                              onClick={() => handleLocalStatusChange(affiliate.id, 'approve')}
+                              disabled={processingId === affiliate.id}
+                            >
+                              {processingId === affiliate.id && actionBeingProcessed === 'approve' ? (
+                                <Spinner size="sm" className="mr-2 h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                              )}
+                              Approve
+                            </DropdownMenuItem>
+                          </Can>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
+import { withAuthorization } from '@/components/auth/with-authorization';
 
 const AddCategoryPage = () => {
   const router = useRouter();
@@ -109,4 +110,4 @@ const AddCategoryPage = () => {
   );
 };
 
-export default AddCategoryPage;
+export default withAuthorization(AddCategoryPage, { permission: "categories:create" });

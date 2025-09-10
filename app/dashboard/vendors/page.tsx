@@ -15,8 +15,10 @@ import { useVendorStore } from "@/features/vendors/store";
 import { VendorFilter, VendorListResponse } from "@/features/vendors/types";
 import { VendorTable } from "@/features/vendors/components/vendor-table";
 import { useSession } from "next-auth/react";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
-export default function VendorsPage() {
+function VendorsPage() {
   const router = useRouter();
   const session = useSession();
   const tenantId = session?.data?.user?.tenant_id;
@@ -206,10 +208,12 @@ export default function VendorsPage() {
             Manage vendor applications and accounts
           </p>
         </div>
-        <Button onClick={() => router.push("/dashboard/vendors/add")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Vendor
-        </Button>
+        <Can permission="vendors:create">
+          <Button onClick={() => router.push("/dashboard/vendors/add")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Vendor
+          </Button>
+        </Can>
       </div>
 
       <div className="p-4 space-y-4">
@@ -263,3 +267,5 @@ export default function VendorsPage() {
     </div>
   );
 }
+
+export default withAuthorization(VendorsPage, { permission: "vendors:read" });

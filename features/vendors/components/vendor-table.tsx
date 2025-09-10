@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { Can } from "@/components/auth/can";
 
 import { VendorListResponse } from "../types";
 
@@ -358,17 +359,19 @@ export function VendorTable({
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(
-                                `/dashboard/vendors/${vendor.vendor_id}/edit`
-                              );
-                            }}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
+                          <Can permission="vendors:update">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(
+                                  `/dashboard/vendors/${vendor.vendor_id}/edit`
+                                );
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          </Can>
                           
                           <DropdownMenuSeparator />
                           
@@ -381,12 +384,34 @@ export function VendorTable({
                                 vendor.verification_documents.every(
                                   (doc: any) => doc.verification_status === "verified"
                                 ) && (
+                                  <Can permission="vendors:approve">
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStatusChange(
+                                          vendor.vendor_id,
+                                          "approve"
+                                        );
+                                      }}
+                                      disabled={processingId === vendor.vendor_id}
+                                    >
+                                      {processingId === vendor.vendor_id ? (
+                                        <Spinner size="sm" className="mr-2 h-4 w-4" />
+                                      ) : (
+                                        <Check className="h-4 w-4 mr-2" />
+                                      )}
+                                      Approve
+                                    </DropdownMenuItem>
+                                  </Can>
+                                )}
+                              {vendor.verification_status !== "rejected" && (
+                                <Can permission="vendors:reject">
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleStatusChange(
                                         vendor.vendor_id,
-                                        "approve"
+                                        "reject"
                                       );
                                     }}
                                     disabled={processingId === vendor.vendor_id}
@@ -394,49 +419,33 @@ export function VendorTable({
                                     {processingId === vendor.vendor_id ? (
                                       <Spinner size="sm" className="mr-2 h-4 w-4" />
                                     ) : (
-                                      <Check className="h-4 w-4 mr-2" />
+                                      <XCircle className="h-4 w-4 mr-2" />
                                     )}
-                                    Approve
+                                    Reject
                                   </DropdownMenuItem>
-                                )}
-                              {vendor.verification_status !== "rejected" && (
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusChange(
-                                      vendor.vendor_id,
-                                      "reject"
-                                    );
-                                  }}
-                                  disabled={processingId === vendor.vendor_id}
-                                >
-                                  {processingId === vendor.vendor_id ? (
-                                    <Spinner size="sm" className="mr-2 h-4 w-4" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                  )}
-                                  Reject
-                                </DropdownMenuItem>
+                                </Can>
                               )}
                               {/* For approved vendors */}
                               {vendor.verification_status === "approved" && (
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusChange(
-                                      vendor.vendor_id,
-                                      vendor.is_active ? "deactivate" : "activate"
-                                    );
-                                  }}
-                                  disabled={processingId === vendor.vendor_id}
-                                >
-                                  {processingId === vendor.vendor_id ? (
-                                    <Spinner size="sm" className="mr-2 h-4 w-4" />
-                                  ) : (
-                                    <Power className="h-4 w-4 mr-2" />
-                                  )}
-                                  {vendor.is_active ? "Deactivate" : "Activate"}
-                                </DropdownMenuItem>
+                                <Can permission="vendors:update">
+                                  <DropdownMenuItem 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(
+                                        vendor.vendor_id,
+                                        vendor.is_active ? "deactivate" : "activate"
+                                      );
+                                    }}
+                                    disabled={processingId === vendor.vendor_id}
+                                  >
+                                    {processingId === vendor.vendor_id ? (
+                                      <Spinner size="sm" className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <Power className="h-4 w-4 mr-2" />
+                                    )}
+                                    {vendor.is_active ? "Deactivate" : "Activate"}
+                                  </DropdownMenuItem>
+                                </Can>
                               )}
                             </>
                           )}

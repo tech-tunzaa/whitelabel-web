@@ -35,6 +35,7 @@ import {
 
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Can } from "@/components/auth/can";
 
 import { Product } from "../types";
 
@@ -228,61 +229,73 @@ export function ProductTable({
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => router.push(`/dashboard/products/${product.product_id}/edit`)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Product
-                            </DropdownMenuItem>
+                            <Can permission="products:update">
+                              <DropdownMenuItem
+                                onClick={() => router.push(`/dashboard/products/${product.product_id}/edit`)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Product
+                              </DropdownMenuItem>
+                            </Can>
                             <DropdownMenuSeparator />
                             {product.verification_status === "pending" && (
                               <>
+                                <Can permission="products:approve">
+                                  <DropdownMenuItem
+                                    onClick={() => handleApprove(product.product_id)}
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                    Approve
+                                  </DropdownMenuItem>
+                                </Can>
+                                <Can permission="products:reject">
+                                  <DropdownMenuItem
+                                    onClick={() => handleReject(product)}
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                                    Reject
+                                  </DropdownMenuItem>
+                                </Can>
+                              </>
+                            )}
+                            {product.verification_status === "approved" && (
+                              <>
+                                <Can permission="products:update">
+                                  <DropdownMenuItem
+                                    onClick={() => handleToggleIsActive(product)}
+                                  >
+                                    {product.is_active ? (
+                                      <>
+                                        <ToggleLeft className="mr-2 h-4 w-4" />
+                                        Unpublish
+                                      </> 
+                                    ) : (
+                                      <>
+                                        <ToggleRight className="mr-2 h-4 w-4" />
+                                        Publish
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                </Can>
+                                <Can permission="products:suspend">
+                                  <DropdownMenuItem
+                                    onClick={() => handleReject(product)}
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4 text-yellow-500" />
+                                    Suspend
+                                  </DropdownMenuItem>
+                                </Can>
+                              </>
+                            )}
+                            {product.verification_status === "rejected" && (
+                              <Can permission="products:approve">
                                 <DropdownMenuItem
                                   onClick={() => handleApprove(product.product_id)}
                                 >
                                   <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
                                   Approve
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleReject(product)}
-                                >
-                                  <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                                  Reject
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {product.verification_status === "approved" && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleIsActive(product)}
-                                >
-                                  {product.is_active ? (
-                                    <>
-                                      <ToggleLeft className="mr-2 h-4 w-4" />
-                                      Unpublish
-                                    </> 
-                                  ) : (
-                                    <>
-                                      <ToggleRight className="mr-2 h-4 w-4" />
-                                      Publish
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleReject(product)}
-                                >
-                                  <XCircle className="mr-2 h-4 w-4 text-yellow-500" />
-                                  Suspend
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {product.verification_status === "rejected" && (
-                              <DropdownMenuItem
-                                onClick={() => handleApprove(product.product_id)}
-                              >
-                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                Approve
-                              </DropdownMenuItem>
+                              </Can>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>

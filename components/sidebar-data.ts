@@ -31,6 +31,7 @@ export interface NavItem {
   title: string;
   url: string;
   icon: React.ElementType;
+  target?: string;
   requiredPermission?: Permission;
   requiredRole?: Role;
   items?: Omit<NavItem, 'icon' | 'items'>[];
@@ -41,6 +42,11 @@ export interface NavigationData {
   navSecondary: NavItem[];
   navClouds: NavItem[];
 }
+
+// Helper function to check if affiliates module is enabled
+const isAffiliatesEnabled = () => {
+  return process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE === 'true';
+};
 
 export const navigationData: NavigationData = {
   navMain: [
@@ -69,12 +75,12 @@ export const navigationData: NavigationData = {
       icon: IconUsers,
       requiredPermission: "vendors:read",
     },
-    {
+    ...(isAffiliatesEnabled() ? [{
       title: "Affiliates (Mawinga)",
       url: "/dashboard/affiliates",
       icon: IconUserCode,
       requiredPermission: "affiliates:read",
-    },
+    }] : []),
     {
       title: "Delivery Partners",
       url: "/dashboard/delivery-partners",
@@ -112,7 +118,8 @@ export const navigationData: NavigationData = {
     },
     {
       title: "Support Tickets",
-      url: "/dashboard/support",
+      url: "https://chatwoot-uat.cheetah.co.tz/app/accounts/1/dashboard",
+      target: "_blank",
       icon: IconHelp,
       requiredPermission: "support:read",
     },
@@ -166,11 +173,11 @@ export const navigationData: NavigationData = {
       icon: IconUserShield,
       requiredPermission: "roles:read",
     },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
+    // {
+    //   title: "Get Help",
+    //   url: "#",
+    //   icon: IconHelp,
+    // },
     {
       title: "Search",
       url: "#",

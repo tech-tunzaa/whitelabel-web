@@ -42,6 +42,8 @@ export const TenantConfiguration = ({
   activeTab,
   setActiveTab,
 }: TenantConfigurationProps) => {
+    // Check if affiliates module is enabled
+    const isAffiliatesEnabled = process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE === 'true';
     const configurationsRef = React.useRef(configurations);
     const vehicleTypesRef = React.useRef(vehicleTypes);
     useEffect(() => { configurationsRef.current = configurations; }, [configurations]);
@@ -204,12 +206,14 @@ export const TenantConfiguration = ({
         <TabsList className="w-full mb-4">
           <TabsTrigger value="delivery">Delivery</TabsTrigger>
           <TabsTrigger value="vendor">Vendor</TabsTrigger>
-          <TabsTrigger value="winga">Winga</TabsTrigger>
+          {isAffiliatesEnabled && (
+            <TabsTrigger value="winga">Winga</TabsTrigger>
+          )}
           <TabsTrigger value="vehicles">Vehicle Types</TabsTrigger>
         </TabsList>
 
         {/* Document Types Tabs */}
-        {["delivery", "vendor", "winga"].map(entity => (
+        {["delivery", "vendor", ...(isAffiliatesEnabled ? ["winga"] : [])].map(entity => (
           <TabsContent key={entity} value={entity} className="space-y-6">
             <div className="flex items-center justify-between border-b pb-2 mb-2">
               <div className="font-semibold text-lg">
@@ -514,6 +518,10 @@ export async function saveConfigurations(tenantId: string, configurations: Recor
     const entityDocTypeIds: Record<string, { document_type_id: string; is_required: boolean }[]> = {};
     for (const [entityName, localConfig] of Object.entries(configurations)) {
       if (!localConfig?.document_types) continue;
+      // Skip winga entity if affiliates module is disabled
+      if (entityName === 'winga' && process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE !== 'true') {
+        continue;
+      }
       entityDocTypeIds[entityName] = [];
       for (const doc of localConfig.document_types) {
         const docName = doc.name.trim().toLowerCase();
@@ -548,6 +556,10 @@ export async function saveConfigurations(tenantId: string, configurations: Recor
     const backendEntities = await fetchEntities(tenantId);
     for (const [entityName, localConfig] of Object.entries(configurations)) {
       if (!entityDocTypeIds[entityName]) continue;
+      // Skip winga entity if affiliates module is disabled
+      if (entityName === 'winga' && process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE !== 'true') {
+        continue;
+      }
       const payload = { tenant_id: tenantId, document_types: entityDocTypeIds[entityName] };
       const backendEntity = backendEntities.find(
         (be: any) => be.name && be.name.trim().toLowerCase() === entityName.trim().toLowerCase()
@@ -566,4 +578,3 @@ export async function saveConfigurations(tenantId: string, configurations: Recor
     console.error('[saveConfigurations] Failed:', e);
   }
 }
-

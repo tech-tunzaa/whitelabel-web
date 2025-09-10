@@ -46,6 +46,8 @@ import { Product } from "@/features/products/types";
 
 import { ProductRejectionDialog } from "@/features/products/components/product-rejection-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
@@ -67,7 +69,7 @@ const InfoItem = ({ label, value, children }: { label: string; value?: React.Rea
   </div>
 );
 
-export default function ProductPage({ params }: ProductPageProps) {
+function ProductPage({ params }: ProductPageProps) {
   const router = useRouter();
   const { id } = use(params);
   const { data: session } = useSession();
@@ -357,14 +359,16 @@ export default function ProductPage({ params }: ProductPageProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/dashboard/products/${id}/edit`)}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
+          <Can permission="products:update">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/dashboard/products/${id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -656,115 +660,127 @@ export default function ProductPage({ params }: ProductPageProps) {
               <CardContent className="space-y-3">
                 {product.verification_status === "pending" && (
                   <>
+                    <Can permission="products:approve">
+                      <Button
+                        className="w-full"
+                        onClick={() => handleUpdate({ status: "approved" })}
+                        disabled={productLoading}
+                      >
+                        {productLoading ? (
+                          <Spinner className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Check className="mr-2 h-4 w-4" />
+                        )}
+                        Approve
+                      </Button>
+                    </Can>
+                    <Can permission="products:reject">
+                      <Button
+                        className="w-full"
+                        variant="destructive"
+                        onClick={() => setProductToReject(product)}
+                        disabled={productLoading}
+                      >
+                        {productLoading ? (
+                          <Spinner className="mr-2 h-3 w-3" />
+                        ) : (
+                          <Ban className="mr-2 h-3 w-3" />
+                        )}
+                        Reject
+                      </Button>
+                    </Can>
+                  </>
+                )}
+
+                {product.verification_status === "approved" && (
+                  <>
+                    <Can permission="products:update">
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => handleUpdate({ is_active: !product.is_active })}
+                        disabled={productLoading}
+                      >
+                        {productLoading ? (
+                          <Spinner className="mr-2 h-4 w-4" />
+                        ) : product.is_active ? (
+                          <EyeOff className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Eye className="mr-2 h-4 w-4" />
+                        )}
+                        {product.is_active ? "Unpublish" : "Publish"}
+                      </Button>
+                    </Can>
+                    <Can permission="products:suspend">
+                      <Button
+                        className="w-full"
+                        variant="destructive"
+                        onClick={() => setProductToReject(product)}
+                      >
+                        <Ban className="mr-2 h-3 w-3" />
+                        Suspend
+                      </Button>
+                    </Can>
+                  </>
+                )}
+
+                {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
+                  <Can permission="products:approve">
                     <Button
                       className="w-full"
                       onClick={() => handleUpdate({ status: "approved" })}
                       disabled={productLoading}
                     >
                       {productLoading ? (
-                        <Spinner size="sm" />
+                        <Spinner className="mr-2 h-4 w-4" />
                       ) : (
                         <Check className="mr-2 h-4 w-4" />
                       )}
                       Approve
                     </Button>
-                    <Button
-                      className="w-full"
-                      variant="destructive"
-                      onClick={() => setProductToReject(product)}
-                      disabled={productLoading}
-                    >
-                      {productLoading ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <Ban className="mr-2 h-3 w-3" />
-                      )}
-                      Reject
-                    </Button>
-                  </>
-                )}
-
-                {product.verification_status === "approved" && (
-                  <>
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      onClick={() => handleUpdate({ is_active: !product.is_active })}
-                      disabled={productLoading}
-                    >
-                      {productLoading ? (
-                        <Spinner size="sm" />
-                      ) : product.is_active ? (
-                        <EyeOff className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Eye className="mr-2 h-4 w-4" />
-                      )}
-                      {product.is_active ? "Unpublish" : "Publish"}
-                    </Button>
-                    <Button
-                      className="w-full"
-                      variant="destructive"
-                      onClick={() => setProductToReject(product)}
-                    >
-                      <Ban className="mr-2 h-3 w-3" />
-                      Suspend
-                    </Button>
-                  </>
-                )}
-
-                {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleUpdate({ status: "approved" })}
-                    disabled={productLoading}
-                  >
-                    {productLoading ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    Approve
-                  </Button>
+                  </Can>
                 )}
 
                 <Separator className="my-3" />
 
                 <div className="space-y-2">
-                  {!confirmDelete ? (
-                    <Button
-                      variant="outline"
-                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setConfirmDelete(true)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Product
-                    </Button>
-                  ) : (
-                    <div className="p-3 border border-red-200 rounded-md bg-red-50">
-                      <p className="text-sm text-red-800 mb-3">
-                        Are you sure? This action cannot be undone.
-                      </p>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setConfirmDelete(false)}
-                          disabled={isDeleting}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleDeleteProduct}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
-                          Confirm Delete
-                        </Button>
+                  <Can permission="products:delete">
+                    {!confirmDelete ? (
+                      <Button
+                        variant="outline"
+                        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Product
+                      </Button>
+                    ) : (
+                      <div className="p-3 border border-red-200 rounded-md bg-red-50">
+                        <p className="text-sm text-red-800 mb-3">
+                          Are you sure? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmDelete(false)}
+                            disabled={isDeleting}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeleteProduct}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting && <Spinner className="mr-2 h-3 w-3" />}
+                            Confirm Delete
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </Can>
                 </div>
               </CardContent>
             </Card>
@@ -790,3 +806,5 @@ export default function ProductPage({ params }: ProductPageProps) {
     </div>
   ) : null;
 }
+
+export default withAuthorization(ProductPage, { permission: "products:read" });

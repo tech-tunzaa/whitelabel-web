@@ -15,6 +15,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { withAuthorization } from '@/components/auth/with-authorization';
 
 const EditCategoryPage = () => {
   const router = useRouter();
@@ -147,4 +148,4 @@ const EditCategoryPage = () => {
   );
 };
 
-export default EditCategoryPage;
+export default withAuthorization(EditCategoryPage, { permission: "categories:update" });

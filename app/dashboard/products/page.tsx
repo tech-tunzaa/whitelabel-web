@@ -27,8 +27,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
-export default function ProductsPage() {
+function ProductsPage() {
   const router = useRouter();
   const { data: session } = useSession();
     const tenantId = (session?.user as any)?.tenant_id;
@@ -198,19 +200,23 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex">
-          <Button 
-            variant="outline"
-            onClick={() => router.push("/dashboard/products/add")}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
-          <Button onClick={() => router.push("/dashboard/products/bulk-upload")}
-            className="ml-2"
-          >
-            <Files className="mr-2 h-4 w-4" />
-            Bulk Upload
-          </Button>
+          <Can permission="products:create">
+            <Button 
+              variant="outline"
+              onClick={() => router.push("/dashboard/products/add")}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </Can>
+          <Can permission="products:create">
+            <Button onClick={() => router.push("/dashboard/products/bulk-upload")}
+              className="ml-2"
+            >
+              <Files className="mr-2 h-4 w-4" />
+              Bulk Upload
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -284,3 +290,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+export default withAuthorization(ProductsPage, { permission: "products:read" });

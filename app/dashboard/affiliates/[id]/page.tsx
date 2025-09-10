@@ -72,6 +72,8 @@ import { isImageFile, isPdfFile } from "@/lib/services/file-upload.service";
 import { formatCurrency } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/ui/pagination";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
 // Memoized VendorsTab component to prevent unnecessary re-renders
 const VendorsTab = React.memo(function VendorsTab({
@@ -266,7 +268,7 @@ const VendorsTab = React.memo(function VendorsTab({
   );
 });
 
-export default function AffiliateDetailPage() {
+function AffiliateDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { data: session } = useSession();
@@ -584,10 +586,12 @@ export default function AffiliateDetailPage() {
           </Badge>
 
           <div className="flex items-center gap-2 ml-2">
-            <Button variant="outline" size="sm" onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            <Can permission="affiliates:update">
+              <Button variant="outline" size="sm" onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Can>
           </div>
         </div>
       </div>
@@ -945,24 +949,28 @@ export default function AffiliateDetailPage() {
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Verification</h4>
                 <div className="flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 w-full justify-start"
-                    onClick={handleApprove}
-                    disabled={isUpdating}
-                  >
-                    <Check className="h-4 w-4 mr-2" /> Approve Affiliate
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
-                    onClick={handleReject}
-                    disabled={isUpdating}
-                  >
-                    <X className="h-4 w-4 mr-2" /> Reject Affiliate
-                  </Button>
+                  <Can permission="affiliates:approve">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 w-full justify-start"
+                      onClick={handleApprove}
+                      disabled={isUpdating}
+                    >
+                      <Check className="h-4 w-4 mr-2" /> Approve Affiliate
+                    </Button>
+                  </Can>
+                  <Can permission="affiliates:reject">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
+                      onClick={handleReject}
+                      disabled={isUpdating}
+                    >
+                      <X className="h-4 w-4 mr-2" /> Reject Affiliate
+                    </Button>
+                  </Can>
                 </div>
               </div>
             )}
@@ -1002,15 +1010,17 @@ export default function AffiliateDetailPage() {
             {affiliate?.status === "approved" && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
-                    onClick={handleReject}
-                    disabled={isUpdating}
-                  >
-                    <X className="h-4 w-4 mr-2" /> Reject Affiliate
-                  </Button>
+                  <Can permission="affiliates:update">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 w-full justify-start"
+                      onClick={handleReject}
+                      disabled={isUpdating}
+                    >
+                      <X className="h-4 w-4 mr-2" /> Reject Affiliate
+                    </Button>
+                  </Can>
                 </div>
               </div>
             )}
@@ -1018,29 +1028,33 @@ export default function AffiliateDetailPage() {
             {affiliate?.status === "rejected" && (
               <div className="space-y-2">
                 <div className="flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-green-500 border-green-300 hover:bg-green-50 hover:text-green-600 w-full justify-start"
-                    onClick={handleApprove}
-                    disabled={isUpdating}
-                  >
-                    <Check className="h-4 w-4 mr-2" /> Approve Affiliate
-                  </Button>
+                  <Can permission="affiliates:update">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-500 border-green-300 hover:bg-green-50 hover:text-green-600 w-full justify-start"
+                      onClick={handleApprove}
+                      disabled={isUpdating}
+                    >
+                      <Check className="h-4 w-4 mr-2" /> Approve Affiliate
+                    </Button>
+                  </Can>
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
               <div className="flex flex-col gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={handleEdit}
-                >
-                  <Edit className="h-4 w-4 mr-2" /> Edit Affiliate
-                </Button>
+                <Can permission="affiliates:update">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={handleEdit}
+                  >
+                    <Edit className="h-4 w-4 mr-2" /> Edit Affiliate
+                  </Button>
+                </Can>
               </div>
             </div>
           </CardContent>
@@ -1049,3 +1063,5 @@ export default function AffiliateDetailPage() {
     );
   }
 }
+
+export default withAuthorization(AffiliateDetailPage, { permission: "affiliates:read" });

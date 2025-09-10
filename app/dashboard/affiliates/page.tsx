@@ -24,6 +24,8 @@ import { useAffiliateStore } from "@/features/affiliates/store";
 import { Affiliate, AffiliateFilter, AffiliateAnalytics, TopAffiliate } from "@/features/affiliates/types";
 import { AffiliateTable } from "@/features/affiliates/components/affiliate-table";
 import { AffiliateRejectionDialog } from "@/features/affiliates/components";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 
 // Top Affiliates Table (mirrors AffiliateTable style)
 interface TopAffiliatesTableProps {
@@ -105,7 +107,7 @@ function TopAffiliatesTable({ affiliates }: TopAffiliatesTableProps) {
   );
 }
 
-export default function AffiliatesPage() {
+function AffiliatesPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const tenantId = session?.user?.tenant_id;
@@ -440,9 +442,11 @@ export default function AffiliatesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Affiliates (Mawinga)</h1>
           <p className="text-muted-foreground">Manage marketplace affiliates</p>
         </div>
-        <Button onClick={() => router.push("/dashboard/affiliates/add")}>
-          <Plus className="mr-2 h-4 w-4" /> Add Affiliate
-        </Button>
+        <Can permission="affiliates:create">
+          <Button onClick={() => router.push("/dashboard/affiliates/add")}>
+            <Plus className="mr-2 h-4 w-4" /> Add Affiliate
+          </Button>
+        </Can>
       </div>
       {renderStatCards()}
 
@@ -574,3 +578,5 @@ export default function AffiliatesPage() {
     </div>
   );
 }
+
+export default withAuthorization(AffiliatesPage, { permission: "affiliates:read" });

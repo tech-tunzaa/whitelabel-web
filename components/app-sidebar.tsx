@@ -130,7 +130,7 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
                     asChild
                     className="data-[slot=sidebar-menu-button]:!p-1.5"
                   >
-                    <a href={item.url}>
+                    <a href={item.url} target={item.target} rel={item.target === "_blank" ? "noopener noreferrer" : undefined}>
                       <item.icon />
                       <span>{item.title}</span>
                     </a>
@@ -152,7 +152,7 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
                   asChild
                   className="data-[slot=sidebar-menu-button]:!p-1.5"
                 >
-                  <a href={item.url}>
+                  <a href={item.url} target={item.target} rel={item.target === "_blank" ? "noopener noreferrer" : undefined}>
                     <item.icon />
                     <span>{item.title}</span>
                   </a>

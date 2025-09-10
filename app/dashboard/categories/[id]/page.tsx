@@ -27,6 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +50,7 @@ interface CategoryPageProps {
   };
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
+function CategoryPage({ params }: CategoryPageProps) {
   const { t } = useTranslation(['categories', 'common']);
   const router = useRouter();
   const { data: session } = useSession();
@@ -333,14 +335,18 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <CardTitle>{t('actions_card.title', 'Actions')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col space-y-2">
-              <Button variant="outline" onClick={() => router.push(`/dashboard/categories/${category.category_id}/edit`)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                {t('common:actions.edit_entity', { entity: t('common:entity.category') })}
-              </Button>
-              <Button variant="destructive" onClick={() => setActiveAction("delete")}>
-                <Trash className="h-4 w-4 mr-2" />
-                {t('common:actions.delete_entity', { entity: t('common:entity.category') })}
-              </Button>
+              <Can permission="categories:update">
+                <Button variant="outline" onClick={() => router.push(`/dashboard/categories/${category.category_id}/edit`)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  {t('common:actions.edit_entity', { entity: t('common:entity.category') })}
+                </Button>
+              </Can>
+              <Can permission="categories:delete">
+                <Button variant="destructive" onClick={() => setActiveAction("delete")}>
+                  <Trash className="h-4 w-4 mr-2" />
+                  {t('common:actions.delete_entity', { entity: t('common:entity.category') })}
+                </Button>
+              </Can>
             </CardContent>
           </Card>
         </div>
@@ -348,3 +354,5 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     </div>
   );
 }
+
+export default withAuthorization(CategoryPage, { permission: "categories:read" });

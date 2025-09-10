@@ -42,6 +42,8 @@ import {
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { withAuthorization } from "@/components/auth/with-authorization";
+import { Can } from "@/components/auth/can";
 import {
   Card,
   CardContent,
@@ -82,11 +84,14 @@ interface AffiliatesTabProps {
   tenantId?: string;
 }
 
-export default function VendorPage({ params }: VendorPageProps) {
+function VendorPage({ params }: VendorPageProps) {
   const router = useRouter();
   const session = useSession();
   // Extract tenant ID from session if available
   const tenant_id = session?.data?.user?.tenant_id as string | undefined;
+  
+  // Check if affiliates module is enabled
+  const isAffiliatesEnabled = process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE === 'true';
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   const {
@@ -511,14 +516,16 @@ export default function VendorPage({ params }: VendorPageProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/dashboard/vendors/${id}/edit`)}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
+          <Can permission="vendors:update">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/dashboard/vendors/${id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -535,12 +542,14 @@ export default function VendorPage({ params }: VendorPageProps) {
                 <TabsTrigger value="store" className="flex items-center gap-2">
                   <StoreIcon className="h-4 w-4" /> Store Information
                 </TabsTrigger>
-                <TabsTrigger
-                  value="affiliate"
-                  className="flex items-center gap-2"
-                >
-                  <UserRoundPlus className="h-4 w-4" /> Affiliates
-                </TabsTrigger>
+                {isAffiliatesEnabled && (
+                  <TabsTrigger
+                    value="affiliate"
+                    className="flex items-center gap-2"
+                  >
+                    <UserRoundPlus className="h-4 w-4" /> Affiliates
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Vendor Information Tab */}
@@ -550,7 +559,9 @@ export default function VendorPage({ params }: VendorPageProps) {
               <StoreInfoTab />
 
               {/* Affiliates Information Tab */}
-              <AffiliatesTab vendorId={id} tenantId={tenant_id} />
+              {isAffiliatesEnabled && (
+                <AffiliatesTab vendorId={id} tenantId={tenant_id} />
+              )}
             </Tabs>
           </div>
 
@@ -1175,87 +1186,99 @@ export default function VendorPage({ params }: VendorPageProps) {
               vendor.verification_documents.every(
                 (doc: any) => doc.verification_status === "verified"
               ) && (
-                <Button
-                  variant="outline"
-                  className="w-full text-green-600"
-                  disabled={isUpdating}
-                  onClick={() => handleStatusChange("approved")}
-                >
-                  {isUpdating ? (
-                    <Spinner size="sm" color="white" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-2" />
-                  )}
-                  Approve Vendor
-                </Button>
+                <Can permission="vendors:approve">
+                  <Button
+                    variant="outline"
+                    className="w-full text-green-600"
+                    disabled={isUpdating}
+                    onClick={() => handleStatusChange("approved")}
+                  >
+                    {isUpdating ? (
+                      <Spinner className="h-4 w-4 mr-2" color="green" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Approve Vendor
+                  </Button>
+                </Can>
             )}
 
             {/* Reject */}
             {vendorStatus !== "rejected" && (
-              <Button
-                  variant="outline"
-                  className="w-full text-red-600"
-                  disabled={isUpdating}
-                  onClick={() => setShowRejectDialog(true)}
-                >
-                  {isUpdating ? (
-                    <Spinner size="sm" color="white" />
-                  ) : (
-                    <Ban className="h-4 w-4 mr-2" />
-                  )}
-                  Reject Vendor
-                </Button>
+              <Can permission="vendors:reject">
+                <Button
+                    variant="outline"
+                    className="w-full text-red-600"
+                    disabled={isUpdating}
+                    onClick={() => setShowRejectDialog(true)}
+                  >
+                    {isUpdating ? (
+                      <Spinner className="h-4 w-4 mr-2" color="red" />
+                    ) : (
+                      <Ban className="h-4 w-4 mr-2" />
+                    )}
+                    Reject Vendor
+                  </Button>
+                </Can>
             )}
 
             {/* Activate/Deactivate Buttons */}
             {vendorStatus === "approved" && vendor.is_active && (
-              <Button
-                variant="outline"
-                className="w-full text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                disabled={isUpdating}
-                onClick={() => handleStatusChange("inactive")}
-              >
-                {isUpdating ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <Power className="h-4 w-4 mr-2" />
-                )}
-                Deactivate Vendor
-              </Button>
+              <Can permission="vendors:update">
+                <Button
+                  variant="outline"
+                  className="w-full text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusChange("inactive")}
+                >
+                  {isUpdating ? (
+                    <Spinner className="h-4 w-4 mr-2" color="orange" />
+                  ) : (
+                    <Power className="h-4 w-4 mr-2" />
+                  )}
+                  Deactivate Vendor
+                </Button>
+              </Can>
             )}
             {vendorStatus === "approved" && !vendor.is_active && (
-              <Button
-                variant="outline"
-                className="w-full text-green-600 hover:bg-green-50 hover:text-green-700"
-                disabled={isUpdating}
-                onClick={() => handleStatusChange("active")}
-              >
-                {isUpdating ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <Power className="h-4 w-4 mr-2" />
-                )}
-                Activate Vendor
-              </Button>
+              <Can permission="vendors:update">
+                <Button
+                  variant="outline"
+                  className="w-full text-green-600 hover:bg-green-50 hover:text-green-700"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusChange("active")}
+                >
+                  {isUpdating ? (
+                    <Spinner className="h-4 w-4 mr-2" color="green" />
+                  ) : (
+                    <Power className="h-4 w-4 mr-2" />
+                  )}
+                  Activate Vendor
+                </Button>
+              </Can>
             )}
 
             <Separator />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push(`/dashboard/vendors/${id}/edit`)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Vendor
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Vendor
-            </Button>
+            <Can permission="vendors:update">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push(`/dashboard/vendors/${id}/edit`)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Vendor
+              </Button>
+            </Can>
+            <Can permission="vendors:delete">
+              <Button
+                variant="outline"
+                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Vendor
+              </Button>
+            </Can>
 
             {/* Inline delete confirmation */}
             {confirmDelete && (
@@ -1292,3 +1315,5 @@ export default function VendorPage({ params }: VendorPageProps) {
     );
   }
 }
+
+export default withAuthorization(VendorPage, { permission: "vendors:read" });

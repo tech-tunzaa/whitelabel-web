@@ -19,13 +19,13 @@ export function LoginForm({
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>
+          {/* <CardDescription>
             Login with your Apple or Google account
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            <div className="flex flex-col gap-4">
+            {/* <div className="flex flex-col gap-4">
               <Button variant="outline" className="w-full">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                   <path
@@ -49,7 +49,7 @@ export function LoginForm({
               <span className="relative z-10 bg-background px-2 text-muted-foreground">
                 Or continue with
               </span>
-            </div>
+            </div> */}
             <div className="grid gap-6">
               <UserAuthForm />
             </div>

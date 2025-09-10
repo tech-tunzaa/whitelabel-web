@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { VendorFormValues } from "@/features/vendors/types";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
-export default function VendorAddPage() {
+function VendorAddPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const vendorStore = useVendorStore();
@@ -137,3 +138,5 @@ export default function VendorAddPage() {
     </div>
   );
 }
+
+export default withAuthorization(VendorAddPage, { permission: "vendors:create" });

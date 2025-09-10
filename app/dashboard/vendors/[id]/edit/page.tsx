@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { useVendorStore } from "@/features/vendors/store";
 import { VendorFormValues, Vendor } from "@/features/vendors/types";
+import { withAuthorization } from "@/components/auth/with-authorization";
 
 interface VendorEditPageProps {
   params: {
@@ -18,7 +19,7 @@ interface VendorEditPageProps {
   };
 }
 
-export default function VendorEditPage({ params }: VendorEditPageProps) {
+function VendorEditPage({ params }: VendorEditPageProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { 
@@ -56,13 +57,14 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
               ...storeToUpdate,
               store_slug: storeToUpdate.store_slug || randomSlug,
               branding: {
-                  "colors": {
-                      "primary": "#4285F4",
-                      "secondary": "#34A853",
-                      "accent": "#FBBC05",
-                      "text": "#333333",
-                      "background": "#FFFFFF"
-                  }
+                ...data.stores?.[0].branding,
+                "colors": {
+                    "primary": "#4285F4",
+                    "secondary": "#34A853",
+                    "accent": "#FBBC05",
+                    "text": "#333333",
+                    "background": "#FFFFFF"
+                }
               },
             };
             await updateStore(storeToUpdate.store_id, storeUpdatePayload, headers);
@@ -159,3 +161,5 @@ export default function VendorEditPage({ params }: VendorEditPageProps) {
     </div>
   ) : null;
 }
+
+export default withAuthorization(VendorEditPage, { permission: "vendors:update" });
