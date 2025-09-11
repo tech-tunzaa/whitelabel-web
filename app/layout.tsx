@@ -17,7 +17,7 @@ export default async function RootLayout({
   
   return (
     <html>
-      <body>
+      <body suppressHydrationWarning={true}>
         <div id="root">
           <ClientLayout session={session}>
             {children}
