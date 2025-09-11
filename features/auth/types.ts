@@ -14,7 +14,9 @@ export interface AuthState {
   permissions: Permission[];
   isLoading: boolean;
   error: string | null;
+  permissionsLoaded: boolean;
   setUser: (user: User | null) => void;
+  clearPermissions: () => void;
   fetchPermissions: (userId: string, headers?: Record<string, string>) => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
   hasRole: (role: Role) => boolean;

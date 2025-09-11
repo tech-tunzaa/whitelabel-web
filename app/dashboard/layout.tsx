@@ -18,7 +18,7 @@ export default function DashboardLayout({
 }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { data: session } = useSession();
-  const { setUser, fetchPermissions } = useAuthStore();
+  const { setUser, fetchPermissions, clearPermissions } = useAuthStore();
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -39,8 +39,11 @@ export default function DashboardLayout({
         const headers = { 'X-Tenant-ID': tenantId };
         fetchPermissions(session.user.id, headers);
       }
+    } else {
+      // Clear permissions when session is lost
+      clearPermissions();
     }
-  }, [session, setUser, fetchPermissions]);
+  }, [session?.user?.id, setUser, fetchPermissions, clearPermissions]);
 
   return (
     <SidebarProvider

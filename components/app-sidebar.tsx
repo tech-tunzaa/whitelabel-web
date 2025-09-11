@@ -43,7 +43,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
   const { data: session } = useSession();
-  const { can, hasRole, isLoading } = usePermissions();
+  const { can, hasRole, isLoading, permissionsLoaded } = usePermissions();
   const userFromStore = useAuthStore((state) => state.user);
 
   const user = userFromStore
@@ -70,14 +70,18 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
   };
 
   const filteredNavMain = React.useMemo(() => {
-    if (isLoading) return [];
+    // Always show all navigation items until permissions are actually loaded
+    // This ensures consistent server/client rendering
+    if (!permissionsLoaded) return data.navMain;
     return data.navMain.filter(filterByPermissionAndRole);
-  }, [can, hasRole, isLoading]);
+  }, [can, hasRole, permissionsLoaded]);
 
   const filteredNavSecondary = React.useMemo(() => {
-    if (isLoading) return [];
+    // Always show all navigation items until permissions are actually loaded
+    // This ensures consistent server/client rendering
+    if (!permissionsLoaded) return data.navSecondary;
     return data.navSecondary.filter(filterByPermissionAndRole);
-  }, [can, hasRole, isLoading]);
+  }, [can, hasRole, permissionsLoaded]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
