@@ -9,6 +9,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Eye, EyeOff, Lock, Mail, Loader2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn, useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -32,6 +33,7 @@ export default function UserAuthForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
   const [loading, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const defaultValues = {
     email: "",
@@ -153,21 +155,25 @@ export default function UserAuthForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="w-full space-y-2"
+          className="w-full space-y-6"
         >
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
                 <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email..."
-                    disabled={loading}
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="Enter your email address"
+                      disabled={loading}
+                      className="pl-10 h-12"
+                      {...field}
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -179,9 +185,34 @@ export default function UserAuthForm() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel className="text-sm font-medium">Password</FormLabel>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {/* Add forgot password logic */}}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <FormControl>
-                  <Input type="password" disabled={loading} {...field} />
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 w-4 text-muted-foreground" />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      disabled={loading}
+                      className="pl-10 pr-10 h-12"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -190,10 +221,17 @@ export default function UserAuthForm() {
 
           <Button
             disabled={loading}
-            className="ml-auto w-full text-xs font-bold uppercase mt-8"
+            className="w-full h-12 text-sm font-semibold mt-8"
             type="submit"
           >
-            Login
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
       </Form>
