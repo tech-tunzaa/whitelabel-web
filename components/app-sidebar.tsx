@@ -21,6 +21,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
 import { Button } from "./ui/button";
 import { NotificationTrigger } from "@/components/notification-trigger";
@@ -70,18 +71,44 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
   };
 
   const filteredNavMain = React.useMemo(() => {
-    // Always show all navigation items until permissions are actually loaded
-    // This ensures consistent server/client rendering
-    if (!permissionsLoaded) return data.navMain;
+    // Don't show any navigation items until permissions are loaded
+    if (!permissionsLoaded) return [];
     return data.navMain.filter(filterByPermissionAndRole);
   }, [can, hasRole, permissionsLoaded]);
 
   const filteredNavSecondary = React.useMemo(() => {
-    // Always show all navigation items until permissions are actually loaded
-    // This ensures consistent server/client rendering
-    if (!permissionsLoaded) return data.navSecondary;
+    // Don't show any navigation items until permissions are loaded
+    if (!permissionsLoaded) return [];
     return data.navSecondary.filter(filterByPermissionAndRole);
   }, [can, hasRole, permissionsLoaded]);
+
+  // Skeleton component for loading navigation items
+  const NavigationSkeleton = () => (
+    <>
+      {[...Array(4)].map((_, index) => (
+        <SidebarMenuItem key={`skeleton-${index}`}>
+          <SidebarMenuButton className="data-[slot=sidebar-menu-button]:!p-1.5">
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-5 w-42" />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </>
+  );
+
+  // Skeleton component for secondary navigation
+  const SecondaryNavigationSkeleton = () => (
+    <>
+      {[...Array(2)].map((_, index) => (
+        <SidebarMenuItem key={`secondary-skeleton-${index}`}>
+          <SidebarMenuButton className="data-[slot=sidebar-menu-button]:!p-1.5">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-5 w-36" />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </>
+  );
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -126,10 +153,35 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
-          {filteredNavMain.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              {item.items ? (
-                <>
+          {!permissionsLoaded ? (
+            <NavigationSkeleton />
+          ) : (
+            filteredNavMain.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                {item.items ? (
+                  <>
+                    <SidebarMenuButton
+                      asChild
+                      className="data-[slot=sidebar-menu-button]:!p-1.5"
+                    >
+                      <a href={item.url} target={item.target} rel={item.target === "_blank" ? "noopener noreferrer" : undefined}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                    <SidebarMenuSub>
+                      {item.items.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton asChild>
+                            <a href={subItem.url}>
+                              <span>{subItem.title}</span>
+                            </a>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </>
+                ) : (
                   <SidebarMenuButton
                     asChild
                     className="data-[slot=sidebar-menu-button]:!p-1.5"
@@ -139,34 +191,21 @@ export function AppSidebar({ onNotificationClick, ...props }: AppSidebarProps) {
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
-                  <SidebarMenuSub>
-                    {item.items.map((subItem) => (
-                      <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild>
-                          <a href={subItem.url}>
-                            <span>{subItem.title}</span>
-                          </a>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                </>
-              ) : (
-                <SidebarMenuButton
-                  asChild
-                  className="data-[slot=sidebar-menu-button]:!p-1.5"
-                >
-                  <a href={item.url} target={item.target} rel={item.target === "_blank" ? "noopener noreferrer" : undefined}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </a>
-                </SidebarMenuButton>
-              )}
-            </SidebarMenuItem>
-          ))}
+                )}
+              </SidebarMenuItem>
+            ))
+          )}
         </SidebarMenu>
         {/* <NavDocuments items={data.documents} /> */}
-        <NavSecondary items={filteredNavSecondary} className="mt-auto" />
+        {!permissionsLoaded ? (
+          <div className="mt-auto">
+            <div className="px-3 py-2">
+              <SecondaryNavigationSkeleton />
+            </div>
+          </div>
+        ) : (
+          <NavSecondary items={filteredNavSecondary} className="mt-auto" />
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
