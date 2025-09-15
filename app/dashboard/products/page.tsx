@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { useProductStore } from "@/features/products/store";
 import { Product, ProductFilter } from "@/features/products/types";
+import { useVendorStore } from "@/features/vendors/store";
 import { ProductTable } from "@/features/products/components/product-table";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import Pagination from "@/components/ui/pagination";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductRejectionDialog } from "@/features/products/components/product-rejection-dialog";
 import {
   AlertDialog,
@@ -44,11 +46,18 @@ function ProductsPage() {
     deleteProduct,
   } = useProductStore();
 
+  const {
+    vendors,
+    loading: vendorsLoading,
+    fetchVendors,
+  } = useVendorStore();
+
   console.log("DEBUG: Data from product store:", { productData, loading, error });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("all");
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [productToReject, setProductToReject] = useState<Product | null>(null);
@@ -69,7 +78,10 @@ function ProductsPage() {
       limit: pageSize,
     };
 
-
+    // Add vendor filter if selected (and not "all")
+    if (selectedVendorId && selectedVendorId !== "all") {
+      baseFilter.vendorId = selectedVendorId;
+    }
 
     switch (activeTab) {
       case "published":
@@ -102,7 +114,14 @@ function ProductsPage() {
       }
     };
     fetchProductsData();
-  }, [fetchProducts, activeTab, currentPage, tenantId]);
+  }, [fetchProducts, activeTab, currentPage, selectedVendorId, tenantId]);
+
+  // Fetch vendors on component mount
+  useEffect(() => {
+    if (tenantId) {
+      fetchVendors({}, tenantHeaders);
+    }
+  }, [fetchVendors, tenantId]);
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery) {
@@ -164,6 +183,11 @@ function ProductsPage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    setCurrentPage(1);
+  };
+
+  const handleVendorChange = (vendorId: string) => {
+    setSelectedVendorId(vendorId);
     setCurrentPage(1);
   };
 
@@ -231,6 +255,21 @@ function ProductsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+          <div className="flex gap-2">
+            <Select value={selectedVendorId} onValueChange={handleVendorChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Vendors</SelectItem>
+                {(vendors?.items || vendors || [])?.map((vendor) => (
+                  <SelectItem key={vendor.vendor_id} value={vendor.vendor_id}>
+                    {vendor.business_name || vendor.vendor_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
