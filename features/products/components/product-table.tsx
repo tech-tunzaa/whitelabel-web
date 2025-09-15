@@ -190,7 +190,21 @@ export function ProductTable({
                     {getStatusBadge(product.is_active)}
                   </TableCell>
                   <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>
-                    {`Tsh ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.base_price ?? 0)}`}
+                    <div className="flex flex-col">
+                      <div className="font-medium">
+                        {`Tsh ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.sale_price ?? 0)}`}
+                      </div>
+                      {product.base_price && product.base_price > (product.sale_price ?? 0) && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground line-through">
+                            {`Tsh ${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.base_price)}`}
+                          </span>
+                          <Badge variant="destructive" className="text-xs px-1 py-0">
+                            {(((product.base_price - (product.sale_price ?? 0)) / product.base_price) * 100).toFixed(1)}% OFF
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="cursor-pointer" onClick={() => onProductClick(product)}>{formatDate(product.created_at)}</TableCell>
                   <TableCell>
