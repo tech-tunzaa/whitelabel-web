@@ -660,7 +660,7 @@ function ProductPage({ params }: ProductPageProps) {
               <CardContent className="space-y-3">
                 {product.verification_status === "pending" && (
                   <>
-                    <Can permission="products:approve">
+                    <Can permission="products:update">
                       <Button
                         className="w-full"
                         onClick={() => handleUpdate({ status: "approved" })}
@@ -674,7 +674,7 @@ function ProductPage({ params }: ProductPageProps) {
                         Approve
                       </Button>
                     </Can>
-                    <Can permission="products:reject">
+                    <Can permission="products:update">
                       <Button
                         className="w-full"
                         variant="destructive"
@@ -711,7 +711,7 @@ function ProductPage({ params }: ProductPageProps) {
                         {product.is_active ? "Unpublish" : "Publish"}
                       </Button>
                     </Can>
-                    <Can permission="products:suspend">
+                    <Can permission="products:update">
                       <Button
                         className="w-full"
                         variant="destructive"
@@ -725,7 +725,7 @@ function ProductPage({ params }: ProductPageProps) {
                 )}
 
                 {(product.verification_status === "rejected" || product.verification_status === "suspended") && (
-                  <Can permission="products:approve">
+                  <Can permission="products:update">
                     <Button
                       className="w-full"
                       onClick={() => handleUpdate({ status: "approved" })}
@@ -744,7 +744,7 @@ function ProductPage({ params }: ProductPageProps) {
                 <Separator className="my-3" />
 
                 <div className="space-y-2">
-                  <Can permission="products:delete">
+                  <Can permission="products:update">
                     {!confirmDelete ? (
                       <Button
                         variant="outline"

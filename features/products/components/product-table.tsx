@@ -254,7 +254,7 @@ export function ProductTable({
                             <DropdownMenuSeparator />
                             {product.verification_status === "pending" && (
                               <>
-                                <Can permission="products:approve">
+                                <Can permission="products:update">
                                   <DropdownMenuItem
                                     onClick={() => handleApprove(product.product_id)}
                                   >
@@ -262,7 +262,7 @@ export function ProductTable({
                                     Approve
                                   </DropdownMenuItem>
                                 </Can>
-                                <Can permission="products:reject">
+                                <Can permission="products:update">
                                   <DropdownMenuItem
                                     onClick={() => handleReject(product)}
                                   >
@@ -291,7 +291,7 @@ export function ProductTable({
                                     )}
                                   </DropdownMenuItem>
                                 </Can>
-                                <Can permission="products:suspend">
+                                <Can permission="products:update">
                                   <DropdownMenuItem
                                     onClick={() => handleReject(product)}
                                   >
@@ -302,7 +302,7 @@ export function ProductTable({
                               </>
                             )}
                             {product.verification_status === "rejected" && (
-                              <Can permission="products:approve">
+                              <Can permission="products:update">
                                 <DropdownMenuItem
                                   onClick={() => handleApprove(product.product_id)}
                                 >
