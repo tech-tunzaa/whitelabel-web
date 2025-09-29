@@ -6,7 +6,7 @@ import { SubAdminDashboard } from "@/features/dashboard/components/sub-admin/sub
 import { SupportDashboard } from "@/features/dashboard/components/support/support-dashboard";
 
 export const metadata = {
-  title: "Meneja Dashboard",
+  title: "Marketplace Dashboard",
 };
 
 const DashboardComponents = {

@@ -4,8 +4,8 @@ import ClientLayout from "./client-layout";
 import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Meneja - Dashboard",
-  description: "Meneja Dashboard",
+  title: "Marketplace - Dashboard",
+  description: "Marketplace Dashboard",
 };
 
 export default async function RootLayout({
