@@ -16,6 +16,30 @@ const DashboardComponents = {
   support: SupportDashboard,
 } as const;
 
+// Role priority order (highest to lowest)
+const rolePriority = ['super', 'admin', 'sub_admin', 'support'];
+
+function getUserPrimaryRole(user: any): string | null {
+  if (!user?.roles) {
+    return user?.role || null; // Fallback to single role if roles array doesn't exist
+  }
+
+  // Extract role names from roles array (handle both string and object formats)
+  const userRoles = user.roles.map((role: any) => 
+    typeof role === 'string' ? role : role.role
+  );
+
+  // Find the highest priority role the user has
+  for (const role of rolePriority) {
+    if (userRoles.includes(role)) {
+      return role;
+    }
+  }
+
+  // If no recognized role found, return the first role or fallback
+  return userRoles[0] || user?.role || null;
+}
+
 export default async function DashboardPage() {
   const session = await auth();
 
@@ -23,13 +47,14 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const DashboardComponent = DashboardComponents[session.user.role];
+  const primaryRole = getUserPrimaryRole(session.user);
+  const DashboardComponent = primaryRole ? DashboardComponents[primaryRole as keyof typeof DashboardComponents] : null;
 
   if (!DashboardComponent) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-muted-foreground">
-          No dashboard available for your role.
+          Dashboard not available for your role.
         </p>
       </div>
     );
