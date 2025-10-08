@@ -16,8 +16,9 @@ import {
 import { apiClient } from "@/lib/api/client";
 
 interface VendorStore {
-  vendors: Vendor[];
+  vendors: VendorListResponse;
   vendor: Vendor | null;
+  store: Store | null;
   loading: boolean;
   error: VendorError | null;
   activeAction: VendorAction | null;
@@ -78,8 +79,9 @@ interface VendorStore {
 }
 
 export const useVendorStore = create<VendorStore>()((set, get) => ({
-  vendors: [],
+  vendors: { items: [], total: 0, skip: 0, limit: 10 },
   vendor: null,
+  store: null,
   loading: true,
   error: null,
   activeAction: null,
@@ -187,7 +189,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         headers
       );
 
-      const responseData = response.data;
+      const responseData = response.data as unknown as VendorListResponse;
 
       if (responseData && responseData.items) {
         const cleanedItems = responseData.items.map((vendor: Vendor) => ({
@@ -199,10 +201,11 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
               : vendor.verification_status,
         }));
 
-        const cleanedResponseData = {
-          ...responseData,
+        const cleanedResponseData: VendorListResponse = {
           items: cleanedItems,
-          vendors: cleanedItems, // Ensuring compatibility with components that might use .vendors
+          total: responseData.total,
+          skip: responseData.skip,
+          limit: responseData.limit,
         };
 
         setVendors(cleanedResponseData);
@@ -217,7 +220,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         limit: filter.limit || 10,
       };
 
-      setVendors(emptyResult)
+      setVendors(emptyResult);
       setLoading(false);
       return emptyResult;
     } catch (error: unknown) {
@@ -568,7 +571,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         undefined,
         headers
       );
-      const performanceData = (response.data.data as VendorPerformanceData[]) || [];
+      const performanceData = (response.data as unknown as VendorPerformanceData[]) || [];
       set({ vendorPerformanceReport: performanceData });
     } catch (error: unknown) {
       const errorMessage =
@@ -603,7 +606,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
         headers
       );
 
-      const updatedDocument = response.data?.data as VerificationDocument | undefined;
+      const updatedDocument = response.data as unknown as VerificationDocument | undefined;
 
       // Determine if the call succeeded purely from HTTP status.
       const isSuccess = response.status >= 200 && response.status < 300;

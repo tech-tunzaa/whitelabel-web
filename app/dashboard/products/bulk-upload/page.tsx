@@ -182,7 +182,7 @@ function BulkUploadPage() {
     setClearFileSignal((c) => c + 1); // trigger file clear in dropzone
   };
 
-  const vendorList = Array.isArray(vendors) ? vendors : [];
+  const vendorList = vendors?.items || [];
 
   // Helper for status badge
   const renderStatusBadge = (status: string) => {

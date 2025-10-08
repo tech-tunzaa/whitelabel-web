@@ -127,7 +127,7 @@ export type VendorError = {
 };
 
 // Types for store actions and filters
-export type VendorAction = "fetchList" | "fetchOne" | "create" | "update" | "delete" | "updateStatus" | "fetchStore" | "fetchPerformance";
+export type VendorAction = "fetchList" | "fetchOne" | "create" | "update" | "delete" | "updateStatus" | "fetchStore" | "fetchPerformance" | "updateDocumentStatus";
 
 export interface VendorFilter {
     skip?: number;
