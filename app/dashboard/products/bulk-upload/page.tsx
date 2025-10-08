@@ -563,7 +563,7 @@ function BulkUploadPage() {
                                         Download Errors
                                       </Button>
                                     )}
-                                    {batch.status === "complete" && !batch.approved_at && (
+                                    {(batch.status === "complete" || batch.status === "pending") && !batch.approved_at && (
                                       <Button 
                                         size="sm" 
                                         variant="default" 
@@ -579,7 +579,7 @@ function BulkUploadPage() {
                                         {approvingBatchId === batch.batch_id ? 'Approving...' : 'Approve Batch'}
                                       </Button>
                                     )}
-                                    {batch.status === "complete" && batch.approved_at && (
+                                    {batch.approved_at && (
                                       <div className="flex items-center gap-2 text-sm text-green-600">
                                         <Check className="h-4 w-4" />
                                         <span>Approved on {new Date(batch.approved_at).toLocaleDateString()}</span>
