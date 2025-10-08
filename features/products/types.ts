@@ -97,7 +97,7 @@ export interface ProductListResponse {
   limit?: number;
 }
 
-export type ProductAction = 'fetchList' | 'fetchOne' | 'create' | 'update' | 'delete' | null;
+export type ProductAction = 'fetchList' | 'fetchOne' | 'create' | 'update' | 'delete' | 'approve' | null;
 
 export interface ProductError {
   message: string;

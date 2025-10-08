@@ -29,6 +29,12 @@ interface ProductStore {
   updateProduct: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
   updateProductStatus: (id: string, data: any, headers?: Record<string, string>) => Promise<any>;
   deleteProduct: (id: string, headers?: Record<string, string>) => Promise<any>;
+  fetchBulkUploadStatus: (batchId: string, headers?: Record<string, string>) => Promise<any>;
+  fetchBulkUploadBatches: (vendorId: string, storeId: string, headers?: Record<string, string>) => Promise<any>;
+  fetchBulkUploadBatchDetails: (batchId: string, headers?: Record<string, string>) => Promise<any>;
+  uploadBulkProducts: (file: File, vendorId: string, storeId: string, tenantId: string) => Promise<any>;
+  fetchBulkUploadTemplateCSV: (headers?: Record<string, string>) => Promise<string>;
+  approveBulkUploadBatch: (batchId: string, userName: string, headers?: Record<string, string>) => Promise<any>;
 }
 
 export const useProductStore = create<ProductStore>()(
@@ -333,12 +339,13 @@ export const useProductStore = create<ProductStore>()(
         let result: any[] = [];
 
         // Check for paginated response with items array
-        if (response.data?.items && Array.isArray(response.data.items)) {
-          result = response.data.items;
-        } else if (response.data?.data && Array.isArray(response.data.data)) {
-          result = response.data.data;
-        } else if (Array.isArray(response.data)) {
-          result = response.data;
+        const data = response.data as any;
+        if (data?.items && Array.isArray(data.items)) {
+          result = data.items;
+        } else if (data?.data && Array.isArray(data.data)) {
+          result = data.data;
+        } else if (Array.isArray(data)) {
+          result = data;
         } else {
           result = [];
         }
@@ -414,7 +421,7 @@ export const useProductStore = create<ProductStore>()(
         );
         setLoading(false);
         // The API returns the CSV as a string in response.data
-        return response.data;
+        return response.data as unknown as string;
       } catch (error: unknown) {
         setStoreError({
           message: error instanceof Error ? error.message : 'Failed to fetch bulk upload template',
