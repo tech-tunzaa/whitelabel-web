@@ -117,13 +117,6 @@ export const navigationData: NavigationData = {
       requiredPermission: "rewards:read",
     },
     {
-      title: "Support Tickets",
-      url: "https://chatwoot-uat.cheetah.co.tz/app/accounts/1/dashboard",
-      target: "_blank",
-      icon: IconHelp,
-      requiredPermission: "support:read",
-    },
-    {
       title: "Vendor Loans",
       url: "/dashboard/vendor-loans/requests",
       icon: IconCreditCard,
@@ -145,6 +138,13 @@ export const navigationData: NavigationData = {
           icon: IconListDetails,
         }
       ],
+    },
+    {
+      title: "Support Tickets",
+      url: "https://chatwoot-uat.cheetah.co.tz/app/accounts/1/dashboard",
+      target: "_blank",
+      icon: IconHelp,
+      requiredPermission: "support:read",
     },
   ],
   

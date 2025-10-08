@@ -84,7 +84,7 @@ export function NavUser({ user, onNotificationClick }: NavUserProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
+            {/* <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconUserCircle />
                 Account
@@ -102,7 +102,7 @@ export function NavUser({ user, onNotificationClick }: NavUserProps) {
                 </NotificationTrigger>
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator /> */}
             <DropdownMenuItem onClick={() => signOut()}>
               <IconLogout />
               Log out
