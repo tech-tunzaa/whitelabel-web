@@ -136,6 +136,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
     const filter: DeliveryPartnerFilter = {
       partner_type: partnerType,
       is_active: true,
+      is_available:true,
       search: debouncedSearchTerm,
     };
 
@@ -389,11 +390,11 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                         <div className="text-sm text-muted-foreground space-y-1">
                           <div className="flex items-center gap-2">
                             <Mail className="h-3.5 w-3.5" />
-                            <span>{partner.user_details.email}</span>
+                            <span>{partner?.user_details?.email}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-3.5 w-3.5" />
-                            <span>{partner.user_details.phone}</span>
+                            <span>{partner?.user_details?.phone}</span>
                           </div>
                         </div>
                       </div>

@@ -59,6 +59,7 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get)
       if (filter.skip !== undefined) params.append('skip', filter.skip.toString());
       if (filter.limit !== undefined) params.append('limit', filter.limit.toString());
       if (filter.is_active !== undefined) params.append('is_active', filter.is_active.toString());
+      if (filter.is_available !== undefined) params.append('is_available', filter.is_available.toString());
       if (filter.kyc_verified !== undefined) params.append('kyc_verified', filter.kyc_verified.toString());
       if (filter.partner_type) params.append('partner_type', filter.partner_type);
 
