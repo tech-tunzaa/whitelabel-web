@@ -6,7 +6,7 @@ import { LoanProvidersContent } from '@/features/loans/providers/components/prov
 import { LoadingPage } from '@/components/loading-page';
 
 export const metadata: Metadata = {
-  title: 'Loan Providers | Meneja Dashboard',
+  title: 'Loan Providers | Marketplace Dashboard',
   description: 'Manage loan providers for your organization',
 };
 

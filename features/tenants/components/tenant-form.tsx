@@ -341,6 +341,7 @@ export function TenantForm({
         setActiveTab(tab);
       }
     }
+    console.log('[TenantForm] Form error:', errors);
     toast.error("Please fix the validation errors before submitting");
   };
 

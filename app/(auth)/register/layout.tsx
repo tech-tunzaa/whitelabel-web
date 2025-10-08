@@ -2,7 +2,7 @@ import { AuthSiteHeader } from "@/components/auth-header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Meneja",
+  title: "Marketplace",
   description: "Manage a marketplace or more",
 };
 

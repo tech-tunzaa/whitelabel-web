@@ -45,7 +45,7 @@ function BulkUploadPage() {
   const [batchId, setBatchId] = useState<string | undefined>(undefined);
   const [showStatus, setShowStatus] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { bulkUploadProducts, fetchBulkUploadStatus, fetchBulkUploadBatches, uploadBulkProducts, fetchBulkUploadTemplateCSV } = useProductStore();
+  const { fetchBulkUploadStatus, fetchBulkUploadBatches, uploadBulkProducts, fetchBulkUploadTemplateCSV, approveBulkUploadBatch } = useProductStore();
   const { vendors, fetchVendors, fetchVendor, loading: loadingVendors } = useVendorStore();
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("upload");
@@ -53,6 +53,7 @@ function BulkUploadPage() {
   const [clearFileSignal, setClearFileSignal] = useState(0);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [responseStatusCode, setResponseStatusCode] = useState<number | undefined>(undefined);
+  const [approvingBatchId, setApprovingBatchId] = useState<string | null>(null);
 
   // Fetch vendors on mount
   useEffect(() => {
@@ -82,7 +83,7 @@ function BulkUploadPage() {
   useEffect(() => {
     if (selectedVendorId && storeId && tenantId) {
       setLoadingBatches(true);
-      fetchBulkUploadBatches(selectedVendorId, storeId, { 'X-Tenant-ID': tenantId }).then((data) => {
+      fetchBulkUploadBatches(selectedVendorId, storeId, { 'X-Tenant-ID': tenantId }).then((data: any) => {
         const batchArray = data?.items || data || [];
         setBatches(batchArray);
         setLoadingBatches(false);
@@ -181,7 +182,7 @@ function BulkUploadPage() {
     setClearFileSignal((c) => c + 1); // trigger file clear in dropzone
   };
 
-  const vendorList = Array.isArray(vendors?.items) ? vendors.items : vendors || [];
+  const vendorList = vendors?.items || [];
 
   // Helper for status badge
   const renderStatusBadge = (status: string) => {
@@ -207,6 +208,31 @@ function BulkUploadPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       toast.error('Failed to download template. Please try again.');
+    }
+  };
+
+  // Handle batch approval
+  const handleApproveBatch = async (batchId: string) => {
+    if (!session?.user?.name) {
+      toast.error('User information not available');
+      return;
+    }
+
+    setApprovingBatchId(batchId);
+    try {
+      await approveBulkUploadBatch(batchId, session.user.name, { 'X-Tenant-ID': tenantId });
+      toast.success('Batch approved successfully!');
+      
+      // Refresh batches to show updated status
+      if (selectedVendorId && storeId && tenantId) {
+        const data = await fetchBulkUploadBatches(selectedVendorId, storeId, { 'X-Tenant-ID': tenantId });
+        const batchArray = data?.items || data || [];
+        setBatches(batchArray);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve batch');
+    } finally {
+      setApprovingBatchId(null);
     }
   };
 
@@ -537,11 +563,27 @@ function BulkUploadPage() {
                                         Download Errors
                                       </Button>
                                     )}
-                                    {batch.status === "complete" && (
-                                      <Button size="sm" variant="default" className="gap-2">
-                                        <Copy className="h-4 w-4" />
-                                        Approve Batch
+                                    {(batch.status === "complete" || batch.status === "pending") && !batch.approved_at && (
+                                      <Button 
+                                        size="sm" 
+                                        variant="default" 
+                                        className="gap-2"
+                                        onClick={() => handleApproveBatch(batch.batch_id)}
+                                        disabled={approvingBatchId === batch.batch_id}
+                                      >
+                                        {approvingBatchId === batch.batch_id ? (
+                                          <Spinner className="h-4 w-4" />
+                                        ) : (
+                                          <Check className="h-4 w-4" />
+                                        )}
+                                        {approvingBatchId === batch.batch_id ? 'Approving...' : 'Approve Batch'}
                                       </Button>
+                                    )}
+                                    {batch.approved_at && (
+                                      <div className="flex items-center gap-2 text-sm text-green-600">
+                                        <Check className="h-4 w-4" />
+                                        <span>Approved on {new Date(batch.approved_at).toLocaleDateString()}</span>
+                                      </div>
                                     )}
                                   </div>
                                   <div className="text-xs text-muted-foreground font-mono">

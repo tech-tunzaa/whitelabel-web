@@ -7,7 +7,7 @@ import { LoadingPage } from '@/components/loading-page';
 import { ProviderEditContent } from '@/features/loans/providers/components/provider-edit-content';
 
 export const metadata: Metadata = {
-  title: 'Edit Loan Provider | Meneja Dashboard',
+  title: 'Edit Loan Provider | Marketplace Dashboard',
   description: 'Edit loan provider details',
 };
 
