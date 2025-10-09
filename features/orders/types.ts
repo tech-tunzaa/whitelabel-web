@@ -34,6 +34,18 @@ export interface OrderError {
   details?: Record<string, any>;
 }
 
+export interface SupportTicket {
+  ticket_id: string;
+  chatwoot_conversation_id: string;
+  subject: string;
+  category: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "open" | "resolved";
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
 export interface OrderFilter {
   skip?: number;
   limit?: number;
@@ -43,6 +55,8 @@ export interface OrderFilter {
   vendorId?: string;
   dateFrom?: string;
   dateTo?: string;
+  has_ticket?: boolean;
+  include_tickets: boolean;
 }
 
 export interface OrderAction {
@@ -290,6 +304,7 @@ export interface Order {
   notes: string;
   metadata: Record<string, any>;
   delivery_details?: DeliveryDetails;
+  support_ticket?: SupportTicket;
 }
 
 export interface OrderListResponse {

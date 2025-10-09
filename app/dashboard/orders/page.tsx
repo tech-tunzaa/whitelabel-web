@@ -24,8 +24,10 @@ import Pagination from "@/components/ui/pagination";
 export default function OrdersPage() {
   const router = useRouter();
   const session = useSession();
-  const tenantId = session?.data?.user ? (session.data.user as any).tenant_id : undefined;
-  
+  const tenantId = session?.data?.user
+    ? (session.data.user as any).tenant_id
+    : undefined;
+
   const {
     orders,
     loading,
@@ -33,9 +35,9 @@ export default function OrdersPage() {
     fetchOrders,
     updateOrderStatus,
     setOrders,
-    setStoreError
+    setStoreError,
   } = useOrderStore();
-  
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,13 +49,14 @@ export default function OrdersPage() {
 
   // Define tenant headers
   const tenantHeaders = {
-    "X-Tenant-ID": tenantId
+    "X-Tenant-ID": tenantId,
   };
 
   // Define filter based on active tab
   const getFilter = () => {
     const filter: any = {};
-    if (activeTab !== "all") filter.status = activeTab as OrderStatus;
+    if (activeTab !== "all" && activeTab !== "tickets") filter.status = activeTab as OrderStatus;
+    if (activeTab === "tickets") filter.has_ticket = true;
     filter.skip = (currentPage - 1) * pageSize;
     filter.limit = pageSize;
     return filter;
@@ -71,12 +74,15 @@ export default function OrdersPage() {
       if (searchTerm) {
         setOrders(null);
       }
-      const result = await fetchOrders({
-        ...filter,
-        search: searchTerm,
-        dateFrom: dateRange?.from?.toISOString(),
-        dateTo: dateRange?.to?.toISOString(),
-      }, tenantHeaders);
+      const result = await fetchOrders(
+        {
+          ...filter,
+          search: searchTerm,
+          dateFrom: dateRange?.from?.toISOString(),
+          dateTo: dateRange?.to?.toISOString(),
+        },
+        tenantHeaders
+      );
       // If result is empty and we have a search term, ensure orders are cleared
       if (searchTerm && (!result || result.items.length === 0)) {
         setOrders({ items: [], total: 0, skip: 0, limit: pageSize });
@@ -84,15 +90,20 @@ export default function OrdersPage() {
     } catch (error) {
       console.error("Error loading orders:", error);
       // Always set empty orders array for 404 errors (no orders found)
-      if (error instanceof Error && 
-          ((error.message.includes("404") && error.message.includes("No orders found")) ||
-           error.message.includes("not found") ||
-           error.message.includes("404"))) {
+      if (
+        error instanceof Error &&
+        ((error.message.includes("404") &&
+          error.message.includes("No orders found")) ||
+          error.message.includes("not found") ||
+          error.message.includes("404"))
+      ) {
         setOrders({ items: [], total: 0, skip: 0, limit: pageSize });
         setStoreError(null);
       } else {
         // For other errors, set the error
-        setStoreError(error instanceof Error ? error : new Error("Failed to load orders"));
+        setStoreError(
+          error instanceof Error ? error : new Error("Failed to load orders")
+        );
       }
     } finally {
       if (showLoadingState) {
@@ -108,16 +119,19 @@ export default function OrdersPage() {
 
   // Handle status change
   // Update order status
-  const handleOrderStatusChange = async (orderId: string, status: OrderStatus) => {
+  const handleOrderStatusChange = async (
+    orderId: string,
+    status: OrderStatus
+  ) => {
     try {
       // Clear any previous error state first
       setStoreError(null);
-      
+
       // Show success toast only after successful update
       const result = await updateOrderStatus(orderId, status, tenantHeaders);
       if (result) {
-        toast.success(`Order status updated to ${status.replace(/_/g, ' ')}`);
-        
+        toast.success(`Order status updated to ${status.replace(/_/g, " ")}`);
+
         // Reload orders to ensure we have the latest data
         // This will refresh the data while staying on the same tab
         await loadOrders();
@@ -125,7 +139,7 @@ export default function OrdersPage() {
     } catch (error) {
       // Check if it's actually a successful response with parsing error
       if ((error as any)?.response?.status === 200) {
-        toast.success(`Order status updated to ${status.replace(/_/g, ' ')}`);
+        toast.success(`Order status updated to ${status.replace(/_/g, " ")}`);
         // Even if there was a parsing error but API returned 200,
         // reload the orders to get the latest data
         await loadOrders();
@@ -135,41 +149,41 @@ export default function OrdersPage() {
       }
     }
   };
-  
+
   // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setCurrentPage(1); // Reset to first page when changing tabs
   };
-  
+
   // Effect for loading orders on initial page load
   useEffect(() => {
     if (tenantId) {
       loadOrders();
-      
+
       // Check if we need to refresh orders after returning from order details page
       const checkForRefreshFlag = () => {
-        const needsRefresh = localStorage.getItem('ordersNeedRefresh');
-        if (needsRefresh === 'true') {
+        const needsRefresh = localStorage.getItem("ordersNeedRefresh");
+        if (needsRefresh === "true") {
           // Clear the flag
-          localStorage.removeItem('ordersNeedRefresh');
+          localStorage.removeItem("ordersNeedRefresh");
           // Refresh orders without showing loading state
           loadOrders(false);
         }
       };
-      
+
       // Check when the component mounts
       checkForRefreshFlag();
-      
+
       // Also check when window gains focus (user comes back to the tab)
-      window.addEventListener('focus', checkForRefreshFlag);
-      
+      window.addEventListener("focus", checkForRefreshFlag);
+
       return () => {
-        window.removeEventListener('focus', checkForRefreshFlag);
+        window.removeEventListener("focus", checkForRefreshFlag);
       };
     }
   }, [tenantId]);
-  
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -189,7 +203,7 @@ export default function OrdersPage() {
       loadOrders();
     }
   }, [activeTab, currentPage, searchTerm, dateRange]);
-  
+
   // Determine which orders to show based on active tab
   const displayOrders = orders?.items || [];
 
@@ -225,7 +239,7 @@ export default function OrdersPage() {
             title="Error Loading Orders"
             error={{
               message: storeError?.message || "Failed to load orders",
-              status: storeError?.status ? String(storeError.status) : "error"
+              status: storeError?.status ? String(storeError.status) : "error",
             }}
             buttonText="Try Again"
             buttonAction={() => loadOrders()}
@@ -281,12 +295,10 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-        >
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-4 w-full">
             <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="tickets">Issues</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="processing">Processing</TabsTrigger>
             <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
@@ -295,7 +307,9 @@ export default function OrdersPage() {
             <TabsTrigger value="completed">Completed</TabsTrigger>
             <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
             <TabsTrigger value="refund_requested">Pending Refunds</TabsTrigger>
-            <TabsTrigger value="partially_refunded">Partial Refunds</TabsTrigger>
+            <TabsTrigger value="partially_refunded">
+              Partial Refunds
+            </TabsTrigger>
             <TabsTrigger value="refunded">Refunded</TabsTrigger>
           </TabsList>
 
@@ -323,5 +337,5 @@ export default function OrdersPage() {
         />
       </div>
     </div>
-  )
+  );
 }

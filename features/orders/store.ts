@@ -125,6 +125,8 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
       if (filter.vendorId) params.append("vendor_id", filter.vendorId);
       if (filter.dateFrom) params.append("date_from", filter.dateFrom);
       if (filter.dateTo) params.append("date_to", filter.dateTo);
+      if (filter.has_ticket) params.append("has_ticket", "true");
+      params.append("include_tickets", "true");
 
       console.log('[OrderStore] fetchOrders params:', params.toString());
       const response = await apiClient.get<OrderApiResponse>(

@@ -53,6 +53,7 @@ import {
   OrderItem,
   VendorResponse,
   OrderError,
+  SupportTicket,
 } from "@/features/orders/types";
 
 import {
@@ -68,6 +69,8 @@ import {
   Phone,
   FileText,
   Calendar,
+  MessageCircle,
+  AlertCircle as TicketIcon,
 } from "lucide-react";
 
 interface ExtendedUser extends NextAuthUser {
@@ -423,15 +426,61 @@ const OrderPage = () => {
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Order Notes
+                    {order?.support_ticket && (
+                      <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                        <TicketIcon className="h-3 w-3" />
+                        Support Ticket
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground italic">
                         "{order?.notes || "No notes added"}"
                       </span>
                     </div>
+                    
+                    {order?.support_ticket && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Support Ticket</span>
+                              <Badge 
+                                variant={
+                                  order.support_ticket.status === 'open' ? 'destructive' :
+                                  order.support_ticket.status === 'resolved' ? 'success' : 'secondary'
+                                }
+                                className="text-xs"
+                              >
+                                {order.support_ticket.status}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {order.support_ticket.priority}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {order.support_ticket.subject}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Created: {formatDate(order.support_ticket.created_at)}
+                            </p>
+                          </div>
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_CHATWOOT_BASE_URL}/${order.support_ticket.chatwoot_conversation_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-sm text-primary hover:underline"
+                          >
+                            View Conversation
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

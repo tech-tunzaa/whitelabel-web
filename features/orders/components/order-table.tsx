@@ -225,7 +225,7 @@ export function OrderTable({
           {orders.map((order) => (
             <TableRow
               key={order.order_id}
-              className={`cursor-pointer ((order as any).flagged || (order as any).is_flagged) ? "bg-amber-50" : undefined`}
+              className={`cursor-pointer ${order?.support_ticket?.status == 'open' ? "bg-amber-50" : undefined}`}
               onClick={() => onViewDetails(order)}
             >
               <TableCell className="font-medium">
