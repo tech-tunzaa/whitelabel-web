@@ -19,6 +19,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { OrderTable } from "@/features/orders/components/order-table";
 import { useOrderStore } from "@/features/orders/store";
 import type { Order, OrderStatus, OrderFilter } from "@/features/orders/types";
+import Pagination from "@/components/ui/pagination";
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function OrdersPage() {
   const [isTabLoading, setIsTabLoading] = useState(false);
   // Use the DateRange type from react-day-picker that the Calendar component expects
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const pageSize = 20;
 
   // Define tenant headers
   const tenantHeaders = {
@@ -49,8 +51,11 @@ export default function OrdersPage() {
 
   // Define filter based on active tab
   const getFilter = () => {
-    if (activeTab === "all") return {};
-    return { status: activeTab as OrderStatus };
+    const filter: any = {};
+    if (activeTab !== "all") filter.status = activeTab as OrderStatus;
+    filter.skip = (currentPage - 1) * pageSize;
+    filter.limit = pageSize;
+    return filter;
   };
 
   // Function to load orders
@@ -73,7 +78,7 @@ export default function OrdersPage() {
       if (error instanceof Error && 
           ((error.message.includes("404") && error.message.includes("No orders found")) ||
            error.message.includes("not found"))) {
-        setOrders([]);
+        setOrders({ items: [], total: 0, skip: 0, limit: pageSize });
         setStoreError(null);
       } else {
         // For other errors, set the error
@@ -163,7 +168,7 @@ export default function OrdersPage() {
   }, [activeTab, currentPage, searchQuery, dateRange]);
   
   // Determine which orders to show based on active tab
-  const displayOrders = activeTab === "all" ? (orders || []) : (orders || []).filter(order => order.status === activeTab);
+  const displayOrders = activeTab === "all" ? (orders?.items || []) : (orders?.items || []).filter(order => order.status === activeTab);
 
   if (loading && !orders) {
     return (
@@ -181,7 +186,7 @@ export default function OrdersPage() {
     );
   }
 
-  if (storeError && orders?.length === 0 && !isTabLoading) {
+  if (storeError && (!orders?.items || orders.items.length === 0) && !isTabLoading) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b">
@@ -285,6 +290,12 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
         </Tabs>
+        <Pagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={orders?.total || 0}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   )

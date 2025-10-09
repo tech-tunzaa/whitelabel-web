@@ -3,7 +3,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { User as NextAuthUser, DefaultSession } from "next-auth";
 import { format } from "date-fns";
 import { ChevronDown, Info, Check, AlertCircle, Code2, X } from "lucide-react";
@@ -48,6 +57,7 @@ import { Copy } from "@/components/ui/copy";
 import DeliveryManagement from "@/features/orders/components/order-delivery-management";
 import { TransactionStatus } from "@/features/orders/transactions/types";
 import { VendorResponseItem } from "@/features/orders/components/vendor-response-item";
+import { RefundModal } from "@/features/orders/components/refund-modal";
 import {
   Order,
   OrderItem,
@@ -56,6 +66,7 @@ import {
   SupportTicket,
 } from "@/features/orders/types";
 
+import { Can } from "@/components/auth/can";
 import {
   ArrowLeft,
   Package,
@@ -83,33 +94,42 @@ const OrderPage = () => {
 
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "payment">("overview");
-  const handleTabChange = (value: "overview" | "payment") => setActiveTab(value);
-  const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<"overview" | "payment">(
+    "overview"
+  );
+  const handleTabChange = (value: "overview" | "payment") =>
+    setActiveTab(value);
+  const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>(
+    {}
+  );
   const [currentTransaction, setCurrentTransaction] = useState<any>(null);
-  const [loadingTransactionId, setLoadingTransactionId] = useState<string | null>(null);
+  const [loadingTransactionId, setLoadingTransactionId] = useState<
+    string | null
+  >(null);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
 
   const { data: session } = useSession();
   const router = useRouter();
 
-  const { 
-    order, 
-    fetchOrder, 
-    updateOrderStatus, 
-    clearStore, 
-    loading: orderLoading, 
-    error: orderError 
+  const {
+    order,
+    fetchOrder,
+    updateOrderStatus,
+    createRefund,
+    clearStore,
+    loading: orderLoading,
+    error: orderError,
   } = useOrderStore();
   const { vendor, loading: vendorLoading, fetchVendor } = useVendorStore();
-  const { 
-    transactions, 
-    fetchTransactionsByOrder, 
+  const {
+    transactions,
+    fetchTransactionsByOrder,
     fetchTransaction,
-    loading, 
-    error: transactionsError 
+    loading,
+    error: transactionsError,
   } = useTransactionStore();
   const transactionsLoading = loading; // Alias for consistency with other loading states
-
 
   const getTransactionStatusBadgeVariant = (status?: string) => {
     if (!status) return "secondary";
@@ -147,32 +167,32 @@ const OrderPage = () => {
 
   const formatPrice = (
     price: number | string | undefined,
-    currency: any = 'TZS',
+    currency: any = "TZS",
     options?: { currency?: string | object }
   ): string => {
     if (price === undefined || price === null || price === "") return "N/A";
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     if (isNaN(numPrice)) return "N/A";
-    
+
     // Safely extract currency code
     const getCurrencyCode = (curr: any): string => {
-      if (!curr) return 'TZS';
-      if (typeof curr === 'string') return curr.toUpperCase();
-      if (typeof curr === 'object' && curr !== null) {
+      if (!curr) return "TZS";
+      if (typeof curr === "string") return curr.toUpperCase();
+      if (typeof curr === "object" && curr !== null) {
         // Handle case where currency is an object with a 'code' property
-        if ('code' in curr && typeof curr.code === 'string') {
+        if ("code" in curr && typeof curr.code === "string") {
           return curr.code.toUpperCase();
         }
         // Handle case where currency is an object with a 'currency' property
-        if ('currency' in curr && typeof curr.currency === 'string') {
+        if ("currency" in curr && typeof curr.currency === "string") {
           return curr.currency.toUpperCase();
         }
       }
-      return 'TZS'; // Default fallback
+      return "TZS"; // Default fallback
     };
-    
+
     const displayCurrency = getCurrencyCode(options?.currency || currency);
-    
+
     try {
       return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -239,11 +259,15 @@ const OrderPage = () => {
   }, [orderId, session?.user, fetchOrder]);
 
   // Fetch transactions when the order loads
-  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     if (order?.order_number) {
-      fetchTransactionsByOrder(order.order_number, {'X-Tenant-ID': (session?.user as ExtendedUser)?.tenant_id || ''}).then(fetchedTransactions => {
+      fetchTransactionsByOrder(order.order_number, {
+        "X-Tenant-ID": (session?.user as ExtendedUser)?.tenant_id || "",
+      }).then((fetchedTransactions) => {
         if (fetchedTransactions.length > 0) {
           // Auto-expand the first transaction
           const firstTransaction = fetchedTransactions[0];
@@ -261,13 +285,13 @@ const OrderPage = () => {
         setLoadingTransactionId(expandedTransaction);
         try {
           const transaction = await fetchTransaction(expandedTransaction, {
-            'X-Tenant-ID': (session?.user as ExtendedUser)?.tenant_id || '',
+            "X-Tenant-ID": (session?.user as ExtendedUser)?.tenant_id || "",
           });
           setCurrentTransaction(transaction);
           setLoadingTransactionId(null);
         } catch (error) {
-          console.error('Error fetching transaction:', error);
-          toast.error('Failed to load transaction details');
+          console.error("Error fetching transaction:", error);
+          toast.error("Failed to load transaction details");
           setLoadingTransactionId(null);
         }
       }
@@ -293,6 +317,52 @@ const OrderPage = () => {
         setLoadedVendors((prev) => ({ ...prev, [item.vendor_id]: true }));
         await fetchVendor(item.vendor_id, { "X-Tenant-ID": user.tenant_id });
       }
+    }
+  };
+
+  const handleRefund = async (refundData: {
+    items: { item_id: string; quantity: number }[];
+    reason: string;
+  }) => {
+    if (!order?.order_id || !session?.user) return;
+
+    setIsProcessingRefund(true);
+    try {
+      const user = session.user as any;
+      const headers = { "X-Tenant-ID": user.tenant_id };
+
+      const payload = {
+        issued_by: user.name || user.email || "Admin",
+        refund_data: {
+          items: refundData.items,
+          reason: refundData.reason,
+        },
+      };
+
+      await createRefund(order.order_id, payload, headers);
+      toast.success("Refund processed successfully");
+      setShowRefundModal(false);
+
+      // Refresh order data to show updated refunds
+      await fetchOrder(order.order_id, headers);
+
+      // Set refresh flag for orders list
+      localStorage.setItem("ordersNeedRefresh", "true");
+    } catch (error: any) {
+      console.error("Error processing refund:", error);
+
+      // Handle specific API error messages
+      if (error?.response?.status === 400 && error?.response?.data?.detail) {
+        toast.error(error.response.data.detail);
+      } else {
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to process refund";
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsProcessingRefund(false);
     }
   };
 
@@ -360,51 +430,61 @@ const OrderPage = () => {
             </div>
           </div>
         </div>
-        
-        {order?.status && ['pending', 'processing', 'confirmed', 'shipped'].includes(order.status) && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowCancelConfirm(true)}
-            >
-              <X className="h-4 w-4" />
-              Cancel Order
-            </Button>
 
-            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will cancel the order. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>No, keep order</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={async () => {
-                      if (!order?.order_id) return;
-                      
-                      try {
-                        await updateOrderStatus(order.order_id, 'cancelled', { "X-Tenant-ID": session.user?.tenant_id });
-                        toast.success('Order cancelled');
-                        fetchOrder(order.order_id, { "X-Tenant-ID": session.user?.tenant_id });
-                      } catch (error) {
-                        console.error('Error cancelling order:', error);
-                        toast.error('Failed to cancel order');
-                      }
-                    }}
-                  >
-                    Yes, cancel order
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
+        {order?.status &&
+          ["pending", "processing", "confirmed", "shipped"].includes(
+            order.status
+          ) && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowCancelConfirm(true)}
+              >
+                <X className="h-4 w-4" />
+                Cancel Order
+              </Button>
+
+              <AlertDialog
+                open={showCancelConfirm}
+                onOpenChange={setShowCancelConfirm}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will cancel the order. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>No, keep order</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async () => {
+                        if (!order?.order_id) return;
+
+                        try {
+                          await updateOrderStatus(order.order_id, "cancelled", {
+                            "X-Tenant-ID": session.user?.tenant_id,
+                          });
+                          toast.success("Order cancelled");
+                          fetchOrder(order.order_id, {
+                            "X-Tenant-ID": session.user?.tenant_id,
+                          });
+                        } catch (error) {
+                          console.error("Error cancelling order:", error);
+                          toast.error("Failed to cancel order");
+                        }
+                      }}
+                    >
+                      Yes, cancel order
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
       </div>
 
       <main className="flex-1 p-6 space-y-6">
@@ -427,7 +507,10 @@ const OrderPage = () => {
                     <FileText className="h-4 w-4" />
                     Order Notes
                     {order?.support_ticket && (
-                      <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                      <Badge
+                        variant="outline"
+                        className="ml-auto flex items-center gap-1"
+                      >
                         <TicketIcon className="h-3 w-3" />
                         Support Ticket
                       </Badge>
@@ -441,18 +524,23 @@ const OrderPage = () => {
                         "{order?.notes || "No notes added"}"
                       </span>
                     </div>
-                    
+
                     {order?.support_ticket && (
                       <div className="border-t pt-4">
                         <div className="flex items-start justify-between">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <MessageCircle className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">Support Ticket</span>
-                              <Badge 
+                              <span className="text-sm font-medium">
+                                Support Ticket
+                              </span>
+                              <Badge
                                 variant={
-                                  order.support_ticket.status === 'open' ? 'destructive' :
-                                  order.support_ticket.status === 'resolved' ? 'success' : 'secondary'
+                                  order.support_ticket.status === "open"
+                                    ? "destructive"
+                                    : order.support_ticket.status === "resolved"
+                                    ? "success"
+                                    : "secondary"
                                 }
                                 className="text-xs"
                               >
@@ -466,7 +554,8 @@ const OrderPage = () => {
                               {order.support_ticket.subject}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Created: {formatDate(order.support_ticket.created_at)}
+                              Created:{" "}
+                              {formatDate(order.support_ticket.created_at)}
                             </p>
                           </div>
                           <a
@@ -486,13 +575,31 @@ const OrderPage = () => {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Order Items
-                  </CardTitle>
-                  <CardDescription>
-                    {order?.items?.length || 0} items in this order
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        Order Items
+                      </CardTitle>
+                      <CardDescription>
+                        {order?.items?.length || 0} items in this order
+                      </CardDescription>
+                    </div>
+                    <Can permission="order:update" role="admin">
+                      {order?.status &&
+                        !["cancelled", "refunded"].includes(order.status) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setShowRefundModal(true)}
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                            Issue Refund
+                          </Button>
+                        )}
+                    </Can>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -543,10 +650,16 @@ const OrderPage = () => {
                               <Badge variant="outline">{item.quantity}</Badge>
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatPrice(item.unit_price, order?.currency || 'TZS')}
+                              {formatPrice(
+                                item.unit_price,
+                                order?.currency || "TZS"
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatPrice(item.total, order?.currency || 'TZS')}
+                              {formatPrice(
+                                item.total,
+                                order?.currency || "TZS"
+                              )}
                             </TableCell>
                           </TableRow>
                           {expandedItems.includes(index) && (
@@ -598,9 +711,15 @@ const OrderPage = () => {
                           className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <Badge variant="destructive" className="capitalize">
-                              Refunded
-                            </Badge>
+                            {order.status != "refunded" ? (
+                              <Badge className="capitalize">
+                                Pending
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="capitalize">
+                                Refunded
+                              </Badge>
+                            )}
                             <p className="text-sm text-muted-foreground flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               {formatDate(refund.created_at)}
@@ -611,7 +730,10 @@ const OrderPage = () => {
                               Refund Amount
                             </p>
                             <p className="font-medium text-destructive">
-                              {formatPrice(refund.amount, order?.currency || 'TZS')}
+                              {formatPrice(
+                                refund.amount,
+                                order?.currency || "TZS"
+                              )}
                             </p>
                           </div>
                           {refund.reason && (
@@ -642,7 +764,8 @@ const OrderPage = () => {
                       <CardDescription className="mt-1">
                         {transactions.length > 0 ? (
                           <span className="text-sm">
-                            {transactions.length} payment{transactions.length !== 1 ? 's' : ''} found
+                            {transactions.length} payment
+                            {transactions.length !== 1 ? "s" : ""} found
                           </span>
                         ) : (
                           "No payment records found"
@@ -655,16 +778,16 @@ const OrderPage = () => {
                 {transactions && transactions.length > 0 && (
                   <div className="border-b">
                     <h3 className="text-sm font-medium p-4">Payment History</h3>
-                    <Accordion 
-                      type="single" 
-                      collapsible 
+                    <Accordion
+                      type="single"
+                      collapsible
                       value={expandedTransaction || undefined}
                       onValueChange={setExpandedTransaction}
                       className="w-full"
                     >
                       {transactions.map((transaction: any) => (
-                        <AccordionItem 
-                          key={transaction.transaction_id} 
+                        <AccordionItem
+                          key={transaction.transaction_id}
                           value={transaction.transaction_id}
                           className="border-b"
                         >
@@ -672,33 +795,51 @@ const OrderPage = () => {
                             <div className="flex w-full items-center justify-between pr-2">
                               <div className="text-left">
                                 <div className="font-medium">
-                                  {formatPrice(transaction.amount, { currency: order?.currency || 'TZS' })}
+                                  {formatPrice(transaction.amount, {
+                                    currency: order?.currency || "TZS",
+                                  })}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {format(new Date(transaction.payment_date || transaction.created_at), 'MMM d, yyyy h:mm a')}
+                                  {format(
+                                    new Date(
+                                      transaction.payment_date ||
+                                        transaction.created_at
+                                    ),
+                                    "MMM d, yyyy h:mm a"
+                                  )}
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-medium flex items-center gap-1">
                                   {transaction.transaction_id}
-                                  <Copy text={transaction.transaction_id} size={14} />
+                                  <Copy
+                                    text={transaction.transaction_id}
+                                    size={14}
+                                  />
                                 </div>
-                                <Badge 
-                                  variant={getTransactionStatusBadgeVariant(transaction.status as any)}
+                                <Badge
+                                  variant={getTransactionStatusBadgeVariant(
+                                    transaction.status as any
+                                  )}
                                   className="text-xs"
                                 >
-                                  {String(transaction.status).replace(/_/g, ' ')}
+                                  {String(transaction.status).replace(
+                                    /_/g,
+                                    " "
+                                  )}
                                 </Badge>
                               </div>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="pb-0 pt-2">
                             <div className="px-4 pb-4">
-                              {loadingTransactionId === transaction.transaction_id ? (
+                              {loadingTransactionId ===
+                              transaction.transaction_id ? (
                                 <div className="py-8">
                                   <Spinner />
                                 </div>
-                              ) : currentTransaction?.transaction_id === transaction.transaction_id ? (
+                              ) : currentTransaction?.transaction_id ===
+                                transaction.transaction_id ? (
                                 <div className="space-y-6">
                                   {/* Payment Summary Card */}
                                   <div className="bg-muted/30 rounded-lg p-4">
@@ -709,32 +850,50 @@ const OrderPage = () => {
                                     <div className="space-y-3">
                                       <div className="flex justify-between items-center">
                                         <div className="space-y-0.5">
-                                          <p className="text-sm text-muted-foreground">Amount Paid</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Amount Paid
+                                          </p>
                                           <p className="text-lg font-semibold">
-                                            {formatPrice(currentTransaction.amount, {
-                                              currency: order?.currency || 'TZS',
-                                            })}
+                                            {formatPrice(
+                                              currentTransaction.amount,
+                                              {
+                                                currency:
+                                                  order?.currency || "TZS",
+                                              }
+                                            )}
                                           </p>
                                         </div>
                                         {currentTransaction.fee_amount > 0 && (
                                           <div className="text-right">
-                                            <p className="text-sm text-muted-foreground">Fee</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              Fee
+                                            </p>
                                             <p className="text-sm">
-                                              {formatPrice(currentTransaction.fee_amount, {
-                                                currency: order?.currency || 'TZS',
-                                              })}
+                                              {formatPrice(
+                                                currentTransaction.fee_amount,
+                                                {
+                                                  currency:
+                                                    order?.currency || "TZS",
+                                                }
+                                              )}
                                             </p>
                                           </div>
                                         )}
                                       </div>
                                       {currentTransaction.payment_date && (
                                         <div className="pt-2 border-t flex items-center justify-between text-sm">
-                                          <span className="text-muted-foreground">Status</span>
-                                          <Badge 
-                                            variant={getTransactionStatusBadgeVariant(currentTransaction.status as any)}
+                                          <span className="text-muted-foreground">
+                                            Status
+                                          </span>
+                                          <Badge
+                                            variant={getTransactionStatusBadgeVariant(
+                                              currentTransaction.status as any
+                                            )}
                                             className="capitalize"
                                           >
-                                            {String(currentTransaction.status).replace(/_/g, ' ').toLowerCase()}
+                                            {String(currentTransaction.status)
+                                              .replace(/_/g, " ")
+                                              .toLowerCase()}
                                           </Badge>
                                         </div>
                                       )}
@@ -750,35 +909,54 @@ const OrderPage = () => {
                                     <div className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                          <p className="text-sm text-muted-foreground">Reference</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Reference
+                                          </p>
                                           <div className="flex items-center gap-2">
                                             <p className="text-sm font-medium truncate">
-                                              {currentTransaction.reference || 'N/A'}
+                                              {currentTransaction.reference ||
+                                                "N/A"}
                                             </p>
                                             <Copy
-                                              text={currentTransaction.reference || ''}
+                                              text={
+                                                currentTransaction.reference ||
+                                                ""
+                                              }
                                               className="text-muted-foreground hover:text-foreground transition-colors"
                                             />
                                           </div>
                                         </div>
                                         <div className="space-y-1">
-                                          <p className="text-sm text-muted-foreground">Payment Method</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Payment Method
+                                          </p>
                                           <p className="text-sm">
-                                            {currentTransaction.raw_request?.payment_method || 'Mobile Money'}
+                                            {currentTransaction.raw_request
+                                              ?.payment_method ||
+                                              "Mobile Money"}
                                           </p>
                                         </div>
-                                        {currentTransaction.raw_request?.customer_msisdn && (
+                                        {currentTransaction.raw_request
+                                          ?.customer_msisdn && (
                                           <div className="space-y-1">
-                                            <p className="text-sm text-muted-foreground">Customer Phone</p>
+                                            <p className="text-sm text-muted-foreground">
+                                              Customer Phone
+                                            </p>
                                             <div className="flex items-center gap-2">
-                                              <a 
+                                              <a
                                                 href={`tel:${currentTransaction.raw_request.customer_msisdn}`}
                                                 className="text-sm hover:underline hover:text-primary transition-colors"
                                               >
-                                                {currentTransaction.raw_request.customer_msisdn}
+                                                {
+                                                  currentTransaction.raw_request
+                                                    .customer_msisdn
+                                                }
                                               </a>
                                               <Copy
-                                                text={currentTransaction.raw_request.customer_msisdn}
+                                                text={
+                                                  currentTransaction.raw_request
+                                                    .customer_msisdn
+                                                }
                                                 className="text-muted-foreground hover:text-foreground transition-colors"
                                               />
                                             </div>
@@ -786,10 +964,15 @@ const OrderPage = () => {
                                         )}
                                         <div className="space-y-1">
                                           <p className="text-sm text-muted-foreground">
-                                            {currentTransaction.payment_date ? 'Completed' : 'Initiated'}
+                                            {currentTransaction.payment_date
+                                              ? "Completed"
+                                              : "Initiated"}
                                           </p>
                                           <p className="text-sm">
-                                            {formatTransactionDate(currentTransaction.payment_date || currentTransaction.created_at)}
+                                            {formatTransactionDate(
+                                              currentTransaction.payment_date ||
+                                                currentTransaction.created_at
+                                            )}
                                           </p>
                                         </div>
                                       </div>
@@ -800,7 +983,10 @@ const OrderPage = () => {
                                   {currentTransaction.raw_response && (
                                     <div className="bg-muted/5 border rounded-lg overflow-hidden">
                                       <Accordion type="single" collapsible>
-                                        <AccordionItem value="raw-response" className="border-0">
+                                        <AccordionItem
+                                          value="raw-response"
+                                          className="border-0"
+                                        >
                                           <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline hover:bg-muted/30">
                                             <div className="flex items-center gap-2">
                                               <Code2 className="h-4 w-4" />
@@ -812,9 +998,13 @@ const OrderPage = () => {
                                               <pre className="text-xs">
                                                 {JSON.stringify(
                                                   currentTransaction.raw_response,
-                                                  (key, value) => 
-                                                    typeof value === 'string' && value.length > 100 
-                                                      ? `${value.substring(0, 100)}...` 
+                                                  (key, value) =>
+                                                    typeof value === "string" &&
+                                                    value.length > 100
+                                                      ? `${value.substring(
+                                                          0,
+                                                          100
+                                                        )}...`
                                                       : value,
                                                   2
                                                 )}
@@ -847,7 +1037,8 @@ const OrderPage = () => {
                           </CardTitle>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="px-2.5">
-                              {order.payment_details?.paid_installments || 0}/{order.plan.installments?.length || 0} Paid
+                              {order.payment_details?.paid_installments || 0}/
+                              {order.plan.installments?.length || 0} Paid
                             </Badge>
                           </div>
                         </div>
@@ -856,7 +1047,9 @@ const OrderPage = () => {
                         <div className="space-y-4">
                           <div className="flex justify-between items-center">
                             <div>
-                              <p className="font-medium">{order.plan.name || 'Installment Plan'}</p>
+                              <p className="font-medium">
+                                {order.plan.name || "Installment Plan"}
+                              </p>
                               {order.plan.description && (
                                 <p className="text-sm text-muted-foreground mt-1">
                                   {order.plan.description}
@@ -864,24 +1057,38 @@ const OrderPage = () => {
                               )}
                             </div>
                             <span className="text-sm text-muted-foreground">
-                              {order.plan.installments?.length || 0} installments
+                              {order.plan.installments?.length || 0}{" "}
+                              installments
                             </span>
                           </div>
 
                           {/* Progress Bar */}
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Payment Progress</span>
+                              <span className="text-muted-foreground">
+                                Payment Progress
+                              </span>
                               <span className="font-medium">
-                                {Math.round(((order.payment_details?.paid_installments || 0) / (order.plan.installments?.length || 1)) * 100)}%
+                                {Math.round(
+                                  ((order.payment_details?.paid_installments ||
+                                    0) /
+                                    (order.plan.installments?.length || 1)) *
+                                    100
+                                )}
+                                %
                               </span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-primary"
                                 style={{
-                                  width: `${((order.payment_details?.paid_installments || 0) / (order.plan.installments?.length || 1)) * 100}%`,
-                                  transition: 'width 0.3s ease-in-out'
+                                  width: `${
+                                    ((order.payment_details
+                                      ?.paid_installments || 0) /
+                                      (order.plan.installments?.length || 1)) *
+                                    100
+                                  }%`,
+                                  transition: "width 0.3s ease-in-out",
                                 }}
                               />
                             </div>
@@ -890,69 +1097,140 @@ const OrderPage = () => {
                           {/* Installment Summary */}
                           <div className="border rounded-md">
                             <Accordion type="single" collapsible>
-                              <AccordionItem value="installment-details" className="border-b-0">
+                              <AccordionItem
+                                value="installment-details"
+                                className="border-b-0"
+                              >
                                 <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
-                                  <span className="text-sm font-medium">View Installment Details</span>
+                                  <span className="text-sm font-medium">
+                                    View Installment Details
+                                  </span>
                                 </AccordionTrigger>
                                 <AccordionContent className="px-4 pb-4 pt-1">
                                   <div className="space-y-3 mt-2">
-                                    {order.plan.installments?.map((installment, index) => {
-                                      const isPaid = index < (order.payment_details?.paid_installments || 0);
-                                      const isCurrent = index === (order.payment_details?.paid_installments || 0);
-                                      const dueDate = new Date(installment.due_date);
-                                      const today = new Date();
-                                      today.setHours(0, 0, 0, 0);
-                                      const isOverdue = !isPaid && dueDate < today;
+                                    {order.plan.installments?.map(
+                                      (installment, index) => {
+                                        const isPaid =
+                                          index <
+                                          (order.payment_details
+                                            ?.paid_installments || 0);
+                                        const isCurrent =
+                                          index ===
+                                          (order.payment_details
+                                            ?.paid_installments || 0);
+                                        const dueDate = new Date(
+                                          installment.due_date
+                                        );
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const isOverdue =
+                                          !isPaid && dueDate < today;
 
-                                      return (
-                                        <div 
-                                          key={index}
-                                          className={`p-3 rounded-md border ${
-                                            isOverdue ? 'border-red-200 bg-red-50' : 
-                                            isCurrent ? 'border-primary/50 bg-primary/5' : 'border-border'
-                                          }`}
-                                        >
-                                          <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                                                isPaid ? 'bg-green-100 text-green-600' : 
-                                                isOverdue ? 'bg-red-100 text-red-600' :
-                                                isCurrent ? 'bg-blue-100 text-blue-600' : 'bg-muted'
-                                              }`}>
-                                                {isPaid ? (
-                                                  <Check className="h-4 w-4" />
-                                                ) : isOverdue ? (
-                                                  <span className="text-xs font-medium">!</span>
-                                                ) : (
-                                                  <span className="text-xs font-medium">{index + 1}</span>
-                                                )}
+                                        return (
+                                          <div
+                                            key={index}
+                                            className={`p-3 rounded-md border ${
+                                              isOverdue
+                                                ? "border-red-200 bg-red-50"
+                                                : isCurrent
+                                                ? "border-primary/50 bg-primary/5"
+                                                : "border-border"
+                                            }`}
+                                          >
+                                            <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-3">
+                                                <div
+                                                  className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                                    isPaid
+                                                      ? "bg-green-100 text-green-600"
+                                                      : isOverdue
+                                                      ? "bg-red-100 text-red-600"
+                                                      : isCurrent
+                                                      ? "bg-blue-100 text-blue-600"
+                                                      : "bg-muted"
+                                                  }`}
+                                                >
+                                                  {isPaid ? (
+                                                    <Check className="h-4 w-4" />
+                                                  ) : isOverdue ? (
+                                                    <span className="text-xs font-medium">
+                                                      !
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-xs font-medium">
+                                                      {index + 1}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div>
+                                                  <p
+                                                    className={`text-sm font-medium ${
+                                                      isOverdue
+                                                        ? "text-red-700"
+                                                        : ""
+                                                    }`}
+                                                  >
+                                                    Installment {index + 1}
+                                                    {isOverdue && (
+                                                      <span className="ml-2 text-xs text-red-500">
+                                                        (Overdue)
+                                                      </span>
+                                                    )}
+                                                  </p>
+                                                  <p
+                                                    className={`text-xs ${
+                                                      isOverdue
+                                                        ? "text-red-500"
+                                                        : "text-muted-foreground"
+                                                    }`}
+                                                  >
+                                                    Due{" "}
+                                                    {dueDate.toLocaleDateString()}
+                                                  </p>
+                                                </div>
                                               </div>
-                                              <div>
-                                                <p className={`text-sm font-medium ${isOverdue ? 'text-red-700' : ''}`}>
-                                                  Installment {index + 1}
-                                                  {isOverdue && <span className="ml-2 text-xs text-red-500">(Overdue)</span>}
+                                              <div className="text-right">
+                                                <p
+                                                  className={`font-medium ${
+                                                    isOverdue
+                                                      ? "text-red-700"
+                                                      : ""
+                                                  }`}
+                                                >
+                                                  {formatPrice(
+                                                    installment.amount,
+                                                    {
+                                                      currency:
+                                                        order?.currency ||
+                                                        "TZS",
+                                                    }
+                                                  )}
                                                 </p>
-                                                <p className={`text-xs ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                                                  Due {dueDate.toLocaleDateString()}
+                                                <p
+                                                  className={`text-xs ${
+                                                    isPaid
+                                                      ? "text-green-600"
+                                                      : isOverdue
+                                                      ? "text-red-600 font-medium"
+                                                      : isCurrent
+                                                      ? "text-blue-600 font-medium"
+                                                      : "text-muted-foreground"
+                                                  }`}
+                                                >
+                                                  {isPaid
+                                                    ? "Paid"
+                                                    : isOverdue
+                                                    ? "Overdue"
+                                                    : isCurrent
+                                                    ? "Upcoming"
+                                                    : "Pending"}
                                                 </p>
                                               </div>
-                                            </div>
-                                            <div className="text-right">
-                                              <p className={`font-medium ${isOverdue ? 'text-red-700' : ''}`}>
-                                                {formatPrice(installment.amount, { currency: order?.currency || 'TZS' })}
-                                              </p>
-                                              <p className={`text-xs ${
-                                                isPaid ? 'text-green-600' : 
-                                                isOverdue ? 'text-red-600 font-medium' :
-                                                isCurrent ? 'text-blue-600 font-medium' : 'text-muted-foreground'
-                                              }`}>
-                                                {isPaid ? 'Paid' : isOverdue ? 'Overdue' : isCurrent ? 'Upcoming' : 'Pending'}
-                                              </p>
                                             </div>
                                           </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      }
+                                    )}
                                   </div>
                                 </AccordionContent>
                               </AccordionItem>
@@ -977,31 +1255,47 @@ const OrderPage = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.subtotal, order?.currency || 'TZS')}
+                      {formatPrice(
+                        order?.totals?.subtotal,
+                        order?.currency || "TZS"
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span className="font-medium text-destructive">
-                      -{formatPrice(order?.totals?.discount, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
+                      -
+                      {formatPrice(
+                        order?.totals?.discount,
+                        order?.currency || "TZS"
+                      ) || `${order?.currency || "TZS"} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.tax, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
+                      {formatPrice(
+                        order?.totals?.tax,
+                        order?.currency || "TZS"
+                      ) || `${order?.currency || "TZS"} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">
-                      {formatPrice(order?.totals?.shipping, order?.currency || 'TZS') || `${order?.currency || 'TZS'} 0.00`}
+                      {formatPrice(
+                        order?.totals?.shipping,
+                        order?.currency || "TZS"
+                      ) || `${order?.currency || "TZS"} 0.00`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between border-t pt-4">
                     <span className="text-lg font-medium">Total</span>
                     <span className="text-lg font-bold">
-                      {formatPrice(order?.totals?.total, order?.currency || 'TZS')}
+                      {formatPrice(
+                        order?.totals?.total,
+                        order?.currency || "TZS"
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1118,6 +1412,15 @@ const OrderPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Refund Modal */}
+      <RefundModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        orderItems={order?.items || []}
+        onConfirm={handleRefund}
+        isProcessing={isProcessingRefund}
+      />
     </div>
   ) : null;
 };

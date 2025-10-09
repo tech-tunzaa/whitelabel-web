@@ -45,7 +45,7 @@ export default function TransactionsPage() {
   const [activeTab, setActiveTab] = useState<TransactionStatus | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 25;
 
   // Define tenant headers
   const tenantHeaders = {
