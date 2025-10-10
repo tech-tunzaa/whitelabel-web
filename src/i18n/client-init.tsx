@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { i18n, SUPPORTED_LANGUAGES, SupportedLanguage } from './core';
+import { i18n, SUPPORTED_LANGUAGES, SupportedLanguage } from './index';
 
 export function I18nClientInit({ children }: { children: React.ReactNode }) {
   const { ready } = useTranslation();
@@ -39,9 +39,14 @@ export const setCurrentLanguage = (lang: string) => {
 // Initialize language on client side
 export function initClientLanguage() {
   if (typeof window !== 'undefined') {
-    const savedLang = localStorage.getItem('i18nextLng');
+    const savedLang = localStorage.getItem('i18nextLng') || localStorage.getItem('language');
     if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang as SupportedLanguage)) {
       i18n.changeLanguage(savedLang);
+    } else {
+      // Default to English if no valid language is found
+      i18n.changeLanguage('en');
+      localStorage.setItem('i18nextLng', 'en');
+      localStorage.setItem('language', 'en');
     }
   }
 }

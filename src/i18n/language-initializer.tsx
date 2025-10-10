@@ -10,14 +10,16 @@ export function LanguageInitializer({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     // Initialize language on mount
-    const currentLang = localStorage.getItem('language');
+    const currentLang = localStorage.getItem('language') || localStorage.getItem('i18nextLng');
     
     // Only set language if we have a valid value from localStorage
     if (currentLang && SUPPORTED_LANGUAGES.includes(currentLang as SupportedLanguage)) {
       i18n.changeLanguage(currentLang);
     } else {
-      // If no valid language in localStorage, set to empty string
-      i18n.changeLanguage('');
+      // If no valid language in localStorage, default to English
+      i18n.changeLanguage('en');
+      localStorage.setItem('language', 'en');
+      localStorage.setItem('i18nextLng', 'en');
     }
 
     // Listen for language changes

@@ -10,12 +10,12 @@ export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 export const NAMESPACES = ['common', 'categories'] as const;
 export type Namespace = typeof NAMESPACES[number];
 
-// Initialize i18n with empty language
+// Initialize i18n with default English language
 i18n
   .use(initReactI18next)
   .init({
-    lng: '', // Start with empty language
-    fallbackLng: false, // Don't use fallback until we have a language
+    lng: 'en', // Start with English as default
+    fallbackLng: 'en', // Use English as fallback
     debug: false, // Disable debug logs
     interpolation: {
       escapeValue: false,
@@ -40,10 +40,6 @@ i18n
       useSuspense: false, // Disable suspense while we handle initialization
       wait: true, // Wait for translations to load
       nsMode: 'fallback'
-    },
-    missingKeyHandler: (lngs, ns, key, fallbackValue) => {
-      // Return empty string for missing keys during initialization
-      return '';
     },
     saveMissing: true,
     load: 'languageOnly',
@@ -76,7 +72,7 @@ export function getCurrentLanguage(): string {
   if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang as SupportedLanguage)) {
     return savedLang;
   }
-  return '';
+  return 'en'; // Always return 'en' as default
 }
 
 // Set current language and persist it
@@ -85,25 +81,14 @@ export function setCurrentLanguage(lang: string) {
     localStorage.setItem('language', lang);
     localStorage.setItem('i18nextLng', lang); // Also set i18next's internal storage
     i18n.changeLanguage(lang);
-  } else if (lang === '') {
-    // If language is empty, try to get from localStorage or fallback to 'en'
-    const storedLang = localStorage.getItem('language');
-    if (storedLang && SUPPORTED_LANGUAGES.includes(storedLang as SupportedLanguage)) {
-      i18n.changeLanguage(storedLang);
-    } else {
-      i18n.changeLanguage('en');
-    }
   }
 };
 
 // Initialize language on client side
 export function initClientLanguage() {
-  // Language initialization is handled by i18next's detection
-  // We only need to ensure the language is properly set in localStorage
   const lang = getCurrentLanguage();
-  if (lang && SUPPORTED_LANGUAGES.includes(lang as SupportedLanguage)) {
-    localStorage.setItem('i18nextLng', lang);
-  }
+  i18n.changeLanguage(lang);
+  localStorage.setItem('i18nextLng', lang);
 }
 
 // Export the i18n instance
