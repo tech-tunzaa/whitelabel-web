@@ -146,7 +146,7 @@ export function TenantForm({
   const [configActiveTab, setConfigActiveTab] = useState('delivery');
 
   const form = useForm<TenantFormValues>({
-    resolver: zodResolver(tenantFormSchema),
+    resolver: zodResolver(tenantFormSchema(isSuperOwner)),
     defaultValues: initialData
       ? { ...defaultValues, ...initialData }
       : defaultValues,
@@ -170,15 +170,15 @@ export function TenantForm({
       }
       setConfigurations(configObj);
       
-      // Fetch billing config if tenant exists
-      if (initialData.tenant_id) {
+      // Fetch billing config if tenant exists and user is super owner
+      if (isSuperOwner && initialData.tenant_id) {
         await fetchBillingConfig(initialData.tenant_id);
       }
       
       setIsConfigLoading(false);
     }
     fetchInitialConfig();
-  }, [initialData?.tenant_id, fetchVehicleTypes, fetchEntities, fetchBillingConfig]);
+  }, [initialData?.tenant_id, fetchVehicleTypes, fetchEntities, fetchBillingConfig, isSuperOwner]);
 
   // Populate billing config form fields when billing config is loaded
   useEffect(() => {
@@ -205,7 +205,7 @@ export function TenantForm({
     "details",
     "branding",
     "configuration",
-    "billing",
+    ...(isSuperOwner ? ["billing"] : []),
     "modules",
   ];
 
@@ -224,7 +224,6 @@ export function TenantForm({
   };
   
   const handleFileUpload = useCallback((file: File, fieldName: string) => {
-    // This is a placeholder. In a real app, you'd upload the file
     // and call form.setValue(fieldName, uploadedUrl)
   }, []);
 
@@ -270,8 +269,8 @@ export function TenantForm({
           throw new Error('Failed to get tenant ID after submission.');
         }
 
-        // 3. Save billing configuration
-        if (billingConfigData) {
+        // 3. Save billing configuration (only for super owners)
+        if (isSuperOwner && billingConfigData) {
           const billingPayload = {
             ...billingConfigData,
             tenant_id: tenantId,
@@ -420,7 +419,9 @@ export function TenantForm({
                   <TabsTrigger value="details">Basic Details</TabsTrigger>
                   <TabsTrigger value="branding">Branding</TabsTrigger>
                   <TabsTrigger value="configuration">Makertplace Config</TabsTrigger>
-                  <TabsTrigger value="billing">Billing Config</TabsTrigger>
+                  {isSuperOwner && (
+                    <TabsTrigger value="billing">Billing Config</TabsTrigger>
+                  )}
                   <TabsTrigger value="modules">Modules</TabsTrigger>
                 </TabsList>
 
@@ -430,7 +431,7 @@ export function TenantForm({
 
                 <ConfigurationTab />
 
-                <BillingConfigTab />
+                {isSuperOwner && <BillingConfigTab />}
 
                 <ModulesTab />
               </Tabs>
@@ -447,7 +448,7 @@ export function TenantForm({
                     </Button>
                   )}
 
-                  {activeTab !== "modules" ? (
+                  {activeTab !== tabFlow[tabFlow.length - 1] ? (
                     <Button
                       type="button"
                       onClick={handleNextTab}

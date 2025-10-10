@@ -71,7 +71,7 @@ export const billingConfigSchema = z.object({
   is_active: z.boolean().default(true),
 }).optional().nullable();
 
-export const tenantFormSchema = z.object({
+export const tenantFormSchema = (isSuperOwner: boolean) => z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
   name: z.string().min(2, {
@@ -85,9 +85,6 @@ export const tenantFormSchema = z.object({
   }),
   admin_phone: z.string().min(10, {
     message: "Please enter a valid phone number.",
-  }),
-  plan: z.enum(["monthly", "quarterly", "annually"], {
-    required_error: "Please select a subscription plan.",
   }),
   country_code: z.string().min(1, {
     message: "Country is required.",
@@ -105,7 +102,7 @@ export const tenantFormSchema = z.object({
   branding: brandingSchema.optional().nullable(),
   banners: z.array(bannerSchema).optional().nullable(),
   metadata: metadataSchema,
-  billing_config: billingConfigSchema,
+  billing_config: isSuperOwner ? billingConfigSchema : z.object({}).optional().nullable(),
 });
 
 export type TenantFormValues = z.infer<typeof tenantFormSchema>;

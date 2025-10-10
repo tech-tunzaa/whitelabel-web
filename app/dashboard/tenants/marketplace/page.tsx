@@ -139,7 +139,7 @@ export default function MarketplacePage() {
         {!isEditing && (
           <Alert className="flex items-center gap-2 mb-4 px-3 py-2 rounded-md bg-blue-50 text-blue-900 text-sm border border-blue-200">
             <Info className="h-4 w-4 text-blue-500" />
-            Marketplace settings are <span className="font-medium">view only</span>. Click <span className="font-medium">Customize Marketplace</span> to make changes.
+            Marketplace settings are <strong>read only.</strong> Click <strong className="flex items-center"><Edit className="mr-1 h-4 w-4" />Customize Marketplace</strong> to allow changes.
           </Alert>
         )}
         {tenant && (
