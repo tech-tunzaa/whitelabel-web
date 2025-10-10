@@ -30,9 +30,12 @@ export default function ClientLayout({
 
   // Initialize theme on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'system';
-    document.documentElement.className = savedTheme;
-    document.documentElement.style.colorScheme = savedTheme;
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    // Remove any existing theme classes first
+    document.documentElement.classList.remove('light', 'dark', 'system');
+    // Apply the theme class
+    document.documentElement.classList.add(savedTheme);
+    document.documentElement.style.colorScheme = savedTheme === 'dark' ? 'dark' : 'light';
   }, []);
 
   // Initialize fonts on mount
@@ -49,7 +52,7 @@ export default function ClientLayout({
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spinner className="h-8 w-8" />
+          <Spinner />
       </div>
     );
   }
