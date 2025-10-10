@@ -65,6 +65,7 @@ import { useCategoryStore } from "@/features/categories/store";
 import {
   VerificationDocument,
   Store as VendorStore,
+  VendorPerformanceData,
 } from "@/features/vendors/types";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import { VerificationDocumentManager, VerificationActionPayload } from "@/components/ui/verification-document-manager";
@@ -126,6 +127,9 @@ function VendorPage({ params }: VendorPageProps) {
 
   // Use ref to prevent duplicate API calls
   const fetchRequestRef = useRef(false);
+
+  // Categories loading state
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   // Fetch all categories for mapping IDs to names
   const {
@@ -206,7 +210,7 @@ function VendorPage({ params }: VendorPageProps) {
   }, [id, tenant_id, fetchVendorPerformanceReport]);
 
   const performanceStats = useMemo(() => {
-    if (!vendorPerformanceReport || vendorPerformanceReport.length === 0) {
+    if (!vendorPerformanceReport || !Array.isArray(vendorPerformanceReport) || vendorPerformanceReport.length === 0) {
       return {
         totalRevenue: { value: 0, change: 0 },
         totalOrders: { value: 0, change: 0 },
