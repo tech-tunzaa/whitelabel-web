@@ -195,7 +195,6 @@ export const useTenantStore = create<TenantStore>()(
 
 
       // Tenant Billing APIs
-
       fetchBillingDashboardMetrics: async () => {
         const { setLoading, setStoreError } = get();
         try {
@@ -214,6 +213,8 @@ export const useTenantStore = create<TenantStore>()(
           setLoading(false);
         }
       },
+
+      
 
       fetchBillingConfig: async (tenantId: string) => {
         set({ loadingBillingConfig: true, storeError: null });
@@ -317,6 +318,54 @@ export const useTenantStore = create<TenantStore>()(
 
       clearSelectedInvoice: () => {
         set({ selectedInvoice: null });
+      },
+
+      createBillingConfig: async (billingConfigData: any) => {
+        set({ loadingBillingConfig: true, storeError: null });
+        try {
+          const response = await apiClient.post<BillingConfig>(
+            `/billing/config`,
+            billingConfigData
+          );
+          if (response.data) {
+            set({ billingConfig: response.data, loadingBillingConfig: false });
+            toast.success("Billing configuration created successfully!");
+            return response.data;
+          }
+        } catch (error: any) {
+          const errorMsg =
+            error.response?.data?.message || "Failed to create billing configuration.";
+          toast.error(errorMsg);
+          set({
+            billingConfigError: { status: error.response?.status, message: errorMsg },
+            loadingBillingConfig: false,
+          });
+          throw error;
+        }
+      },
+
+      updateBillingConfig: async (tenantId: string, billingConfigData: any) => {
+        set({ loadingBillingConfig: true, storeError: null });
+        try {
+          const response = await apiClient.put<BillingConfig>(
+            `/billing/config/${tenantId}`,
+            billingConfigData
+          );
+          if (response.data) {
+            set({ billingConfig: response.data, loadingBillingConfig: false });
+            toast.success("Billing configuration updated successfully!");
+            return response.data;
+          }
+        } catch (error: any) {
+          const errorMsg =
+            error.response?.data?.message || "Failed to update billing configuration.";
+          toast.error(errorMsg);
+          set({
+            billingConfigError: { status: error.response?.status, message: errorMsg },
+            loadingBillingConfig: false,
+          });
+          throw error;
+        }
       },
     })
 );

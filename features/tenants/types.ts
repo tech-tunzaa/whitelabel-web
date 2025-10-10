@@ -57,7 +57,7 @@ export type User = {
 };
 
 export type Tenant = {
-  id: string;
+  tenant_id: string;
   user: User;
   name: string;
   domain: string;

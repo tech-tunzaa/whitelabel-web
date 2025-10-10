@@ -44,6 +44,8 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { FileUpload } from "@/components/ui/file-upload";
 import { TenantConfiguration, TenantConfigurationHandle } from "./extra-config-fields";
 import { useConfigurationStore } from '@/features/configurations/store';
+import { usePermissions } from '@/features/auth/hooks/use-permissions';
+import { useTenantStore } from '../store';
 
 import {
   countries,
@@ -93,6 +95,17 @@ const defaultValues: Partial<TenantFormValues> = {
     acc[module.name] = false; // Initialize all modules to false
     return acc;
   }, {} as Record<string, boolean>),
+  billing_config: {
+    flat_rate_amount: null,
+    currency: "TZS",
+    billing_frequency: "monthly",
+    billing_email: "",
+    auto_generate_invoices: true,
+    email_notifications: true,
+    billing_day_of_month: 1,
+    payment_due_days: 30,
+    is_active: true,
+  },
 };
 
 interface TenantFormProps {
@@ -113,8 +126,8 @@ export function TenantForm({
   isSubmitting: externalIsSubmitting,
 }: TenantFormProps) {
   const { data: session } = useSession();
-  const userRole = session?.user?.role || "";
-  const isSuperOwner = userRole === "super"; // TODO:
+  const { hasRole } = usePermissions();
+  const isSuperOwner = hasRole("super");
   const isAddPage = !initialData?.id;
 
   const [activeTab, setActiveTab] = useState("details");
@@ -129,7 +142,16 @@ export function TenantForm({
   const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const { fetchVehicleTypes, fetchEntities } = useConfigurationStore();
+  const { fetchBillingConfig, billingConfig, loadingBillingConfig, createBillingConfig, updateBillingConfig } = useTenantStore();
   const [configActiveTab, setConfigActiveTab] = useState('delivery');
+
+  const form = useForm<TenantFormValues>({
+    resolver: zodResolver(tenantFormSchema),
+    defaultValues: initialData
+      ? { ...defaultValues, ...initialData }
+      : defaultValues,
+    mode: "onBlur",
+  });
 
   // 2. Fetch initial data when tenantId changes
   useEffect(() => {
@@ -147,58 +169,57 @@ export function TenantForm({
         };
       }
       setConfigurations(configObj);
+      
+      // Fetch billing config if tenant exists
+      if (initialData.tenant_id) {
+        await fetchBillingConfig(initialData.tenant_id);
+      }
+      
       setIsConfigLoading(false);
     }
     fetchInitialConfig();
-  }, [initialData?.tenant_id, fetchVehicleTypes, fetchEntities]);
+  }, [initialData?.tenant_id, fetchVehicleTypes, fetchEntities, fetchBillingConfig]);
+
+  // Populate billing config form fields when billing config is loaded
+  useEffect(() => {
+    if (billingConfig && !loadingBillingConfig) {
+      form.setValue('billing_config', {
+        flat_rate_amount: billingConfig.flat_rate_amount || null,
+        currency: billingConfig.currency || "TZS",
+        billing_frequency: billingConfig.billing_frequency || "monthly",
+        billing_email: billingConfig.billing_email || "",
+        auto_generate_invoices: billingConfig.auto_generate_invoices ?? true,
+        email_notifications: billingConfig.email_notifications ?? true,
+        billing_day_of_month: billingConfig.billing_day_of_month || 1,
+        payment_due_days: billingConfig.payment_due_days || 30,
+        is_active: billingConfig.is_active ?? true,
+      });
+    }
+  }, [billingConfig, loadingBillingConfig, form]);
 
   // 3. Remove configRef and pass state/setters to TenantConfiguration
   // Ref for TenantConfiguration
   // const configRef = useRef<TenantConfigurationHandle>(null);
 
-  const form = useForm<TenantFormValues>({
-    resolver: zodResolver(tenantFormSchema),
-    defaultValues: initialData
-      ? { ...defaultValues, ...initialData }
-      : defaultValues,
-    mode: "onBlur",
-  });
-
   const tabFlow = [
     "details",
     "branding",
     "configuration",
+    "billing",
     "modules",
-    "billing-history",
-    "revenue",
   ];
 
   const handleNextTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex < tabFlow.length - 1) {
-      const nextAvailableTab = tabFlow
-        .slice(currentTabIndex + 1)
-        .find(tab => {
-          if (tab === 'billing-history' && isAddPage) return false;
-          if (tab === 'revenue' && (isAddPage || !isSuperOwner)) return false;
-          return true;
-        });
-      if(nextAvailableTab) setActiveTab(nextAvailableTab);
+      setActiveTab(tabFlow[currentTabIndex + 1]);
     }
   };
 
   const handlePrevTab = () => {
     const currentTabIndex = tabFlow.indexOf(activeTab);
     if (currentTabIndex > 0) {
-       const prevAvailableTab = tabFlow
-        .slice(0, currentTabIndex)
-        .reverse()
-        .find(tab => {
-          if (tab === 'billing-history' && isAddPage) return false;
-          if (tab === 'revenue' && (isAddPage || !isSuperOwner)) return false;
-          return true;
-        });
-      if(prevAvailableTab) setActiveTab(prevAvailableTab);
+      setActiveTab(tabFlow[currentTabIndex - 1]);
     }
   };
   
@@ -229,6 +250,10 @@ export function TenantForm({
         delete dataToSubmit.admin_email;
         delete dataToSubmit.admin_phone;
 
+        // Extract billing config before removing it from tenant data
+        const billingConfigData = data.billing_config;
+        delete dataToSubmit.billing_config;
+
         if (!isSuperOwner) {
           delete dataToSubmit.modules;
           delete dataToSubmit.fee;
@@ -243,6 +268,27 @@ export function TenantForm({
 
         if (!tenantId) {
           throw new Error('Failed to get tenant ID after submission.');
+        }
+
+        // 3. Save billing configuration
+        if (billingConfigData) {
+          const billingPayload = {
+            ...billingConfigData,
+            tenant_id: tenantId,
+          };
+          
+          try {
+            // Check if billing config exists (billingConfig will be set if it was fetched)
+            if (billingConfig?.config_id) {
+              await updateBillingConfig(tenantId, billingPayload);
+            } else {
+              await createBillingConfig(billingPayload);
+            }
+          } catch (billingError) {
+            console.error('Failed to save billing configuration:', billingError);
+            // Don't throw here to allow the rest to continue
+            toast.error('Tenant saved but billing configuration failed to save');
+          }
         }
 
         // 4. On submit, call saveConfigurations with parent's state
@@ -265,7 +311,7 @@ export function TenantForm({
         setInternalIsSubmitting(false);
       }
     },
-    [onSubmit, isSuperOwner, id, form, configurations, vehicleTypes]
+    [onSubmit, isSuperOwner, id, form, configurations, vehicleTypes, billingConfig, createBillingConfig, updateBillingConfig]
   );
 
   // Import the saveConfigurations function from extra-config-fields
@@ -331,6 +377,7 @@ export function TenantForm({
       languages: "configuration",
       document_types: "configuration",
       vehicle_types: "configuration",
+      billing_config: "billing",
       modules: "modules",
     };
 
@@ -372,16 +419,9 @@ export function TenantForm({
                 <TabsList className="w-full">
                   <TabsTrigger value="details">Basic Details</TabsTrigger>
                   <TabsTrigger value="branding">Branding</TabsTrigger>
-                  <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                  <TabsTrigger value="configuration">Makertplace Config</TabsTrigger>
+                  <TabsTrigger value="billing">Billing Config</TabsTrigger>
                   <TabsTrigger value="modules">Modules</TabsTrigger>
-                  {!isAddPage && (
-                    <TabsTrigger value="billing-history">
-                      Billing History
-                    </TabsTrigger>
-                  )}
-                  {isSuperOwner && !isAddPage && (
-                    <TabsTrigger value="revenue">Revenue</TabsTrigger>
-                  )}
                 </TabsList>
 
                 <DetailsTab />
@@ -390,49 +430,42 @@ export function TenantForm({
 
                 <ConfigurationTab />
 
+                <BillingConfigTab />
+
                 <ModulesTab />
-
-                <BillingHistoryTab />
-
-                {isSuperOwner && !isAddPage && <RevenueTab />}
               </Tabs>
 
               {isEditable && (
                 <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end mt-6">
-                  {activeTab !== "billing-history" &&
-                    activeTab !== "revenue" && (
-                      <>
-                        {activeTab !== "details" && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handlePrevTab}
-                          >
-                            Previous
-                          </Button>
-                        )}
+                  {activeTab !== "details" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePrevTab}
+                    >
+                      Previous
+                    </Button>
+                  )}
 
-                        {activeTab !== "modules" ? (
-                          <Button
-                            type="button"
-                            onClick={handleNextTab}
-                          >
-                            Next
-                          </Button>
-                        ) : (
-                          <Button type="submit" disabled={isSubmitting || isConfigLoading}>
-                            {isSubmitting ? (
-                              <>
-                                <Spinner size="sm" color="white" />
-                                Processing...
-                              </>
-                            ) : (
-                              "Submit"
-                            )}
-                          </Button>
-                        )}
-                      </>
-                    )}
+                  {activeTab !== "modules" ? (
+                    <Button
+                      type="button"
+                      onClick={handleNextTab}
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={isSubmitting || isConfigLoading}>
+                      {isSubmitting ? (
+                        <>
+                          <Spinner size="sm" color="white" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Submit"
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </form>
@@ -1154,41 +1187,246 @@ export function TenantForm({
     );
   }
 
-  function BillingHistoryTab() {
+  function BillingConfigTab() {
     return (
-      <TabsContent value="billing-history" className="space-y-4 mt-4">
+      <TabsContent value="billing" className="space-y-6">
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Billing History</h3>
+          <h3 className="text-lg font-medium">Billing Configurations</h3>
           <p className="text-sm text-muted-foreground">
-            Recent payment activities and transaction history
+            Configure billing settings for this tenant
           </p>
-
-          <div className="text-center py-8 border rounded-md">
-            <p className="text-muted-foreground">
-              No billing history available
-            </p>
-          </div>
         </div>
-      </TabsContent>
-    );
-  }
 
-  function RevenueTab() {
-    return (
-      <TabsContent value="revenue" className="space-y-4 mt-4">
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Revenue Summary</h3>
-          <p className="text-sm text-muted-foreground">
-            Revenue and commission information for this tenant
-          </p>
+        {loadingBillingConfig && (
+          <Spinner />
+        )}
 
+        {!loadingBillingConfig && (
+          <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="billing_config.flat_rate_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Flat Rate Amount <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="1000"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="billing_config.currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Currency <RequiredField />
+                    </FormLabel>
+                    <Select
+                      disabled={!isEditable}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem
+                            key={currency.value}
+                            value={currency.value}
+                          >
+                            {currency.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-          <div className="text-center py-8 border rounded-md">
-            <p className="text-muted-foreground">
-              No revenue information available
-            </p>
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="billing_config.billing_frequency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Billing Frequency <RequiredField />
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!isEditable}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="billing_config.billing_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Billing Email <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="billing@example.com"
+                        {...field}
+                        value={field.value || ''}
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="billing_config.billing_day_of_month"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Billing Day of Month <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="31"
+                        placeholder="1"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="billing_config.payment_due_days"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Payment Due Days <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="30"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-md font-medium">Settings</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="billing_config.auto_generate_invoices"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={!isEditable}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Auto Generate Invoices</FormLabel>
+                        <FormDescription>
+                          Automatically generate invoices based on billing frequency
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="billing_config.email_notifications"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={!isEditable}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Email Notifications</FormLabel>
+                        <FormDescription>
+                          Send email notifications for billing events
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="billing_config.is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!isEditable}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Active Status</FormLabel>
+                      <FormDescription>
+                        Enable or disable billing for this tenant
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </TabsContent>
     );
   }

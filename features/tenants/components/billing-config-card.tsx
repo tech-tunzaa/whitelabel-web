@@ -84,12 +84,12 @@ export const BillingConfigCard = ({ tenantId }: BillingConfigCardProps) => {
         </CardHeader>
         <CardContent>
           <FileCog className="mx-auto h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 text-sm text-muted-foreground">Create a billing configuration to start generating invoices.</p>
+          <p className="mt-4 text-sm text-muted-foreground">Set up a billing configuration to start generating invoices.</p>
         </CardContent>
         <CardFooter>
-          <Button className="w-full">
+          <Button className="w-full" onClick={() => router.push(`/dashboard/tenants/${tenantId}/edit`)}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Create Configuration
+            Set up Billing Configurations
           </Button>
         </CardFooter>
       </Card>
