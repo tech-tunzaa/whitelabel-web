@@ -124,58 +124,6 @@ export function OrderTable({
     
     return variantMap[status] || "secondary";
   };
-
-  // Get available actions based on current status
-  const getAvailableActions = (order: Order) => {
-    const currentStatus = order.status;
-    
-    // Define transitions based on the current status
-    // Using a function approach to avoid TypeScript issues with the keys
-    const getTransitions = (status: string): OrderStatus[] => {
-      switch(status) {
-        case "pending":
-          return ["processing", "cancelled"];
-        case "processing":
-          // Using 'confirmed' which might not be in the OrderStatus type
-          return ["shipped", "cancelled"];
-        case "confirmed":
-          return ["shipped", "cancelled"];
-        case "shipped":
-          return ["delivered", "cancelled"];
-        case "delivered":
-          return ["completed"];
-        case "completed":
-          return ["refunded"];
-        case "cancelled":
-          return ["pending"];
-        case "refunded":
-        case "partially_refunded":
-          return [];
-        default:
-          return [];
-      }
-    };
-    
-    return getTransitions(currentStatus);
-  };
-
-  // Handle status change
-  const handleStatusChange = (order: Order, newStatus: OrderStatus) => {
-    setSelectedOrder(order);
-    setSelectedAction(newStatus);
-    
-    // For certain status changes, show confirmation dialog
-    if (newStatus === "cancelled" || newStatus === "refunded") {
-      if (newStatus === "cancelled") {
-        setIsCancelDialogOpen(true);
-      } else if (newStatus === "refunded") {
-        setIsRefundDialogOpen(true);
-      }
-    } else {
-      // Otherwise process the change directly
-      processStatusChange(order, newStatus);
-    }
-  };
   
   // Process the actual status change
   const processStatusChange = (order: Order, newStatus: OrderStatus) => {
@@ -225,7 +173,7 @@ export function OrderTable({
           {orders.map((order) => (
             <TableRow
               key={order.order_id}
-              className={`cursor-pointer ${order?.support_ticket?.status == 'open' ? "bg-amber-50" : undefined}`}
+              className={`cursor-pointer ${order?.support_ticket?.status == 'open' ? "bg-amber-50 dark:bg-amber-950" : undefined}`}
               onClick={() => onViewDetails(order)}
             >
               <TableCell className="font-medium">
