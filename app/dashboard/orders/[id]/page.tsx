@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { User as NextAuthUser, DefaultSession } from "next-auth";
 import { format } from "date-fns";
-import { ChevronDown, Info, Check, AlertCircle, Code2, X } from "lucide-react";
+import { ChevronDown, Info, Check, AlertCircle, Code2, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useOrderStore } from "@/features/orders/store";
 import { useTransactionStore } from "@/features/orders/transactions/store";
@@ -53,6 +53,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ErrorCard } from "@/components/ui/error-card";
 import { Spinner } from "@/components/ui/spinner";
 import { Copy } from "@/components/ui/copy";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import DeliveryManagement from "@/features/orders/components/order-delivery-management";
 import { TransactionStatus } from "@/features/orders/transactions/types";
@@ -108,6 +114,8 @@ const OrderPage = () => {
   >(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+  const [showCompleteRefundConfirm, setShowCompleteRefundConfirm] = useState(false);
+  const [isCompletingRefund, setIsCompletingRefund] = useState(false);
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -366,6 +374,35 @@ const OrderPage = () => {
     }
   };
 
+  const handleCompleteRefund = async () => {
+    if (!order?.order_id || !session?.user) return;
+
+    setIsCompletingRefund(true);
+    try {
+      const user = session.user as any;
+      const headers = { "X-Tenant-ID": user.tenant_id };
+
+      await updateOrderStatus(order.order_id, "refunded", headers);
+      toast.success("Refund completed successfully");
+      setShowCompleteRefundConfirm(false);
+
+      // Refresh order data to show updated status
+      await fetchOrder(order.order_id, headers);
+
+      // Set refresh flag for orders list
+      localStorage.setItem("ordersNeedRefresh", "true");
+    } catch (error: any) {
+      console.error("Error completing refund:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to complete refund";
+      toast.error(errorMessage);
+    } finally {
+      setIsCompletingRefund(false);
+    }
+  };
+
   if (orderLoading && !order) {
     return <Spinner />;
   }
@@ -487,6 +524,43 @@ const OrderPage = () => {
           )}
       </div>
 
+      {/* Complete Refund Confirmation Dialog */}
+      <AlertDialog
+        open={showCompleteRefundConfirm}
+        onOpenChange={setShowCompleteRefundConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as Refunded?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the order as fully refunded. 
+              This action indicates that all refunds have been processed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCompletingRefund}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 text-white hover:bg-green-700"
+              onClick={handleCompleteRefund}
+              disabled={isCompletingRefund}
+            >
+              {isCompletingRefund ? (
+                <>
+                  <Spinner className="h-4 w-4 mr-2" />
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Confirm
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <main className="flex-1 p-6 space-y-6">
         <div className="flex flex-col gap-6 lg:flex-row">
           <Tabs
@@ -587,7 +661,7 @@ const OrderPage = () => {
                     </div>
                     <Can permission="order:update" role="admin">
                       {order?.status &&
-                        !["cancelled", "refunded"].includes(order.status) && (
+                        !["cancelled", "refund_requested", "refunded"].includes(order.status) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -694,14 +768,39 @@ const OrderPage = () => {
               {order?.refunds && order.refunds.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <RefreshCcw className="h-5 w-5" />
-                      Refunds
-                    </CardTitle>
-                    <CardDescription>
-                      {order.refunds.length} refund
-                      {order.refunds.length > 1 ? "s" : ""} processed
-                    </CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <RefreshCcw className="h-5 w-5" />
+                          Refunds
+                        </CardTitle>
+                        <CardDescription>
+                          {order.refunds.length} refund
+                          {order.refunds.length > 1 ? "s" : ""} processed
+                        </CardDescription>
+                      </div>
+                      {order.status !== "refunded" && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => setShowCompleteRefundConfirm(true)}
+                                disabled={isCompletingRefund}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Mark as Refunded
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mark all refunds as processed and update order status</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
