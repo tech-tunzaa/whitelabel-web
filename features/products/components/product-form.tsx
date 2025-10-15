@@ -256,7 +256,7 @@ export function ProductForm({
       "dimensions",
       "requires_shipping",
     ],
-    images: ["images"],
+    publishing: ["images"],
     variants: ["variants"],
   };
 
@@ -696,9 +696,7 @@ export function ProductForm({
                       <TabsTrigger value="pricing">Pricing</TabsTrigger>
                       <TabsTrigger value="details">Details</TabsTrigger>
                       <TabsTrigger value="variants">Variants</TabsTrigger>
-                      <TabsTrigger value="publishing">
-                        Publishing & Images
-                      </TabsTrigger>
+                      <TabsTrigger value="publishing">Publishing & Images</TabsTrigger>
                     </TabsList>
 
                     <BasicInfoTab />
@@ -869,7 +867,9 @@ export function ProductForm({
 
             return (
               <FormItem>
-                <FormLabel>Tags</FormLabel>
+                <FormLabel>
+                  Tags <RequiredField />
+                </FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
                     <Input
@@ -909,7 +909,7 @@ export function ProductForm({
                   ))}
                 </div>
                 <FormDescription>
-                  Tags help with search and categorization
+                  Tags help with search and categorization. At least one tag is required.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -1245,7 +1245,9 @@ export function ProductForm({
           name="images"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Images</FormLabel>
+              <FormLabel>
+                Product Images <RequiredField />
+              </FormLabel>
               <FormControl>
                 <MultiImageUpload
                   id="product-images"
@@ -1256,7 +1258,7 @@ export function ProductForm({
                 />
               </FormControl>
               <FormDescription>
-                Upload high-quality product images. First or selected image will
+                Upload at least 3 high-quality product images. First or selected image will
                 be used as the main image.
               </FormDescription>
               <FormMessage />

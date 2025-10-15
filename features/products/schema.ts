@@ -65,7 +65,9 @@ export const productFormSchema = z
     category_ids: z.array(z.string()).min(1, {
       message: "At least one category is required.",
     }),
-    tags: z.array(z.string()).optional().default([]),
+    tags: z.array(z.string()).min(1, {
+      message: "At least one tag is required.",
+    }),
     base_price: z.coerce.number().min(0.01, {
       message: "Price must be greater than 0.",
     }),
@@ -89,7 +91,9 @@ export const productFormSchema = z
       message: "Vendor is required.",
     }),
     store_id: z.string(), // Assuming this is always present
-    images: z.array(productImageSchema).optional().default([]),
+    images: z.array(productImageSchema).min(3, {
+      message: "At least 3 product images are required.",
+    }).default([]),
     // has_variants: z.boolean().default(false),
     has_variants: z.boolean().optional(),
     variants: z.array(variantSchema).optional().default([]),
