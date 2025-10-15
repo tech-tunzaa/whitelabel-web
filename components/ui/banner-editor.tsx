@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Spinner } from "@/components/ui/spinner";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { 
@@ -48,186 +49,19 @@ interface BannerEditorProps {
   entityId?: string;
   readOnly?: boolean;
   className?: string;
+  title?: string;
+  infoContent?: string;
   onDeleteBanner?: (resourceId: string, bannerId: string) => Promise<void>;
   onUpdateResource?: (resourceId: string, entityId: string, data: any) => Promise<void>;
   disableDragAndDrop?: boolean;
 }
-
-// Sortable Banner Item component using dnd-kit
-function SortableBannerItem({
-  banner,
-  index,
-  readOnly,
-  isUploading,
-  isDeleting,
-  onRemove,
-  onUpdate,
-  onUploadingChange,
-}: {
-  banner: Banner;
-  index: number;
-  readOnly: boolean;
-  isUploading: boolean;
-  isDeleting: string | null;
-  onRemove: (index: number, bannerId?: string) => void;
-  onUpdate: (index: number, field: string, value: any) => void;
-  onUploadingChange: (isUploading: boolean) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({id: banner.id || `banner-${index}`});
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  
-  return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className="relative"
-    >
-      <CardContent className="p-4 space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            {!readOnly && (
-              <button 
-                type="button" 
-                className="cursor-grab touch-manipulation hover:bg-gray-100 p-1 rounded transition-colors" 
-                {...attributes} 
-                {...listeners}
-                title="Drag to reorder"
-              >
-                <GripVertical className="h-5 w-5 text-muted-foreground" />
-              </button>
-            )}
-            <h4 className="font-medium flex items-center">
-              <span className="bg-primary/10 text-primary rounded-full w-6 h-6 inline-flex items-center justify-center mr-2 text-sm">{index + 1}</span>
-              Banner
-              {banner.display_order && (
-                <span className="ml-2 text-xs text-muted-foreground">(Order: {banner.display_order})</span>
-              )}
-            </h4>
-          </div>
-          {!readOnly && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemove(index, banner.id)}
-              disabled={isDeleting === banner.id}
-              className="hover:bg-red-50 transition-colors"
-            >
-              {isDeleting === banner.id ? (
-                <Spinner size="sm" className="mr-2" />
-              ) : (
-                <Trash className="h-4 w-4 mr-1 text-red-500" />
-              )}
-              <span className="text-red-500">Remove</span>
-            </Button>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          {/* Banner Image with Height Limit */}
-          <div>
-            <Label>Banner Image</Label>
-            <div className="mt-1">
-              <ImageUpload
-                id={`banner-image-${index}`}
-                value={banner.image_url}
-                onChange={(url) => onUpdate(index, "image_url", url)}
-                onUploadingChange={onUploadingChange}
-                height="h-40"
-                width="w-full"
-                imgHeight="h-70"
-                previewAlt={banner.alt_text || "Banner image"}
-                buttonText="Upload Banner"
-                className="mb-2 transition-all duration-200 hover:shadow-md"
-                readOnly={readOnly}
-              />
-              {!banner.image_url && (
-                <FormMessage>Please upload a banner image</FormMessage>
-              )}
-            </div>
-          </div>
-
-          {/* Banner fields */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor={`banner-title-${index}`} className="font-medium">Title</Label>
-                <Input
-                  id={`banner-title-${index}`}
-                  value={banner.title}
-                  onChange={(e) => onUpdate(index, "title", e.target.value)}
-                  placeholder="Enter banner title"
-                  readOnly={readOnly}
-                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`banner-alt-${index}`} className="font-medium">Alt Text</Label>
-                <Input
-                  id={`banner-alt-${index}`}
-                  value={banner.alt_text || ""}
-                  onChange={(e) => onUpdate(index, "alt_text", e.target.value)}
-                  placeholder="Describe this image (for accessibility)"
-                  readOnly={readOnly}
-                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-                />
-              </div>
-            </div>
-            
-            {/* Display Order Field */}
-            {/* <div>
-              <Label htmlFor={`banner-order-${index}`} className="font-medium">Display Order</Label>
-              <Input
-                id={`banner-order-${index}`}
-                type=""
-                value={banner.display_order || index + 1}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (!isNaN(value) && value > 0) {
-                    onUpdate(index, "display_order", value);
-                  }
-                }}
-                min="1"
-                placeholder="Order position"
-                readOnly={readOnly}
-                className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Banners display in ascending order (lowest first)</p>
-            </div> */}
-            
-            {/* Active Status */}
-            <div className="rounded-lg p-3 flex items-center justify-between border p-3 py-4">
-              <Label htmlFor={`banner-active-${index}`} className="flex-grow font-medium">Active</Label>
-              <Switch
-                id={`banner-active-${index}`}
-                checked={banner.is_active !== false} // Default to true if undefined
-                onCheckedChange={(checked) => onUpdate(index, "is_active", checked)}
-                disabled={readOnly}
-              />
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function BannerEditor({
   banners = [],
   onChange,
   resourceId,
   entityId,
+  title = "Banners",
+  infoContent,
   readOnly = false,
   className = "",
   onDeleteBanner,
@@ -423,7 +257,10 @@ export function BannerEditor({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Banners</h3>
+        <h3 className="text-lg font-medium flex items-center gap-2">
+          {title}
+          {infoContent && <InfoTooltip content={infoContent} />}
+        </h3>
         {!readOnly && (
           <Button
             type="button"
@@ -496,3 +333,174 @@ export function BannerEditor({
     </div>
   );
 }
+
+// Sortable Banner Item component using dnd-kit
+function SortableBannerItem({
+  banner,
+  index,
+  readOnly,
+  isUploading,
+  isDeleting,
+  onRemove,
+  onUpdate,
+  onUploadingChange,
+}: {
+  banner: Banner;
+  index: number;
+  readOnly: boolean;
+  isUploading: boolean;
+  isDeleting: string | null;
+  onRemove: (index: number, bannerId?: string) => void;
+  onUpdate: (index: number, field: string, value: any) => void;
+  onUploadingChange: (isUploading: boolean) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({id: banner.id || `banner-${index}`});
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="relative"
+    >
+      <CardContent className="p-4 space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            {!readOnly && (
+              <button 
+                type="button" 
+                className="cursor-grab touch-manipulation hover:bg-gray-100 p-1 rounded transition-colors" 
+                {...attributes} 
+                {...listeners}
+                title="Drag to reorder"
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </button>
+            )}
+            <h4 className="font-medium flex items-center">
+              <span className="bg-primary/10 text-primary rounded-full w-6 h-6 inline-flex items-center justify-center mr-2 text-sm">{index + 1}</span>
+              Banner
+              {banner.display_order && (
+                <span className="ml-2 text-xs text-muted-foreground">(Order: {banner.display_order})</span>
+              )}
+            </h4>
+          </div>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onRemove(index, banner.id)}
+              disabled={isDeleting === banner.id}
+              className="hover:bg-red-50 transition-colors"
+            >
+              {isDeleting === banner.id ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <Trash className="h-4 w-4 mr-1 text-red-500" />
+              )}
+              <span className="text-red-500">Remove</span>
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {/* Banner Image with Height Limit */}
+          <div>
+            <Label>Banner Image</Label>
+            <div className="mt-1">
+              <ImageUpload
+                id={`banner-image-${index}`}
+                value={banner.image_url}
+                onChange={(url) => onUpdate(index, "image_url", url)}
+                onUploadingChange={onUploadingChange}
+                height="h-40"
+                width="w-full"
+                imgHeight="h-70"
+                previewAlt={banner.alt_text || "Banner image"}
+                buttonText="Upload Banner"
+                className="mb-2 transition-all duration-200 hover:shadow-md"
+                readOnly={readOnly}
+              />
+              {!banner.image_url && (
+                <FormMessage>Please upload a banner image</FormMessage>
+              )}
+            </div>
+          </div>
+
+          {/* Banner fields */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`banner-title-${index}`} className="font-medium">Title</Label>
+                <Input
+                  id={`banner-title-${index}`}
+                  value={banner.title}
+                  onChange={(e) => onUpdate(index, "title", e.target.value)}
+                  placeholder="Enter banner title"
+                  readOnly={readOnly}
+                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor={`banner-alt-${index}`} className="font-medium">Alt Text</Label>
+                <Input
+                  id={`banner-alt-${index}`}
+                  value={banner.alt_text || ""}
+                  onChange={(e) => onUpdate(index, "alt_text", e.target.value)}
+                  placeholder="Describe this image (for accessibility)"
+                  readOnly={readOnly}
+                  className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
+                />
+              </div>
+            </div>
+            
+            {/* Display Order Field */}
+            {/* <div>
+              <Label htmlFor={`banner-order-${index}`} className="font-medium">Display Order</Label>
+              <Input
+                id={`banner-order-${index}`}
+                type=""
+                value={banner.display_order || index + 1}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value > 0) {
+                    onUpdate(index, "display_order", value);
+                  }
+                }}
+                min="1"
+                placeholder="Order position"
+                readOnly={readOnly}
+                className="mt-1 transition-all duration-200 focus-visible:ring-primary/50"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Banners display in ascending order (lowest first)</p>
+            </div> */}
+            
+            {/* Active Status */}
+            <div className="rounded-lg p-3 flex items-center justify-between border p-3 py-4">
+              <Label htmlFor={`banner-active-${index}`} className="flex-grow font-medium">Active</Label>
+              <Switch
+                id={`banner-active-${index}`}
+                checked={banner.is_active !== false} // Default to true if undefined
+                onCheckedChange={(checked) => onUpdate(index, "is_active", checked)}
+                disabled={readOnly}
+              />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+

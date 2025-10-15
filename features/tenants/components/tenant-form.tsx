@@ -42,6 +42,7 @@ import { BannerEditor } from "@/components/ui/banner-editor";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorCard } from "@/components/ui/error-card";
 import { FileUpload } from "@/components/ui/file-upload";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { TenantConfiguration, TenantConfigurationHandle } from "./extra-config-fields";
 import { useConfigurationStore } from '@/features/configurations/store';
 import { usePermissions } from '@/features/auth/hooks/use-permissions';
@@ -387,7 +388,7 @@ export function TenantForm({
         setActiveTab(tab);
       }
     }
-    console.log('[TenantForm] Form error:', errors);
+    // console.log('[TenantForm] Form error:', errors);
     toast.error("Please fix the validation errors before submitting");
   };
 
@@ -668,7 +669,10 @@ export function TenantForm({
               name="branding.logoUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Logo URL</FormLabel>
+                  <FormLabel className="flex items-center gap-2">
+                    Logo URL
+                    <InfoTooltip className="ms-auto" content="Main store logo used in the header and general branding throughout the marketplace." />
+                  </FormLabel>
                   <FormControl>
                     <ImageUpload
                       id="logo-upload"
@@ -693,7 +697,10 @@ export function TenantForm({
                 name="branding.theme.logo.primary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Primary Logo</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Primary Logo
+                      <InfoTooltip className="ms-auto" content="Main logo used in light-themed sections, headers, and primary branding areas." />
+                    </FormLabel>
                     <FormControl>
                       <ImageUpload
                         id="primary-logo-upload"
@@ -717,7 +724,10 @@ export function TenantForm({
                 name="branding.theme.logo.secondary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Secondary Logo</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Secondary Logo
+                      <InfoTooltip className="ms-auto" content="Alternative logo used in dark-themed sections, footers, and secondary branding areas." />
+                    </FormLabel>
                     <FormControl>
                       <ImageUpload
                         id="secondary-logo-upload"
@@ -741,7 +751,10 @@ export function TenantForm({
                 name="branding.theme.logo.icon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Icon Logo</FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      Icon Logo
+                      <InfoTooltip className="ms-auto" content="Compact icon version of your logo used in favicons, mobile apps, and small UI elements." />
+                    </FormLabel>
                     <FormControl>
                       <ImageUpload
                         id="icon-logo-upload"
@@ -772,8 +785,9 @@ export function TenantForm({
                 name="branding.theme.colors.primary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Primary Color <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Main brand color used for buttons, links, highlights, and primary interactive elements throughout the app." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -791,8 +805,9 @@ export function TenantForm({
                 name="branding.theme.colors.secondary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Secondary Color <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Supporting brand color used for secondary buttons, subtle highlights, and complementary UI elements." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -810,8 +825,9 @@ export function TenantForm({
                 name="branding.theme.colors.accent"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Accent Color <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Accent color used for notifications, alerts, special promotions, and call-to-action elements." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -838,8 +854,9 @@ export function TenantForm({
                 name="branding.theme.colors.text.primary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Primary Text <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Main text color used for headings, important content, and primary text throughout the app." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -857,8 +874,9 @@ export function TenantForm({
                 name="branding.theme.colors.text.secondary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Secondary Text <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Secondary text color used for descriptions, captions, and less prominent text content." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -876,8 +894,9 @@ export function TenantForm({
                 name="branding.theme.colors.background.primary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Primary Background <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Main background color used for pages, cards, and primary content areas in the app." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -895,8 +914,9 @@ export function TenantForm({
                 name="branding.theme.colors.background.secondary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Secondary Background <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Alternative background color used for sidebars, panels, and secondary content areas." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -914,8 +934,9 @@ export function TenantForm({
                 name="branding.theme.colors.border"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
                       Border Color <RequiredField />
+                      <InfoTooltip className="ms-auto" content="Color used for borders, dividers, input field outlines, and card separators throughout the app." />
                     </FormLabel>
                     <FormControl>
                       <ColorPicker
@@ -938,6 +959,8 @@ export function TenantForm({
               name="banners"
               render={({ field }) => (
                 <BannerEditor
+                  title="Onboarding Banners"
+                  infoContent="Banners displayed during user onboarding and registration flows to welcome new users and showcase key features."
                   banners={field.value ?? []}
                   onChange={field.onChange}
                   readOnly={!isEditable}
@@ -954,6 +977,8 @@ export function TenantForm({
               name="metadata.banners"
               render={({ field }) => (
                 <BannerEditor
+                  title="In-App Banners"
+                  infoContent="Promotional banners shown within the app interface for marketing campaigns, special offers, and important announcements."
                   banners={field.value ?? []}
                   onChange={field.onChange}
                   readOnly={!isEditable}
