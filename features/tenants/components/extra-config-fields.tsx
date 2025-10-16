@@ -241,7 +241,7 @@ export const TenantConfiguration = ({
                               updateDocumentType(entity, index, 'description', dt.description || '');
                             }
                           }}
-                          disabled={!isEditable || loading}
+                        disabled={!isEditable}
                         >
                           <SelectTrigger className="w-[220px]">
                             <SelectValue placeholder="Select document type..." />
@@ -260,7 +260,7 @@ export const TenantConfiguration = ({
                             id={`is_required_${entity}_${index}`}
                             checked={doc.is_required}
                             onCheckedChange={checked => updateDocumentType(entity, index, 'is_required', !!checked)}
-                            disabled={!isEditable || loading}
+                            disabled={!isEditable}
                           />
                           <Label htmlFor={`is_required_${entity}_${index}`}>Is Required</Label>
                           {/* Remove button */}
@@ -276,7 +276,7 @@ export const TenantConfiguration = ({
                         placeholder="Description"
                         value={doc.description || ''}
                         onChange={e => updateDocumentType(entity, index, 'description', e.target.value)}
-                        readOnly={!isEditable || loading}
+                        readOnly={!isEditable}
                         className="flex-grow min-w-[180px] mt-2"
                       />
                     </div>
@@ -327,7 +327,7 @@ export const TenantConfiguration = ({
                             handleUpdateVehicleType(vt.id, { name: vtype.name, description: vtype.description || '', metadata: { icon: vtype.icon, slug: vtype.slug } });
                           }
                         }}
-                        disabled={!isEditable || loading}
+                        disabled={!isEditable}
                       >
                         <SelectTrigger className="w-[220px]">
                           <SelectValue placeholder="Select vehicle type...">
@@ -355,7 +355,7 @@ export const TenantConfiguration = ({
                             id={`is_active_${vt.id}`}
                             checked={vt.is_active}
                             onCheckedChange={checked => handleUpdateVehicleType(vt.id, { is_active: !!checked })}
-                            disabled={!isEditable || loading}
+                            disabled={!isEditable}
                           />
                           <Label htmlFor={`is_active_${vt.id}`}>Is Active</Label>
                         </div>
@@ -372,7 +372,7 @@ export const TenantConfiguration = ({
                       placeholder="Description"
                       value={vt.description || ''}
                       onChange={e => handleUpdateVehicleType(vt.id, { description: e.target.value })}
-                      readOnly={!isEditable || loading}
+                      readOnly={!isEditable}
                       className="flex-grow min-w-[180px]"
                     />
                   </div>

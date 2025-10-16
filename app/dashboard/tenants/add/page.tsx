@@ -23,7 +23,7 @@ function TenantAddPage() {
       // Ensure we have user_id from session or fallback to default
       const tenantData = {
         ...data,
-        user_id: session?.user?.id || "13c94ad0-1071-431a-9d59-93eeee25ca0a", 
+        // user_id: session?.user?.id || "13c94ad0-1071-431a-9d59-93eeee25ca0a", 
       };
 
       const newTenant = await tenantStore.createTenant(tenantData);

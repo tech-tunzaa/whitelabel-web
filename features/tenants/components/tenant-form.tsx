@@ -457,7 +457,7 @@ export function TenantForm({
                       Next
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={isSubmitting || isConfigLoading}>
+                    <Button type="submit" disabled={isSubmitting }>
                       {isSubmitting ? (
                         <>
                           <Spinner size="sm" color="white" />
