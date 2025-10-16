@@ -40,6 +40,7 @@ import { Copy } from "@/components/ui/copy";
 
 export type VerificationDocument = {
   id: string;
+  document_id: string;
   document_name: string;
   document_type: string;
   document_type_id: string;
@@ -56,7 +57,7 @@ export type VerificationDocument = {
 };
 
 export type VerificationActionPayload = {
-  document_type_id: string;
+  document_id: string;
   verification_status: "verified" | "rejected";
   rejection_reason?: string;
 };
@@ -161,7 +162,7 @@ export function VerificationDocumentManager({
     setError(null);
     try {
       await onDocumentVerification({
-        document_type_id: selectedDoc.document_type_id,
+        document_id: selectedDoc.document_id,
         verification_status: status,
         rejection_reason: finalRejectionReason,
       });

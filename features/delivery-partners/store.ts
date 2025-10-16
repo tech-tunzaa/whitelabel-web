@@ -250,7 +250,7 @@ export const useDeliveryPartnerStore = create<DeliveryPartnerStore>()((set, get)
     setLoading(true);
     setError(null);
     try {
-      const endpoint = `/partners/${partnerId}/kyc/documents/${payload.document_type_id}/verify`;
+      const endpoint = `/partners/${partnerId}/kyc/documents/${payload.document_id}/verify`;
       
       const isVerified = payload.verification_status === 'verified';
       const requestBody = {
