@@ -144,7 +144,7 @@ export const navigationData: NavigationData = {
       url: "https://chatwoot-uat.cheetah.co.tz/app/accounts/1/dashboard",
       target: "_blank",
       icon: IconHelp,
-      requiredPermission: "support:read",
+      requiredPermission: "support",
     },
   ],
   
@@ -153,13 +153,7 @@ export const navigationData: NavigationData = {
       title: "Marketplace Settings",
       url: "/dashboard/tenants/marketplace",
       icon: IconSettings2,
-      requiredPermission: "settings:update",
-    },
-    {
-      title: "Settings & Configurations",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-      requiredPermission: "settings:read",
+      requiredPermission: "marketplace-settings",
     },
     {
       title: "Users",
