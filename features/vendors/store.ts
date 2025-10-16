@@ -65,7 +65,7 @@ interface VendorStore {
   updateVendorDocumentStatus: (
     vendorId: string,
     payload: {
-      document_type_id: string;
+      document_id: string;
       verification_status: "verified" | "rejected";
       rejection_reason?: string;
     },
@@ -587,7 +587,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
   updateVendorDocumentStatus: async (
     vendorId: string,
     payload: {
-      document_type_id: string;
+      document_id: string;
       verification_status: "verified" | "rejected";
       rejection_reason?: string;
     },
@@ -598,10 +598,10 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
     setLoading(true);
 
     try {
-      const { document_type_id, ...apiPayload } = payload;
+      const { document_id, ...apiPayload } = payload;
 
       const response = await apiClient.put<ApiResponse<VerificationDocument>>(
-        `/marketplace/vendors/${vendorId}/documents/${document_type_id}/status`,
+        `/marketplace/vendors/${vendorId}/documents/${document_id}/status`,
         apiPayload,
         headers
       );
@@ -621,7 +621,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       let finalDoc: VerificationDocument | undefined = updatedDocument;
       if (!finalDoc && vendor && vendor.verification_documents) {
         const existing = vendor.verification_documents.find(
-          (d) => d.document_type_id === payload.document_type_id
+          (d) => d.document_id === payload.document_id
         );
         if (existing) {
           finalDoc = {
@@ -635,7 +635,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       // Update local cache for immediate UI feedback.
       if (vendor && vendor.verification_documents) {
         const patched = vendor.verification_documents.map((d) =>
-          d.document_type_id === payload.document_type_id
+          d.document_id === payload.document_id
             ? {
               ...d,
               ...(finalDoc || {}),
@@ -650,7 +650,7 @@ export const useVendorStore = create<VendorStore>()((set, get) => ({
       // Fallback minimal object so caller resolves successfully.
       if (!finalDoc) {
         finalDoc = {
-          document_type_id: payload.document_type_id,
+          document_id: payload.document_id,
           document_url: "",
           verification_status: payload.verification_status,
           rejection_reason: payload.rejection_reason ?? null,
