@@ -224,6 +224,7 @@ export default function DeliveryPartnerPage({
   ): VerificationDocument => {
     console.log("Transforming source document:", JSON.stringify(doc, null, 2));
     const transformed = {
+      document_id: doc.document_id,
       document_type_id: doc.document_type_id,
       document_type_name: 'KYC Document',
       verification_status: doc.verified ? 'verified' : 'pending',
