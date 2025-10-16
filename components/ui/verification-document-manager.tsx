@@ -162,7 +162,7 @@ export function VerificationDocumentManager({
     setError(null);
     try {
       await onDocumentVerification({
-        document_id: selectedDoc.document_id,
+        document_id: selectedDoc.document_id || selectedDoc.document_type_id,
         verification_status: status,
         rejection_reason: finalRejectionReason,
       });
