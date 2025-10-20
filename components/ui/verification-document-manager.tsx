@@ -248,6 +248,15 @@ export function VerificationDocumentManager({
                 </span>
               </div>
               )}
+              {doc.verification_status == 'rejected' && (
+                <div className="flex items-start text-slate-600">
+                  <AlertCircle className="mr-2 h-4 w-4 flex-shrink-0 text-red-400 mt-0.5" />
+                  <span className="font-medium">Rejection Reason:</span>
+                  <span className="ml-auto text-slate-700 text-right leading-relaxed">
+                    {doc.rejection_reason}
+                  </span>
+                </div>
+              )}
             </CardContent>
             <CardFooter className="flex justify-between gap-2 border-t bg-slate-50/50 p-3">
               {doc.document_url && (
