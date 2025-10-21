@@ -49,6 +49,7 @@ import { ExternalLink } from "lucide-react";
 interface DeliveryManagementProps {
   order: Order | null;
   delivery_details?: DeliveryDetails | null;
+  allVendorsAccepted?: boolean;
 }
 
 const stageIcons: { [key: string]: React.ElementType } = {
@@ -62,6 +63,7 @@ const stageIcons: { [key: string]: React.ElementType } = {
 const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
   order,
   delivery_details: initialDeliveryDetails = null,
+  allVendorsAccepted = false,
 }) => {
   interface ExtendedUser extends NextAuthUser {
     tenant_id: string;
@@ -322,6 +324,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
                     <Button
                       className="mt-4"
                       onClick={() => setAssignDialogOpen(true)}
+                      disabled={!allVendorsAccepted}
                     >
                       Assign Delivery Partner
                     </Button>

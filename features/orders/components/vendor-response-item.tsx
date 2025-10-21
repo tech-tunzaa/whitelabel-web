@@ -24,20 +24,7 @@ export const VendorResponseItem: React.FC<VendorResponseItemProps> = ({ vendorId
   const handleGoToVendor = () => {
     router.push(`/dashboard/vendors/${vendorId}`);
   };
-
-  const handleViewVendorDetails = async () => {
-
-    try {
-      await fetch(`/api/marketplace/vendors/${vendorId}`, {
-        headers: {
-          'X-Tenant-ID': session.user.tenant_id
-        }
-      });
-      router.push(`/dashboard/vendors/${vendorId}`);
-    } catch (error) {
-      console.error('Error fetching vendor details:', error);
-    }
-  };
+  
   if (isLoading) {
     return (
       <div className="flex items-center gap-4 p-4 border-b last:border-b-0">
@@ -50,64 +37,38 @@ export const VendorResponseItem: React.FC<VendorResponseItemProps> = ({ vendorId
     );
   }
 
-  if (!vendor) {
-    return (
-      <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
-        <Avatar className="h-12 w-12 border-2 border-muted-foreground/20">
-          <AvatarFallback className="bg-primary/5"><User className="h-6 w-6 text-muted-foreground" /></AvatarFallback>
-        </Avatar>
-        <div className="grid gap-2 flex-1">
-          <div className="flex items-center justify-between">
-            <h3 className="font-medium text-muted-foreground">Vendor details unavailable</h3>
-            <Badge 
-              variant={response.status === 'accepted' ? 'default' : response.status === 'rejected' ? 'destructive' : 'secondary'}
-              className="capitalize"
-            >
-              {response.status}
-            </Badge>
-          </div>
-          {response.notes && (
-            <div className="text-sm mt-1 p-3 bg-background rounded-md border shadow-sm">
-              <p className="text-muted-foreground"><strong className="text-foreground">Notes:</strong> {response.notes}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 hover:bg-muted/40 transition-colors">
       <Avatar onClick={handleGoToVendor} className="h-12 w-12 border-2 border-primary/20 cursor-pointer">
         <AvatarFallback className="bg-primary/10 font-semibold text-primary">
-          {vendor.business_name?.[0] || <User className="h-6 w-6" />}
+          {vendor?.business_name?.[0] || <User className="h-6 w-6" />}
         </AvatarFallback>
       </Avatar>
       <div className="grid gap-2 flex-1">
         <div className="flex items-center justify-between">
-          <h3 onClick={handleGoToVendor} className="font-semibold text-primary cursor-pointer hover:underline">{vendor.business_name}</h3>
+          <h3 onClick={handleGoToVendor} className="font-semibold text-primary cursor-pointer hover:underline">{vendor?.business_name}</h3>
           <Badge 
-            variant={response.status === 'accepted' ? 'default' : response.status === 'rejected' ? 'destructive' : 'secondary'}
-            className="capitalize"
+            variant={response.status === 'accept' ? 'default' : response.status === 'reject' ? 'destructive' : 'secondary'}
+            className="gap-0"
           >
-            {response.status}
+            <span className="capitalize">{response.status}</span>{response.status === 'accept' || response.status === 'reject' ? 'ed' : ''}
           </Badge>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <a
-            href={`mailto:${vendor.contact_email}`}
+            href={`mailto:${vendor?.contact_email}`}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary hover:underline transition-colors group"
           >
             <Mail className="h-3.5 w-3.5 group-hover:text-primary" />
-            <span>{vendor.contact_email}</span>
+            <span>{vendor?.contact_email}</span>
           </a>
           <span className="text-muted-foreground">|</span>
           <a
-            href={`tel:${vendor.contact_phone}`}
+            href={`tel:${vendor?.contact_phone}`}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary hover:underline transition-colors group"
           >
             <Phone className="h-3.5 w-3.5 group-hover:text-primary" />
-            <span>{vendor.contact_phone}</span>
+            <span>{vendor?.contact_phone}</span>
           </a>
         </div>
         {response.notes && (

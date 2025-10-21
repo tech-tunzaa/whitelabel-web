@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { User as NextAuthUser, DefaultSession } from "next-auth";
 import { format } from "date-fns";
-import { ChevronDown, Info, Check, AlertCircle, Code2, X, CheckCircle2 } from "lucide-react";
+import { EllipsisVertical, Check, AlertCircle, Code2, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useOrderStore } from "@/features/orders/store";
 import { useTransactionStore } from "@/features/orders/transactions/store";
@@ -108,6 +108,7 @@ const OrderPage = () => {
   const [loadedVendors, setLoadedVendors] = useState<Record<string, boolean>>(
     {}
   );
+  const [vendorData, setVendorData] = useState<Record<string, { vendor: any; loading: boolean }>>({});
   const [currentTransaction, setCurrentTransaction] = useState<any>(null);
   const [loadingTransactionId, setLoadingTransactionId] = useState<
     string | null
@@ -129,7 +130,6 @@ const OrderPage = () => {
     loading: orderLoading,
     error: orderError,
   } = useOrderStore();
-  const { vendor, loading: vendorLoading, fetchVendor } = useVendorStore();
   const {
     transactions,
     fetchTransactionsByOrder,
@@ -137,7 +137,7 @@ const OrderPage = () => {
     loading,
     error: transactionsError,
   } = useTransactionStore();
-  const transactionsLoading = loading; // Alias for consistency with other loading states
+  const { fetchVendor } = useVendorStore();
 
   const getTransactionStatusBadgeVariant = (status?: string) => {
     if (!status) return "secondary";
@@ -323,7 +323,15 @@ const OrderPage = () => {
         user?.tenant_id
       ) {
         setLoadedVendors((prev) => ({ ...prev, [item.vendor_id]: true }));
-        await fetchVendor(item.vendor_id, { "X-Tenant-ID": user.tenant_id });
+        setVendorData((prev) => ({ ...prev, [item.vendor_id]: { vendor: null, loading: true } }));
+
+        try {
+          const vendor = await fetchVendor(item.vendor_id, { "X-Tenant-ID": user.tenant_id });
+          setVendorData((prev) => ({ ...prev, [item.vendor_id]: { vendor, loading: false } }));
+        } catch (error) {
+          console.error("Error fetching vendor:", error);
+          setVendorData((prev) => ({ ...prev, [item.vendor_id]: { vendor: null, loading: false } }));
+        }
       }
     }
   };
@@ -402,6 +410,14 @@ const OrderPage = () => {
       setIsCompletingRefund(false);
     }
   };
+
+  const allVendorsAccepted = useMemo(() => {
+    return order?.items && order.vendor_responses && 
+      order.items.every(item => {
+        const vendorResponse = order.vendor_responses?.[item.vendor_id];
+        return vendorResponse && vendorResponse.status === 'accept';
+      });
+  }, [order?.items, order?.vendor_responses]);
 
   if (orderLoading && !order) {
     return <Spinner />;
@@ -684,13 +700,14 @@ const OrderPage = () => {
                         <TableHead className="text-center">Quantity</TableHead>
                         <TableHead className="text-right">Unit Price</TableHead>
                         <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {order?.items?.map((item, index) => (
                         <React.Fragment key={index}>
                           <TableRow
-                            className="relative cursor-pointer hover:bg-muted/50"
+                            className={`relative cursor-pointer hover:bg-muted/50 ${order.vendor_responses?.[item.vendor_id]?.status == 'reject' ? "bg-amber-50 dark:bg-amber-950" : undefined}`}
                             onClick={() => handleAccordionChange(index)}
                           >
                             <TableCell>
@@ -735,11 +752,14 @@ const OrderPage = () => {
                                 order?.currency || "TZS"
                               )}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <EllipsisVertical />
+                            </TableCell>
                           </TableRow>
                           {expandedItems.includes(index) && (
                             <TableRow>
                               <TableCell
-                                colSpan={5}
+                                colSpan={6}
                                 className="bg-muted/30 p-4"
                               >
                                 <VendorResponseItem
@@ -752,8 +772,8 @@ const OrderPage = () => {
                                       responded_at: undefined,
                                     }
                                   }
-                                  vendor={vendor || undefined}
-                                  isLoading={vendorLoading}
+                                  vendor={vendorData[item.vendor_id]?.vendor || undefined}
+                                  isLoading={vendorData[item.vendor_id]?.loading || false}
                                 />
                               </TableCell>
                             </TableRow>
@@ -775,8 +795,7 @@ const OrderPage = () => {
                           Refunds
                         </CardTitle>
                         <CardDescription>
-                          {order.refunds.length} refund
-                          {order.refunds.length > 1 ? "s" : ""} processed
+                          History of refunds processed for this order
                         </CardDescription>
                       </div>
                       {order.status !== "refunded" && (
@@ -1503,10 +1522,10 @@ const OrderPage = () => {
                 )}
               </CardContent>
             </Card>
-
             <DeliveryManagement
               order={order}
               delivery_details={order?.delivery_details}
+              allVendorsAccepted={allVendorsAccepted || false}
             />
           </div>
         </div>

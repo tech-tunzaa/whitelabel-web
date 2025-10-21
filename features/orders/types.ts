@@ -111,6 +111,7 @@ export interface DeliveryStage {
   partner_id: string;
   stage: "delivered" | "failed" | "assigned" | "in_transit" | "pending" | "processing" | "out_for_delivery";
   timestamp: string;
+  notes: string;
 }
 
 export interface DeliveryDetails {

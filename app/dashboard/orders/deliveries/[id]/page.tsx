@@ -191,7 +191,12 @@ export default function DeliveryDetailsPage() {
                 <p className="text-xs text-muted-foreground mb-1">
                   {formatDate(stage.timestamp)} at {formatTime(stage.timestamp)}
                 </p>
-                {/* Proof image if present */}
+                {stage.notes && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    <strong>Notes:  </strong> {stage.notes}
+                  </p>
+                )}
+                {/* Proof image */}
                 {stage.proof && typeof stage.proof === 'object' && stage.proof.photo_url && (
                   <div className="mt-1 flex items-center gap-2">
                     <img
