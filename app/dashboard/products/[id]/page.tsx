@@ -515,7 +515,7 @@ function ProductPage({ params }: ProductPageProps) {
                                 </div>
                               )}
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                <span>Price: {formatPrice(variant.price)}</span>
+                                <span>Price: <strong>{formatPrice(variant.price)}</strong></span>
                                 <span>SKU: {variant.sku || 'N/A'}</span>
                                 <span>Quantity: {variant.inventory_quantity}</span>
                               </div>

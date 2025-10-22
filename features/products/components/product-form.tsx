@@ -1495,7 +1495,7 @@ const VariantsTab = React.memo(
               }
             }}
           >
-            <DialogContent className="sm:max-w-lg max-h-[95vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-xl max-h-[95vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingVariantIndex !== null
