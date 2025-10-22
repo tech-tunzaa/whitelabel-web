@@ -482,11 +482,11 @@ function ProductPage({ params }: ProductPageProps) {
                  </InfoCard>
 
                  <InfoCard title="Variants">
-                    <InfoItem label="Has Variants" value={product.has_variants ? 'Yes' : 'No'} />
+                    {/* <InfoItem label="Has Variants" value={product.has_variants ? 'Yes' : 'No'} /> */}
                     {product.has_variants && product.variants?.length > 0 && (
-                      <div className="mt-4">
+                      <div className="mt-4 space-y-3">
                         {product.variants.map((variant: any, index: number) => (
-                          <div key={index} className="p-3 border rounded-md mb-2 flex items-start gap-4">
+                          <div key={index} className="p-4 border rounded-md flex items-start gap-4 hover:bg-accent/50 transition-colors">
                             {variant.image_url && (
                               <div
                                 className="relative w-20 h-20 rounded-md overflow-hidden cursor-pointer group flex-shrink-0"
@@ -499,11 +499,26 @@ function ProductPage({ params }: ProductPageProps) {
                                 />
                               </div>
                             )}
-                            <div className="flex-1">
-                              <p className="font-semibold">{variant.name}: {variant.value}</p>
-                              <p className="text-sm text-muted-foreground">Price: {formatPrice(variant.price)}</p>
-                              <p className="text-sm text-muted-foreground">SKU: {variant.sku || 'N/A'}</p>
-                              <p className="text-sm text-muted-foreground">Quantity: {variant.stock}</p>
+                            <div className="flex-1 space-y-2">
+                              <p className="font-semibold text-base">{variant.name}</p>
+                              {variant.attributes && Object.keys(variant.attributes).length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {Object.entries(variant.attributes).map(([name, value]: [string, any], attrIndex: number) => (
+                                    <span
+                                      key={attrIndex}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-secondary text-xs font-medium"
+                                    >
+                                      <span className="text-muted-foreground">{name}:</span>
+                                      <span className="ml-1">{value}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                <span>Price: {formatPrice(variant.price)}</span>
+                                <span>SKU: {variant.sku || 'N/A'}</span>
+                                <span>Quantity: {variant.inventory_quantity}</span>
+                              </div>
                             </div>
                           </div>
                         ))}

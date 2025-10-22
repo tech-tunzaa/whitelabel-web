@@ -292,9 +292,10 @@ export function ProductForm({
   const handleAddNewVariant = React.useCallback(() => {
     setCurrentVariantData({
       name: "",
-      value: "",
+      attributes: {},
+      _tempAttributesArray: [{ name: "", value: "" }], // Temporary array for UI
       price: 0,
-      stock: 0,
+      inventory_quantity: 0,
       sku: "",
       image_url: "",
     });
@@ -305,7 +306,15 @@ export function ProductForm({
   const handleEditVariant = React.useCallback((index: number) => {
     const variantToEdit = form.getValues("variants")?.[index];
     if (variantToEdit) {
-      setCurrentVariantData({ ...variantToEdit });
+      // Convert attributes object to array for UI editing
+      const attributesArray = Object.entries(variantToEdit.attributes || {}).map(([name, value]) => ({
+        name,
+        value,
+      }));
+      setCurrentVariantData({ 
+        ...variantToEdit,
+        _tempAttributesArray: attributesArray.length > 0 ? attributesArray : [{ name: "", value: "" }],
+      });
       setEditingVariantIndex(index);
       setIsVariantModalOpen(true);
     }
@@ -313,9 +322,25 @@ export function ProductForm({
 
   // Placeholder save function - proper implementation needs a dedicated form for the modal
   const handleSaveVariant = React.useCallback(
-    (variantData: ProductVariant) => {
-      console.log("--- Saving Variant ---", JSON.stringify(variantData, null, 2));
-      const validationResult = variantSchema.safeParse(variantData);
+    (variantData: any) => {
+      // Convert temporary array to object before validation
+      const attributesObj: Record<string, string> = {};
+      if (variantData._tempAttributesArray) {
+        variantData._tempAttributesArray.forEach((attr: any) => {
+          if (attr.name && attr.value) {
+            attributesObj[attr.name] = attr.value;
+          }
+        });
+      }
+      
+      const finalVariantData = {
+        ...variantData,
+        attributes: attributesObj,
+      };
+      delete finalVariantData._tempAttributesArray;
+      
+      // console.log("--- Saving Variant ---", JSON.stringify(finalVariantData, null, 2));
+      const validationResult = variantSchema.safeParse(finalVariantData);
       if (!validationResult.success) {
         console.error(
           "Variant validation error:",
@@ -332,10 +357,10 @@ export function ProductForm({
       }
 
       if (editingVariantIndex !== null) {
-        updateVariant(editingVariantIndex, variantData);
+        updateVariant(editingVariantIndex, finalVariantData);
         toast.success("Variant updated successfully!");
       } else {
-        appendVariant(variantData);
+        appendVariant(finalVariantData);
         toast.success("Variant added successfully!");
       }
       setIsVariantModalOpen(false);
@@ -462,7 +487,7 @@ export function ProductForm({
           data.variants?.map((variant) => ({
             ...variant,
             price: Number(variant.price), // Ensure price is a number
-            stock: Number(variant.stock), // Ensure stock is a number
+            inventory_quantity: Number(variant.inventory_quantity), // Ensure stock is a number
             sku: variant.sku || "", // Ensure SKU is a string
             image_url: variant.image_url || "", // Ensure image_url is a string
           })) || [],
@@ -1380,10 +1405,10 @@ const VariantsTab = React.memo(
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[150px]">Attribute</TableHead>
-                  <TableHead className="w-[150px]">Value</TableHead>
+                  <TableHead className="w-[200px]">Variant Name</TableHead>
+                  <TableHead className="w-[250px]">Attributes</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Price Adj.</TableHead>
+                  <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Image</TableHead>
                   <TableHead className="text-right w-[100px]">
@@ -1394,16 +1419,32 @@ const VariantsTab = React.memo(
               <TableBody>
                 {variantFields.map((item, index) => (
                   <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.value}</TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      {item.attributes && Object.keys(item.attributes).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(item.attributes).map(([name, value], attrIndex) => (
+                            <span
+                              key={attrIndex}
+                              className="inline-flex items-center px-2 py-1 rounded-md bg-secondary text-xs"
+                            >
+                              <span className="font-medium">{name}:</span>
+                              <span className="ml-1">{value}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No attributes</span>
+                      )}
+                    </TableCell>
                     <TableCell>{item.sku}</TableCell>
                     <TableCell>{item.price}</TableCell>
-                    <TableCell>{item.stock}</TableCell>
+                    <TableCell>{item.inventory_quantity}</TableCell>
                     <TableCell>
                       {item.image_url ? (
                         <img
                           src={item.image_url}
-                          alt={item.value || "Variant image"}
+                          alt={item.name || "Variant image"}
                           className="h-10 w-10 object-cover rounded"
                         />
                       ) : (
@@ -1469,51 +1510,100 @@ const VariantsTab = React.memo(
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div>
-                  <Label htmlFor="variant-attr_name">Attribute Name</Label>
+                  <Label htmlFor="variant-name">Variant Name</Label>
                   <Input
-                    id="variant-attr_name"
+                    id="variant-name"
                     value={currentVariantData?.name || ""}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const generatedSku = name
+                        .toUpperCase()
+                        .replace(/[^\w\s-]/g, "")
+                        .replace(/\s+/g, "-")
+                        .replace(/-+/g, "-")
+                        .trim();
                       setCurrentVariantData((prev) => ({
                         ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                    placeholder="e.g., Color"
+                        name: name,
+                        sku: generatedSku,
+                      }));
+                    }}
+                    placeholder="e.g., MacBook 13 Space Gray 1TB"
                   />
+                  {currentVariantData?.sku && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      SKU: <span className="font-mono font-medium">{currentVariantData.sku}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="variant-attr_value">Attribute Value</Label>
-                  <Input
-                    id="variant-attr_value"
-                    value={currentVariantData?.value || ""}
-                    onChange={(e) =>
-                      setCurrentVariantData((prev) => ({
-                        ...prev,
-                        value: e.target.value,
-                      }))
-                    }
-                    placeholder="e.g., Red"
-                  />
+                  <Label>Attributes</Label>
+                  <div className="space-y-2 border rounded-md p-3">
+                    {currentVariantData?._tempAttributesArray?.map((attr: any, index: number) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <Input
+                          value={attr.name}
+                          onChange={(e) => {
+                            const newAttrs = [...(currentVariantData._tempAttributesArray || [])];
+                            newAttrs[index] = { ...newAttrs[index], name: e.target.value };
+                            setCurrentVariantData((prev) => ({
+                              ...prev,
+                              _tempAttributesArray: newAttrs,
+                            }));
+                          }}
+                          placeholder="Attribute name (e.g., Color)"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={attr.value}
+                          onChange={(e) => {
+                            const newAttrs = [...(currentVariantData._tempAttributesArray || [])];
+                            newAttrs[index] = { ...newAttrs[index], value: e.target.value };
+                            setCurrentVariantData((prev) => ({
+                              ...prev,
+                              _tempAttributesArray: newAttrs,
+                            }));
+                          }}
+                          placeholder="Value (e.g., Space Gray)"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newAttrs = currentVariantData._tempAttributesArray?.filter((_: any, i: number) => i !== index) || [];
+                            setCurrentVariantData((prev) => ({
+                              ...prev,
+                              _tempAttributesArray: newAttrs,
+                            }));
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )) || null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newAttrs = [...(currentVariantData?._tempAttributesArray || []), { name: "", value: "" }];
+                        setCurrentVariantData((prev) => ({
+                          ...prev,
+                          _tempAttributesArray: newAttrs,
+                        }));
+                      }}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Attribute
+                    </Button>
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="variant-sku">SKU</Label>
+                  <Label htmlFor="variant-price">Variant Price</Label>
                   <Input
-                    id="variant-sku"
-                    value={currentVariantData?.sku || ""}
-                    onChange={(e) =>
-                      setCurrentVariantData((prev) => ({
-                        ...prev,
-                        sku: e.target.value,
-                      }))
-                    }
-                    placeholder="e.g., RED-001D"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="variant-price_adj">Price Adjustment</Label>
-                  <Input
-                    id="variant-price_adj"
+                    id="variant-price"
                     type="number"
                     value={currentVariantData?.price ?? ""}
                     onChange={(e) =>
@@ -1524,17 +1614,20 @@ const VariantsTab = React.memo(
                     }
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Base Price: <span className="font-medium">{form.getValues("base_price") || 0}</span>
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="variant-stock_qty">Stock Quantity</Label>
                   <Input
                     id="variant-stock_qty"
                     type="number"
-                    value={currentVariantData?.stock ?? ""}
+                    value={currentVariantData?.inventory_quantity ?? ""}
                     onChange={(e) =>
                       setCurrentVariantData((prev) => ({
                         ...prev,
-                        stock: parseInt(e.target.value, 10) || undefined,
+                        inventory_quantity: parseInt(e.target.value, 10) || undefined,
                       }))
                     }
                     placeholder="10"
@@ -1553,7 +1646,7 @@ const VariantsTab = React.memo(
                         image_url: url || undefined,
                       }));
                     }}
-                    previewAlt={currentVariantData?.value || "Variant image"}
+                    previewAlt={currentVariantData?.name || "Variant image"}
                     className="mt-1"
                     // tenantId={tenantId} // Pass tenantId if ImageUpload component requires it and it's passed to VariantsTab
                   />

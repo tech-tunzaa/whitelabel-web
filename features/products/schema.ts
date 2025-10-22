@@ -7,13 +7,15 @@ export const dimensionsSchema = z.object({
   height: z.coerce.number().min(0).optional(),
 });
 
-// Updated Product variant schema
+// Product variant schema
 export const variantSchema = z.object({
   _id: z.string().optional(), // For existing variants
-  name: z.string().min(1, "Attribute name is required"),
-  value: z.string().min(1, "Attribute value is required"),
+  name: z.string().min(1, "Variant name is required"),
+  attributes: z.record(z.string(), z.string()).refine((val) => Object.keys(val).length > 0, {
+    message: "At least one attribute is required",
+  }), // Object/dictionary of key-value pairs
   price: z.coerce.number().optional(), // Can be positive, negative, or zero
-  stock: z.coerce
+  inventory_quantity: z.coerce
     .number()
     .int()
     .min(0, "Stock quantity cannot be negative")

@@ -18,10 +18,10 @@ export interface ProductImage {
 
 export interface ProductVariant {
   _id?: string; // Optional: not present for new variants client-side, present for existing
-  name: string; // e.g., "Color"
-  value: string; // e.g., "Red"
+  name: string; // variant name
+  attributes: Record<string, string>;  // variant attributes as object/dictionary
   price?: number; // Optional, defaults to 0. Applied to product's base_price.
-  stock?: number;   // Optional, for variant-specific stock.
+  inventory_quantity?: number;   // Optional, for variant-specific stock.
   image_url?: string;        // Optional: URL for the variant's thumbnail image.
   sku?: string;       // Optional: e.g., "-RED-XL". Full SKU = product.sku + sku_suffix.
 }
