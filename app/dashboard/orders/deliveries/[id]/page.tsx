@@ -191,9 +191,9 @@ export default function DeliveryDetailsPage() {
                 <p className="text-xs text-muted-foreground mb-1">
                   {formatDate(stage.timestamp)} at {formatTime(stage.timestamp)}
                 </p>
-                {stage.notes && (
+                {stage.reason && (
                   <p className="text-xs text-muted-foreground mb-1">
-                    <strong>Notes:  </strong> {stage.notes}
+                    <strong>Notes:  </strong> {stage.reason}
                   </p>
                 )}
                 {/* Proof image */}
