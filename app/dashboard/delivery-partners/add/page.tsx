@@ -27,6 +27,7 @@ const transformFormValuesToApiPayload = (formValues: DeliveryPartnerFormValues):
     metadata: vehicle_metadata,
   };
   const kyc_documents = (formValues.kyc_documents || []).map((doc) => ({
+    document_id: doc.document_type_id || "", // TODO: remove this later, when not required anymore by the backend
     document_type_id: doc.document_type_id || "",
     number: doc.number || "",
     link: doc.link || "",
