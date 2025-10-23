@@ -58,6 +58,7 @@ const transformPartnerDataToFormValues = (partner: DeliveryPartner): Partial<Del
   }
   if (partner.kyc && partner.kyc.documents && Array.isArray(partner.kyc.documents)) {
     formValues.kyc_documents = partner.kyc.documents.map((doc: KycDocument) => ({
+      document_id: doc.document_type_id || "", // TODO: remove this later, when not required anymore by the backend
       document_type_id: doc.document_type_id || "",
       number: doc.number || "",
       link: doc.link || "",
