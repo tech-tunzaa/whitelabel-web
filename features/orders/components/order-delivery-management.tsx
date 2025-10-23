@@ -138,7 +138,7 @@ const DeliveryManagement: React.FC<DeliveryManagementProps> = ({
     const filter: DeliveryPartnerFilter = {
       partner_type: partnerType,
       is_active: true,
-      is_available:true,
+      // is_available:true,
       search: debouncedSearchTerm,
     };
 
