@@ -12,6 +12,7 @@ import {
 } from "./types";
 import { apiClient } from '@/lib/api/client';
 import { toast } from "sonner";
+import { useUserStore } from '@/features/auth/stores/user-store';
 
 interface TenantStore {
   tenants: Tenant[];
@@ -85,9 +86,32 @@ export const useTenantStore = create<TenantStore>()(
           setLoading(true);
           const response = await apiClient.get<Tenant>(`/tenants/${id}`);
           if (response.data) {
-            setTenant(response.data);
+            let tenantData = response.data;
+            
+            // Fetch user data if user object is missing first_name and last_name
+            if (tenantData.user_id && (!tenantData.first_name || !tenantData.last_name)) {
+              try {
+                // Get the fetchUser method from user store
+                const userStore = useUserStore.getState();
+                const userData = await userStore.fetchUser(tenantData.user_id, {'X-Tenant-ID': tenantData.tenant_id});
+                
+                // Inject first_name and last_name into tenant data
+                tenantData = {
+                  ...tenantData,
+                  first_name: userData.first_name,
+                  last_name: userData.last_name,
+                  admin_email: userData.email,
+                  admin_phone: userData.phone_number
+                };
+              } catch (userError) {
+                console.error('Failed to fetch user data:', userError);
+                // Continue with tenant data even if user fetch fails
+              }
+            }
+            
+            setTenant(tenantData);
             setLoading(false);
-            return response.data;
+            return tenantData;
           }
           throw new Error('Tenant not found');
         } catch (error) {

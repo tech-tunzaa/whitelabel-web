@@ -58,7 +58,10 @@ export type User = {
 
 export type Tenant = {
   tenant_id: string;
+  user_id?: string;
   user: User;
+  first_name?: string;
+  last_name?: string;
   name: string;
   domain: string;
   country_code: string;
