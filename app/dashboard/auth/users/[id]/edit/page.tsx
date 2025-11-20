@@ -27,7 +27,7 @@ export default function EditUserPage({ params }: EditUserPageProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const tenantId = session?.user?.tenant_id;
-  
+
   useEffect(() => {
     async function loadUser() {
       setLoading(true)
@@ -51,10 +51,10 @@ export default function EditUserPage({ params }: EditUserPageProps) {
         setLoading(false)
       }
     }
-    
+
     loadUser()
   }, [params.id, fetchUser, router])
-  
+
   const handleSubmit = async (data: any) => {
     try {
       // Format data for API request
@@ -64,8 +64,8 @@ export default function EditUserPage({ params }: EditUserPageProps) {
         name: `${data.first_name} ${data.last_name}`,
         // Don't manipulate timestamps - API will handle this
       }
-      
-      await updateUser(params.id, updatedUser)
+
+      await updateUser(params.id, updatedUser, { 'X-Tenant-ID': tenantId })
       toast.success("User updated successfully")
       router.push("/dashboard/auth/users")
     } catch (error) {
@@ -73,26 +73,26 @@ export default function EditUserPage({ params }: EditUserPageProps) {
       toast.error("Failed to update user")
     }
   }
-  
+
   const handleCancel = () => {
     router.push("/dashboard/auth/users")
   }
-  
+
   if (loading && !user) {
     return <Spinner />;
   }
-  
+
   if (error && !user) {
-    return 
-      <ErrorCard 
-        title="User Not Found"
-        error={{ message: error, status: '404' }}
-        buttonText="Back to Users"
-        buttonAction={() => router.push('/dashboard/auth/users')}
-        buttonIcon={ArrowLeft}
-      />
+    return
+    <ErrorCard
+      title="User Not Found"
+      error={{ message: error, status: '404' }}
+      buttonText="Back to Users"
+      buttonAction={() => router.push('/dashboard/auth/users')}
+      buttonIcon={ArrowLeft}
+    />
   }
-  
+
   return user ? (
     <div className="container py-6 space-y-6">
       <div className="flex items-center space-x-2 mx-4">
@@ -105,7 +105,7 @@ export default function EditUserPage({ params }: EditUserPageProps) {
         </div>
       </div>
       <Separator />
-      
+
       <UserForm onSubmit={handleSubmit} onCancel={handleCancel} initialData={user} />
     </div>
   ) : null;

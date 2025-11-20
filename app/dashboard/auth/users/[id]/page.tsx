@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 
 interface UserPageProps {
   params: {
@@ -79,7 +80,8 @@ const UserPage = ({ params }: UserPageProps) => {
     if (params.id && tenantId) {
       fetchUser(params.id, headers);
     }
-  }, [params.id, tenantId, fetchUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, tenantId]);
 
   const handleGoBack = () => {
     router.back();
@@ -113,7 +115,7 @@ const UserPage = ({ params }: UserPageProps) => {
     }
     const newStatus = !user.is_active;
     try {
-      await updateUser(params.id, { is_active: newStatus }, headers);
+      await updateUser(params.id, { is_active: newStatus, is_verified: newStatus }, headers);
       toast.success(`User has been ${newStatus ? "activated" : "deactivated"}.`);
       fetchUser(params.id, headers); // Re-fetch user to update UI
     } catch (err) {
@@ -123,19 +125,19 @@ const UserPage = ({ params }: UserPageProps) => {
 
   if (loading) {
     return (
-        <Spinner />
+      <Spinner />
     );
   }
 
   if (error || !user) {
     return (
-        <ErrorCard
-            title="Failed to load user"
-            error={error}
-            buttonText="Go back to Users"
-            buttonAction={() => fetchUser(params.id, headers)}
-            buttonIcon={ArrowLeft}
-        />
+      <ErrorCard
+        title="Failed to load user"
+        error={error}
+        buttonText="Go back to Users"
+        buttonAction={() => fetchUser(params.id, headers)}
+        buttonIcon={ArrowLeft}
+      />
     );
   }
 
@@ -203,7 +205,7 @@ const UserPage = ({ params }: UserPageProps) => {
             <CardContent>
               <h3 className="font-semibold text-md mb-2">Active Profile Role</h3>
               <Badge variant="secondary">{user.active_profile_role}</Badge>
-              
+
               <Separator className="my-4" />
 
               <h3 className="font-semibold text-md mb-2">All Assigned Roles</h3>
@@ -234,6 +236,19 @@ const UserPage = ({ params }: UserPageProps) => {
                 <Button onClick={handleToggleStatus} variant="secondary" size="sm" className="w-full">
                   <Power className="mr-2 h-4 w-4" /> {user.is_active ? "Deactivate" : "Activate"} User
                 </Button>
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-col space-y-2">
+                <h4 className="font-semibold">Password Management</h4>
+                <p className="text-sm text-muted-foreground">Reset the user's password.</p>
+                <PasswordResetDialog
+                  userId={params.id}
+                  userEmail={user.email}
+                  userPhone={user.phone_number}
+                  tenantId={tenantId}
+                />
               </div>
             </CardContent>
           </Card>

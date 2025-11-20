@@ -299,9 +299,9 @@ export default function OrdersPage() {
           <TabsList className="mb-4 w-full">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="tickets">Issues</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="processing">Processing</TabsTrigger>
-            <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+            <TabsTrigger value="pending">Pending Payment</TabsTrigger>
+            <TabsTrigger value="processing">Pending Vendor Acceptance</TabsTrigger>
+            <TabsTrigger value="confirmed">Confirmed by Vendor</TabsTrigger>
             <TabsTrigger value="shipped">Shipped</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>

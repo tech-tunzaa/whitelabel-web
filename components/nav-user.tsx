@@ -3,6 +3,7 @@
 import {
   IconCreditCard,
   IconDotsVertical,
+  IconKey,
   IconLogout,
   IconNotification,
   IconUserCircle,
@@ -103,6 +104,10 @@ export function NavUser({ user, onNotificationClick }: NavUserProps) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator /> */}
+            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/profile/reset-password'}>
+              <IconKey />
+              Reset Password
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}>
               <IconLogout />
               Log out
