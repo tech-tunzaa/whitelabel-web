@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
-import { ArrowLeft, Edit, Link, Mail, Phone, Globe, MapPin, Key, LucideIcon, 
-  ExternalLink, Settings, Calendar, CreditCard, Building, Clock, PieChart, Briefcase, 
-  DollarSign, Shield, FileText, Check, X, Upload, AlertCircle, ImageIcon, FileSymlink } from "lucide-react";
+import {
+  ArrowLeft, Edit, Link, Mail, Phone, Globe, MapPin, Key, LucideIcon,
+  ExternalLink, Settings, Calendar, CreditCard, Building, Clock, PieChart, Briefcase,
+  Banknote, Shield, FileText, Check, X, Upload, AlertCircle, ImageIcon, FileSymlink
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,7 +38,7 @@ interface DetailItemProps {
 
 const DetailItem = ({ icon: Icon, label, value, isLink = false, href }: DetailItemProps) => {
   if (!value) return null;
-  
+
   return (
     <div className="space-y-1">
       <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
@@ -67,17 +69,17 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
   const router = useRouter();
   const session = useSession();
   const tenantId = session?.data?.user?.tenantId || '';
-  
+
   const loanProviderStore = useLoanProviderStore();
   const loanProductStore = useLoanProductStore();
-  
+
   const { provider, loading: providerLoading, storeError: providerError } = loanProviderStore;
   const { products, loading: productsLoading } = loanProductStore;
-  
+
   const [activeTab, setActiveTab] = useState("details");
   const [fetchAttempted, setFetchAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // UI States
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -117,7 +119,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
       window.open(url, "_blank");
     }
   };
-  
+
   // Handle document approve
   const handleDocumentApprove = async (documentId: string) => {
     try {
@@ -126,7 +128,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
       await new Promise(resolve => setTimeout(resolve, 500));
       // In a real app, you would make an API call here
       // await approveDocument(documentId);
-      
+
       // Refresh provider data
       loanProviderStore.fetchProvider(providerId, tenantHeaders);
       return Promise.resolve();
@@ -136,7 +138,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
       return Promise.reject(error);
     }
   };
-  
+
   // Handle document reject
   const handleDocumentReject = async (documentId: string, reason: string) => {
     try {
@@ -145,7 +147,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
       await new Promise(resolve => setTimeout(resolve, 500));
       // In a real app, you would make an API call here
       // await rejectDocument(documentId, reason);
-      
+
       // Refresh provider data
       loanProviderStore.fetchProvider(providerId, tenantHeaders);
       return Promise.resolve();
@@ -221,7 +223,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>
           </Button>
-          
+
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={provider.logo_url} alt={provider.name} />
@@ -229,15 +231,15 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                 {provider.name.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            
+
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{provider.name}</h1>
               {provider.website && (
                 <p className="text-muted-foreground text-sm flex items-center gap-1">
                   <Globe className="h-3 w-3" />
-                  <a 
-                    href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`} 
-                    target="_blank" 
+                  <a
+                    href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="hover:underline flex items-center"
                   >
@@ -249,15 +251,15 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Badge 
-            variant={provider.is_active ? "default" : "destructive"} 
+          <Badge
+            variant={provider.is_active ? "default" : "destructive"}
             className={provider.is_active ? "bg-green-500 hover:bg-green-600 px-2 py-1" : "px-2 py-1"}
           >
             {provider.is_active ? "Active" : "Inactive"}
           </Badge>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -282,7 +284,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                     <Building className="h-5 w-5 text-primary" />
                     <CardTitle>Loan Provider Overview</CardTitle>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={provider.is_active ? "default" : "secondary"}
                     className={provider.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                   >
@@ -293,7 +295,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                   Key details and information about this loan provider
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="p-6">
                 <div className="space-y-6">
                   {/* Company Details Section */}
@@ -304,7 +306,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                     </h3>
                     <p className="text-sm leading-relaxed">{provider.description || "No description provided"}</p>
                   </div>
-                  
+
                   {/* Contact & Details Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Contact Information */}
@@ -313,7 +315,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                         <Phone className="h-4 w-4" />
                         Contact Information
                       </h3>
-                      
+
                       <div className="bg-gradient-to-br from-white to-primary/5 rounded-lg border border-primary/20 p-4 space-y-3 shadow-sm">
                         {provider.contact_email && (
                           <div className="flex items-start gap-3">
@@ -322,8 +324,8 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Email</p>
-                              <a 
-                                href={`mailto:${provider.contact_email}`} 
+                              <a
+                                href={`mailto:${provider.contact_email}`}
                                 className="text-sm font-medium hover:underline flex items-center gap-1"
                               >
                                 {provider.contact_email}
@@ -332,7 +334,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                           </div>
                         )}
-                        
+
                         {provider.contact_phone && (
                           <div className="flex items-start gap-3">
                             <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
@@ -340,8 +342,8 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Phone</p>
-                              <a 
-                                href={`tel:${provider.contact_phone}`} 
+                              <a
+                                href={`tel:${provider.contact_phone}`}
                                 className="text-sm font-medium hover:underline flex items-center gap-1"
                               >
                                 {provider.contact_phone}
@@ -350,7 +352,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                           </div>
                         )}
-                        
+
                         {provider.website && (
                           <div className="flex items-start gap-3">
                             <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
@@ -358,10 +360,10 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Website</p>
-                              <a 
-                                href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="text-sm font-medium hover:underline flex items-center gap-1"
                               >
                                 {provider.website.replace(/^https?:\/\//, '')}
@@ -370,7 +372,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             </div>
                           </div>
                         )}
-                        
+
                         {provider.address && (
                           <div className="flex items-start gap-3">
                             <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
@@ -384,14 +386,14 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Status Information */}
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium flex items-center gap-2 text-primary">
                         <Clock className="h-4 w-4" />
                         Status & Timeline
                       </h3>
-                      
+
                       <div className="bg-gradient-to-br from-white to-primary/5 rounded-lg border border-primary/20 p-4 space-y-3 shadow-sm">
                         <div className="flex items-start gap-3">
                           <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
@@ -402,7 +404,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             <p className="text-sm font-medium">{formatDate(provider.created_at)}</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-start gap-3">
                           <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
                             <Clock className="h-4 w-4 text-primary" />
@@ -412,7 +414,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                             <p className="text-sm font-medium">{formatDate(provider.updated_at)}</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-start gap-3">
                           <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
                             {provider.is_active ? (
@@ -423,18 +425,18 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Current Status</p>
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={`px-2 ${provider.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
                             >
                               {provider.is_active ? "Active Provider" : "Inactive Provider"}
                             </Badge>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-start gap-3">
                           <div className="bg-primary/10 p-2 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0">
-                            <DollarSign className="h-4 w-4 text-primary" />
+                            <Banknote className="h-4 w-4 text-primary" />
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Products Offered</p>
@@ -442,9 +444,9 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                               <Badge variant="outline" className="px-2 py-0 h-5">
                                 {products?.length || 0}
                               </Badge>
-                              <Button 
-                                variant="link" 
-                                className="p-0 h-auto text-xs text-primary" 
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto text-xs text-primary"
                                 onClick={() => setActiveTab("products")}
                               >
                                 View products
@@ -473,7 +475,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                   This Month
                 </Button>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <Card>
@@ -488,7 +490,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-1">
@@ -498,7 +500,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-1">
@@ -526,11 +528,11 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                   size="sm"
                   onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
                 >
-                  <DollarSign className="h-4 w-4 mr-2" />
+                  <Banknote className="h-4 w-4 mr-2" />
                   Add Product
                 </Button>
               </CardHeader>
-              
+
               <CardContent>
                 {productsLoading ? (
                   <div className="flex justify-center py-8">
@@ -547,9 +549,9 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <DollarSign className="h-12 w-12 text-muted-foreground mb-2 opacity-20" />
+                    <Banknote className="h-12 w-12 text-muted-foreground mb-2 opacity-20" />
                     <p className="text-muted-foreground mb-4">No loan products available</p>
-                    <Button 
+                    <Button
                       onClick={() => router.push(`/dashboard/loans/products/add?provider=${providerId}`)}
                     >
                       Add First Product
@@ -559,7 +561,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Sidebar - 2 columns */}
           <div className="md:col-span-2 space-y-6">
             {/* API Integration Settings */}
@@ -567,32 +569,32 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
               <CardHeader>
                 <CardTitle>API Integration</CardTitle>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
-                <DetailItem 
-                  icon={Key} 
-                  label="Integration Key" 
+                <DetailItem
+                  icon={Key}
+                  label="Integration Key"
                   value={provider?.integration_key || "Not configured"}
                 />
-                
-                <DetailItem 
-                  icon={Shield} 
-                  label="Integration Secret" 
+
+                <DetailItem
+                  icon={Shield}
+                  label="Integration Secret"
                   value={provider?.integration_secret ? "••••••••••••••••" : "Not configured"}
                 />
 
-                <DetailItem 
-                  icon={Globe} 
-                  label="API Endpoint" 
+                <DetailItem
+                  icon={Globe}
+                  label="API Endpoint"
                   value={provider?.api_endpoint || "Not configured"}
                   isLink={!!provider?.api_endpoint}
                   href={provider?.api_endpoint}
                 />
               </CardContent>
-              
+
               <CardFooter>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => router.push(`/dashboard/loans/providers/${providerId}/edit`)}
                 >
@@ -619,15 +621,15 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                 />
               </CardContent>
             </Card>
-            
+
             {/* Provider Actions */}
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
-              
+
               <CardContent className="space-y-3">
-                <Button 
+                <Button
                   variant={provider.is_active ? "destructive" : "default"}
                   className="w-full"
                   disabled={isSubmitting}
@@ -639,9 +641,9 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
                     provider.is_active ? "Deactivate Provider" : "Activate Provider"
                   )}
                 </Button>
-                
-                <Button 
-                  variant="outline" 
+
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => router.push(`/dashboard/loans/providers/${providerId}/edit`)}
                 >
@@ -653,7 +655,7 @@ export default function LoanProviderDetailPage({ params }: LoanProviderDetailPag
           </div>
         </div>
       </div>
-      
+
       {/* Image Preview Modal */}
       <FilePreviewModal
         src={previewImage || ""}

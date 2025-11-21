@@ -7,7 +7,7 @@ import {
   Truck,
   Home,
   XCircle,
-  CircleDollarSign,
+  Banknote,
   FileText,
 } from 'lucide-react';
 import { formatStatus } from '../utils';
@@ -25,7 +25,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     delivered: { variant: 'success', icon: Home },
     completed: { variant: 'success', icon: BadgeCheck },
     cancelled: { variant: 'destructive', icon: XCircle },
-    paid: { variant: 'success', icon: CircleDollarSign },
+    paid: { variant: 'success', icon: Banknote },
     failed: { variant: 'destructive', icon: XCircle },
     refunded: { variant: 'warning', icon: RefreshCw },
     partially_refunded: { variant: 'warning', icon: RefreshCw },

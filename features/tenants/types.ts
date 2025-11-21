@@ -46,6 +46,8 @@ export type TenantMetadata = {
   terms_conditions?: string | null;
   privacy_policy?: string | null;
   banners?: Banner[] | null;
+  support_phone?: string | null;
+  support_email?: string | null;
 };
 
 export type User = {
@@ -92,7 +94,7 @@ export type TenantError = {
   status: number;
   message: string;
 };
-  
+
 export type TenantListResponse = {
   items: Tenant[];
   total: number;

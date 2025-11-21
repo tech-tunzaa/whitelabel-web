@@ -11,7 +11,7 @@ import { Invoice } from '@/features/tenants/types';
 import {
   Calendar,
   CheckCircle,
-  CircleDollarSign,
+  Banknote,
   Clock,
   CreditCard,
   Download,
@@ -78,7 +78,7 @@ export const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({ invoic
     );
   }
 
-    return (
+  return (
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center justify-between">
@@ -96,7 +96,7 @@ export const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({ invoic
         {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg border">
           <div className="flex items-center space-x-3">
-            <CircleDollarSign className="h-6 w-6 text-primary" />
+            <Banknote className="h-6 w-6 text-primary" />
             <div>
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="text-lg font-bold">{`${invoice.amount.toLocaleString()} ${invoice.currency}`}</p>

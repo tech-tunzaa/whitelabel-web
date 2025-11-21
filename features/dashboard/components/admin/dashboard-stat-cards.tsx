@@ -4,7 +4,7 @@ import { useDashboardStore } from "@/features/dashboard/store";
 import { shallow } from 'zustand/shallow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react";
+import { Banknote, Users, ShoppingCart, TrendingUp } from "lucide-react";
 
 const formatCurrency = (amount: number) => {
     if (typeof amount !== 'number') return 'TZS 0';
@@ -59,30 +59,30 @@ export function DashboardStatCards() {
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard 
-                title="Total Revenue" 
-                value={formatCurrency(totalRevenue)} 
+            <StatCard
+                title="Total Revenue"
+                value={formatCurrency(totalRevenue)}
                 description="Total revenue from all orders"
-                icon={DollarSign}
+                icon={Banknote}
                 isLoading={loadingGmvData}
             />
-            <StatCard 
-                title="Total Active Users" 
-                value={formatNumber(totalActiveUsers)} 
+            <StatCard
+                title="Total Active Users"
+                value={formatNumber(totalActiveUsers)}
                 description="Users active in the last 30 days"
                 icon={Users}
                 isLoading={loadingActiveUsersData}
             />
-            <StatCard 
-                title="Total Orders" 
-                value={formatNumber(totalOrders)} 
+            <StatCard
+                title="Total Orders"
+                value={formatNumber(totalOrders)}
                 description="Total number of orders placed"
                 icon={ShoppingCart}
                 isLoading={loadingGmvData}
             />
-            <StatCard 
-                title="Average Order Value" 
-                value={formatCurrency(avgOrderValue)} 
+            <StatCard
+                title="Average Order Value"
+                value={formatCurrency(avgOrderValue)}
                 description="Average value per order"
                 icon={TrendingUp}
                 isLoading={loadingGmvData}

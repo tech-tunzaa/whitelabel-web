@@ -55,6 +55,8 @@ export const metadataSchema = z.object({
   terms_conditions: z.string().url("Invalid URL").optional().nullable(),
   privacy_policy: z.string().url("Invalid URL").optional().nullable(),
   banners: z.array(bannerSchema).optional().nullable(),
+  support_email: z.string().optional().nullable(),
+  support_phone: z.string().optional().nullable()
 }).optional().nullable();
 
 export const billingConfigSchema = z.object({

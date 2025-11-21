@@ -3,13 +3,12 @@
 import { useEffect } from "react";
 import { useTenantStore } from "@/features/tenants/store";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Users, 
-  FileText, 
-  AlertTriangle, 
-  CircleDollarSign, 
-  Banknote, 
-  Clock, 
+import {
+  Users,
+  FileText,
+  AlertTriangle,
+  Banknote,
+  Clock,
   FileCog
 } from "lucide-react";
 

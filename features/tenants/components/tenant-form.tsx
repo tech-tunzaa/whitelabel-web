@@ -170,12 +170,12 @@ export function TenantForm({
         };
       }
       setConfigurations(configObj);
-      
+
       // Fetch billing config if tenant exists and user is super owner
       if (isSuperOwner && initialData.tenant_id) {
         await fetchBillingConfig(initialData.tenant_id);
       }
-      
+
       setIsConfigLoading(false);
     }
     fetchInitialConfig();
@@ -223,7 +223,7 @@ export function TenantForm({
       setActiveTab(tabFlow[currentTabIndex - 1]);
     }
   };
-  
+
   const handleFileUpload = useCallback((file: File, fieldName: string) => {
     // and call form.setValue(fieldName, uploadedUrl)
   }, []);
@@ -276,7 +276,7 @@ export function TenantForm({
             ...billingConfigData,
             tenant_id: tenantId,
           };
-          
+
           try {
             // Check if billing config exists (billingConfig will be set if it was fetched)
             if (billingConfig?.config_id) {
@@ -298,7 +298,7 @@ export function TenantForm({
 
         toast.success(`Tenant ${id ? 'updated' : 'created'} successfully!`);
         if (!id) { // If it was a new tenant, reset form or navigate
-            form.reset();
+          form.reset();
         }
         setActiveTab("details");
 
@@ -457,7 +457,7 @@ export function TenantForm({
                       Next
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={isSubmitting }>
+                    <Button type="submit" disabled={isSubmitting}>
                       {isSubmitting ? (
                         <>
                           <Spinner size="sm" color="white" />
@@ -1133,6 +1133,50 @@ export function TenantForm({
                         disabled={!isEditable}
                         accept=".pdf"
                         maxSizeMB={10}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="metadata.support_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Support Email <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="support@example.com"
+                        {...field}
+                        readOnly={!isEditable}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="metadata.support_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Support Phone <RequiredField />
+                    </FormLabel>
+                    <FormControl>
+                      <PhoneInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        readOnly={!isEditable}
+                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />

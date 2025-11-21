@@ -30,7 +30,7 @@ import {
   PlayCircle,
   Truck,
   FileTerminal,
-  DollarSign,
+  Banknote,
   ShoppingCart,
   RefreshCw,
   UserRoundPlus,
@@ -90,7 +90,7 @@ function VendorPage({ params }: VendorPageProps) {
   const session = useSession();
   // Extract tenant ID from session if available
   const tenant_id = session?.data?.user?.tenant_id as string | undefined;
-  
+
   // Check if affiliates module is enabled
   const isAffiliatesEnabled = process.env.NEXT_PUBLIC_ENABLE_AFFILIATES_MODULE === 'true';
   const unwrappedParams = use(params);
@@ -414,7 +414,7 @@ function VendorPage({ params }: VendorPageProps) {
       .then(() => {
         toast.success("Vendor rejected successfully");
         setShowRejectDialog(false);
-        
+
         // Refresh vendor data
         fetchVendor(id, tenantHeaders);
       })
@@ -582,7 +582,7 @@ function VendorPage({ params }: VendorPageProps) {
         alt="Verification document preview"
       />
 
-      
+
       {/* Rejection Dialog */}
       <VendorRejectionModal
         isOpen={showRejectDialog}
@@ -596,21 +596,21 @@ function VendorPage({ params }: VendorPageProps) {
     const StatCard = ({ title, value, icon: Icon, change, changePeriod = "from last week" }) => {
       const changeType = change >= 0 ? "increase" : "decrease";
       const formattedChange = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
-  
+
       return (
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-2xl font-bold">{value}</div>
-                  <p className={`text-xs ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
-                      <span className="font-semibold">{formattedChange}</span>
-                      <span className="text-muted-foreground ml-1">{changePeriod}</span>
-                  </p>
-              </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className={`text-xs ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
+              <span className="font-semibold">{formattedChange}</span>
+              <span className="text-muted-foreground ml-1">{changePeriod}</span>
+            </p>
+          </CardContent>
+        </Card>
       );
     }
 
@@ -626,19 +626,19 @@ function VendorPage({ params }: VendorPageProps) {
             </>
           ) : (
             <>
-              <StatCard 
+              <StatCard
                 title="Total Revenue"
                 value={`TZS ${performanceStats.totalRevenue.value.toLocaleString()}`}
-                icon={DollarSign}
+                icon={Banknote}
                 change={performanceStats.totalRevenue.change}
               />
-              <StatCard 
+              <StatCard
                 title="Total Orders"
                 value={performanceStats.totalOrders.value.toLocaleString()}
                 icon={ShoppingCart}
                 change={performanceStats.totalOrders.change}
               />
-              <StatCard 
+              <StatCard
                 title="Items Sold"
                 value={performanceStats.totalItemsSold.value.toLocaleString()}
                 icon={Package}
@@ -648,16 +648,16 @@ function VendorPage({ params }: VendorPageProps) {
           )}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
-                <Percent className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {typeof vendor?.commission_rate === "number"
                   ? `${vendor.commission_rate}%`
                   : vendor?.commission_rate
-                  ? `${vendor.commission_rate}`
-                  : "0%"}
+                    ? `${vendor.commission_rate}`
+                    : "0%"}
               </div>
               <p className="text-xs text-muted-foreground">Current rate</p>
             </CardContent>
@@ -849,7 +849,7 @@ function VendorPage({ params }: VendorPageProps) {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {storeData[0]?.categories &&
-                    storeData[0].categories.length > 0 ? (
+                      storeData[0].categories.length > 0 ? (
                       storeData[0].categories.map((category, index) => (
                         <Badge
                           key={index}
@@ -955,7 +955,7 @@ function VendorPage({ params }: VendorPageProps) {
                 <div>
                   <h3 className="text-sm font-medium mb-4">Store Banners</h3>
                   {!storeData[0]?.banners ||
-                  storeData[0].banners.length === 0 ? (
+                    storeData[0].banners.length === 0 ? (
                     <div className="bg-muted/20 rounded-md p-6 text-center">
                       <ImageIcon className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground text-sm">
@@ -982,7 +982,7 @@ function VendorPage({ params }: VendorPageProps) {
                       resourceId={storeData[0].store_id}
                       entityId={vendor?.vendor_id}
                       readOnly={true}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       className="max-h-[500px] overflow-y-auto"
                     />
                   )}
@@ -1023,21 +1023,21 @@ function VendorPage({ params }: VendorPageProps) {
       limit: 10,
       total: 0,
     });
-  
+
     // Debounce search query
     useEffect(() => {
       const handler = setTimeout(() => {
         setDebouncedSearchQuery(searchQuery);
       }, 500);
-  
+
       return () => clearTimeout(handler);
     }, [searchQuery]);
-  
+
     // Fetch affiliate requests
     const fetchRequests = useCallback(async () => {
       const headers: Record<string, string> = {};
       if (tenantId) headers["X-Tenant-ID"] = tenantId;
-      
+
       const filters = {
         vendor_id: vendorId,
         skip: pagination.skip,
@@ -1045,7 +1045,7 @@ function VendorPage({ params }: VendorPageProps) {
         ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
         ...(activeTab !== "all" && { status: activeTab }),
       };
-  
+
       try {
         setLoading(true);
         const { requests: data, total } = await fetchAffiliateRequests(filters, headers);
@@ -1061,11 +1061,11 @@ function VendorPage({ params }: VendorPageProps) {
         setLoading(false);
       }
     }, [vendorId, tenantId, pagination.skip, pagination.limit, debouncedSearchQuery, activeTab]);
-  
+
     useEffect(() => {
       fetchRequests();
     }, [fetchRequests]);
-  
+
     return (
       <TabsContent value="affiliate" className="space-y-4 mt-4">
         <div className="flex justify-between mb-4">
@@ -1080,7 +1080,7 @@ function VendorPage({ params }: VendorPageProps) {
             />
           </div>
         </div>
-  
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="all">All</TabsTrigger>
@@ -1088,7 +1088,7 @@ function VendorPage({ params }: VendorPageProps) {
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
-  
+
           {loading ? (
             <Spinner />
           ) : error ? (
@@ -1205,25 +1205,25 @@ function VendorPage({ params }: VendorPageProps) {
                     Approve Vendor
                   </Button>
                 </Can>
-            )}
+              )}
 
             {/* Reject */}
             {vendorStatus !== "rejected" && (
               <Can permission="vendors:reject">
                 <Button
-                    variant="outline"
-                    className="w-full text-red-600"
-                    disabled={isUpdating}
-                    onClick={() => setShowRejectDialog(true)}
-                  >
-                    {isUpdating ? (
-                      <Spinner className="h-4 w-4 mr-2" color="red" />
-                    ) : (
-                      <Ban className="h-4 w-4 mr-2" />
-                    )}
-                    Reject Vendor
-                  </Button>
-                </Can>
+                  variant="outline"
+                  className="w-full text-red-600"
+                  disabled={isUpdating}
+                  onClick={() => setShowRejectDialog(true)}
+                >
+                  {isUpdating ? (
+                    <Spinner className="h-4 w-4 mr-2" color="red" />
+                  ) : (
+                    <Ban className="h-4 w-4 mr-2" />
+                  )}
+                  Reject Vendor
+                </Button>
+              </Can>
             )}
 
             {/* Activate/Deactivate Buttons */}

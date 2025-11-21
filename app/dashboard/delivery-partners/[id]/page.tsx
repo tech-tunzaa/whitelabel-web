@@ -21,7 +21,6 @@ import {
   Eye,
   Truck,
   Building as BuildingIcon,
-  DollarSign,
   Info,
   RefreshCw,
   ShieldCheck,
@@ -139,9 +138,8 @@ const StatusBadge = ({
     return (
       <Badge
         variant="outline"
-        className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${
-          className || ""
-        } bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`}
+        className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium ${className || ""
+          } bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`}
       >
         <Info className="h-3.5 w-3.5 mr-1" />
         Unknown
@@ -156,33 +154,28 @@ const StatusBadge = ({
   switch (status) {
     case "active":
       icon = <ShieldCheck className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
+      className = `${className || ""
+        } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
       break;
     case "inactive":
       icon = <ShieldX className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-red-100 text-red-700 border-red-300 hover:bg-red-200`;
+      className = `${className || ""
+        } bg-red-100 text-red-700 border-red-300 hover:bg-red-200`;
       break;
     case "approved":
       icon = <ShieldX className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
+      className = `${className || ""
+        } bg-green-100 text-green-700 border-green-300 hover:bg-green-200`;
       break;
     case "not_approved":
       icon = <AlertCircle className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200`;
+      className = `${className || ""
+        } bg-yellow-100 text-yellow-700 border-yellow-300 hover:bg-yellow-200`;
       break;
     default:
       icon = <Info className="h-3.5 w-3.5" />;
-      className = `${
-        className || ""
-      } bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`;
+      className = `${className || ""
+        } bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200`;
       break;
   }
 
@@ -329,7 +322,7 @@ export default function DeliveryPartnerPage({
     setShowRejectDialog(false);
     const toastId = toast.loading("Rejecting partner...");
     try {
-      await updateDeliveryPartnerStatus(partner.partner_id, payload, undefined,{ "X-Tenant-ID": tenantId });
+      await updateDeliveryPartnerStatus(partner.partner_id, payload, undefined, { "X-Tenant-ID": tenantId });
       toast.success("Partner has been rejected.", { id: toastId });
     } catch (error) {
       toast.error("Failed to reject partner.", { id: toastId });
@@ -377,9 +370,8 @@ export default function DeliveryPartnerPage({
 
   const partnerName =
     partner?.name ||
-    `${partner?.user_details?.first_name || ""} ${
-      partner?.user_details?.last_name || ""
-    }`.trim() ||
+    `${partner?.user_details?.first_name || ""} ${partner?.user_details?.last_name || ""
+      }`.trim() ||
     "Unnamed Partner";
   const partnerAvatarFallback = (
     partnerName.substring(0, 2) || "DP"
@@ -546,9 +538,8 @@ export default function DeliveryPartnerPage({
                           icon={<UserIcon className="h-4 w-4" />}
                           label="Account Name"
                           value={
-                            `${partner?.user_details?.first_name || ""} ${
-                              partner?.user_details?.last_name || ""
-                            }`.trim() || "N/A"
+                            `${partner?.user_details?.first_name || ""} ${partner?.user_details?.last_name || ""
+                              }`.trim() || "N/A"
                           }
                         />
                       </div>
@@ -633,9 +624,8 @@ export default function DeliveryPartnerPage({
                         icon={<UserIcon className="h-4 w-4" />}
                         label="Account Name"
                         value={
-                          `${partner?.user_details?.first_name || ""} ${
-                            partner?.user_details?.last_name || ""
-                          }`.trim() || "N/A"
+                          `${partner?.user_details?.first_name || ""} ${partner?.user_details?.last_name || ""
+                            }`.trim() || "N/A"
                         }
                       />
                     </div>
@@ -661,7 +651,7 @@ export default function DeliveryPartnerPage({
                             partner?.location.coordinates.lat,
                             partner?.location.coordinates.lng,
                           ]}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           readOnly={true}
                           height="250px"
                         />
@@ -703,25 +693,25 @@ export default function DeliveryPartnerPage({
 
                     {(partner?.type === "pickup_point" ||
                       partner?.type === "individual") && (
-                      <div>
-                        <Separator />
-                        <h4 className="font-medium text-md mb-2">Pricing</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                          {partner?.type == "individual" && (
-                            <InfoItem
-                              label="Cost Per Km"
-                              value={partner?.cost_per_km || "N/A"}
-                            />
-                          )}
-                          {partner?.type == "pickup_point" && (
-                            <InfoItem
-                              label="Flat Fee"
-                              value={partner?.flat_fee || "N/A"}
-                            />
-                          )}
+                        <div>
+                          <Separator />
+                          <h4 className="font-medium text-md mb-2">Pricing</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            {partner?.type == "individual" && (
+                              <InfoItem
+                                label="Cost Per Km"
+                                value={partner?.cost_per_km || "N/A"}
+                              />
+                            )}
+                            {partner?.type == "pickup_point" && (
+                              <InfoItem
+                                label="Flat Fee"
+                                value={partner?.flat_fee || "N/A"}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </CardContent>
                 </Card>
               </>
@@ -829,8 +819,7 @@ export default function DeliveryPartnerPage({
                   variant="outline"
                   onClick={() =>
                     router.push(
-                      `/dashboard/delivery-partners/${
-                        partner?.partner_id || partner?._id
+                      `/dashboard/delivery-partners/${partner?.partner_id || partner?._id
                       }/edit`
                     )
                   }

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import {
-  ArrowLeft, Edit, DollarSign, Percent, Calendar, Clock, 
+  ArrowLeft, Edit, Banknote, Percent, Calendar, Clock,
   CreditCard, Check, X, ExternalLink, Star, ChevronsUpDown,
   BarChart4, FileText, Building, Tag, Calculator, Settings,
-  Coins, BadgeDollarSign, Target, Users, Wallet, Globe,
+  Coins, Target, Users, Wallet, Globe,
   Mail, Phone
 } from "lucide-react";
 
@@ -33,11 +33,11 @@ import { LoanProvider } from "@/features/loans/providers/types";
 const formatCurrency = (value: number | string | undefined): string => {
   if (value === undefined) return '$0.00';
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   if (isNaN(numValue)) {
     return '$0.00';
   }
-  
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -58,14 +58,14 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
   const session = useSession();
   // Get tenant ID safely
   const tenantId = session?.data?.user ? (session.data.user as any).tenant_id : undefined;
-  
+
   // Skip the store for now and use local state directly
   const [product, setProduct] = useState<LoanProduct | null>(null);
   const [provider, setProvider] = useState<LoanProvider | null>(null);
   const [loading, setLoading] = useState(true);
   const [productError, setProductError] = useState<any>(null);
   const [providerLoading, setProviderLoading] = useState(false);
-  
+
   // Get the store functions we still need
   const { updateProductStatus } = useLoanProductStore();
   // Not using store fetchProvider anymore
@@ -78,25 +78,25 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
   // Super simple data loading approach
   useEffect(() => {
     console.log('[DEBUG] Starting data load process, id:', id);
-    
+
     // Immediately set loading to true
     setLoading(true);
-    
+
     // Hardcoded timeout to ensure we can debug the issue
     setTimeout(() => {
       try {
         console.log('[DEBUG] Mock data load timer triggered');
-        
+
         // Use mock data directly
         const mockProducts = generateMockLoanProducts();
         console.log('[DEBUG] Mock products:', mockProducts.length);
-        
+
         const foundProduct = mockProducts.find(p => p.product_id === id);
         console.log('[DEBUG] Found product?', !!foundProduct);
-        
+
         if (foundProduct) {
           setProduct(foundProduct);
-          
+
           // If product has provider_id, get provider data
           if (foundProduct.provider_id) {
             const mockProviders = generateMockLoanProviders();
@@ -123,7 +123,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
         setLoading(false);
       }
     }, 500); // Small timeout to ensure component is fully mounted
-    
+
     // Cleanup function
     return () => {
       console.log('[DEBUG] Component unmounting');
@@ -134,14 +134,14 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
     try {
       toast.loading(`${isActive ? 'Activating' : 'Deactivating'} product?...`);
       await updateProductStatus(id, isActive, tenantHeaders);
-      
+
       // After updating, reload the data directly
       const mockProducts = generateMockLoanProducts();
       const updatedProduct = mockProducts.find(p => p.product_id === id);
       if (updatedProduct) {
         setProduct(updatedProduct);
       }
-      
+
       toast.success(`Product ${isActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       toast.error(`Failed to ${isActive ? 'activate' : 'deactivate'} product`);
@@ -152,20 +152,20 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
     if (!frequency) return "Not set";
     return frequency.charAt(0).toUpperCase() + frequency.slice(1).replace("_", " ");
   };
-  
+
   // Calculate monthly payment for a loan
   const calculateMonthlyPayment = (principal: string | number, interestRate: string | number, termMonths: number) => {
     const p = parseFloat(principal.toString());
     const r = parseFloat(interestRate.toString()) / 100 / 12; // Monthly interest rate
     const n = termMonths;
-    
+
     // Monthly payment formula: P * (r * (1 + r)^n) / ((1 + r)^n - 1)
     if (r === 0) return p / n; // If interest rate is 0, just divide principal by term
-    
+
     const monthlyPayment = p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
     return monthlyPayment;
   };
-  
+
   // Calculate total interest paid over the life of the loan
   const calculateTotalInterest = (principal: string | number, interestRate: string | number, termMonths: number) => {
     const p = parseFloat(principal.toString());
@@ -214,19 +214,19 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>
           </Button>
-          
+
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarFallback style={{ backgroundColor: "#6366f1" }} className="text-white">
-                <DollarSign className="h-6 w-6" />
+                <Banknote className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
-            
+
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{product?.name}</h1>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Badge 
-                  variant={product?.is_active ? "default" : "destructive"} 
+                <Badge
+                  variant={product?.is_active ? "default" : "destructive"}
                   className={product?.is_active ? "bg-green-500 hover:bg-green-600 px-2 py-1" : "px-2 py-1"}
                 >
                   {product?.is_active ? "Active" : "Inactive"}
@@ -239,7 +239,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -262,10 +262,10 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
               <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <BadgeDollarSign className="h-5 w-5 text-primary" />
+                    <Banknote className="h-5 w-5 text-primary" />
                     <CardTitle>Loan Product Overview</CardTitle>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={product?.is_active ? "default" : "secondary"}
                     className={product?.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                   >
@@ -276,7 +276,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                   Key details and metrics for this loan product
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="p-6">
                 <div className="space-y-6">
                   {/* Description */}
@@ -287,7 +287,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                     </h3>
                     <p className="text-sm leading-relaxed">{product?.description || "No description provided."}</p>
                   </div>
-                  
+
                   {/* Key Metrics */}
                   <div>
                     <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
@@ -309,11 +309,11 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                             </div>
                             <p className="text-3xl font-bold text-primary">{product?.interest_rate}%</p>
                             <p className="text-xs text-muted-foreground">Annual percentage rate (APR)</p>
-                            
+
                             {product?.interest_rate && product?.term_options?.[0] && (
                               <div className="mt-2 pt-2 border-t border-dashed border-muted">
                                 <p className="text-xs text-muted-foreground">
-                                  {calculateTotalInterest(10000, product.interest_rate, product.term_options[0]) > 0 ? 
+                                  {calculateTotalInterest(10000, product.interest_rate, product.term_options[0]) > 0 ?
                                     `~${formatCurrency(calculateTotalInterest(10000, product.interest_rate, product.term_options[0]))} interest on $10k/${product.term_options[0]}mo` :
                                     'Interest calculation not available'}
                                 </p>
@@ -322,14 +322,14 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                           </div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
                         <CardContent className="p-4">
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className="bg-primary/10 p-2 rounded-full">
-                                  <DollarSign className="h-4 w-4 text-primary" />
+                                  <Banknote className="h-4 w-4 text-primary" />
                                 </div>
                                 <p className="text-sm font-medium">Amount Range</p>
                               </div>
@@ -351,7 +351,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                           </div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
                         <CardContent className="p-4">
                           <div className="flex flex-col gap-2">
@@ -406,7 +406,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
@@ -422,18 +422,18 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Commented out late_fee since it's not in the LoanProduct type */
                     /*{product?.late_fee && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                          <DollarSign className="h-4 w-4" /> Late Payment Fee
+                          <Banknote className="h-4 w-4" /> Late Payment Fee
                         </p>
                         <p className="text-sm">{formatCurrency(product?.late_fee)}</p>
                       </div>
                     )}*/}
                   </div>
-                  
+
                   <div className="space-y-4">
                     {product?.processing_fee && (
                       <div className="space-y-1">
@@ -443,21 +443,21 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                         <p className="text-sm">{formatCurrency(product?.processing_fee)}</p>
                       </div>
                     )}
-                    
+
                     {/* Commented out early_repayment_fee since it's not in the LoanProduct type */
                     /*{product?.early_repayment_fee && (
                       <div className="space-y-1">
                         <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                          <BadgeDollarSign className="h-4 w-4" /> Early Repayment Fee
+                          <Banknote className="h-4 w-4" /> Early Repayment Fee
                         </p>
                         <p className="text-sm">{formatCurrency(product?.early_repayment_fee)}</p>
                       </div>
                     )}*/}
                   </div>
                 </div>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Eligibility Criteria</p>
                   <ul className="text-sm list-disc list-inside space-y-1 ml-2">
@@ -470,7 +470,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Sidebar - 2 columns */}
           <div className="md:col-span-2 space-y-6">
             {/* Provider Information */}
@@ -478,7 +478,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
               <CardHeader>
                 <CardTitle>Provider Information</CardTitle>
               </CardHeader>
-              
+
               <CardContent>
                 {providerLoading ? (
                   <div className="flex justify-center py-4">
@@ -499,9 +499,9 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                         </p>
                       </div>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     <div className="space-y-3">
                       {provider?.contact_email && (
                         <div className="flex items-center gap-2">
@@ -511,7 +511,7 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                           </a>
                         </div>
                       )}
-                      
+
                       {provider?.contact_phone && (
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-muted-foreground" />
@@ -520,14 +520,14 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                           </a>
                         </div>
                       )}
-                      
+
                       {provider?.website && (
                         <div className="flex items-center gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground" />
-                          <a 
-                            href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                          <a
+                            href={provider.website.startsWith('http') ? provider.website : `https://${provider.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-sm hover:underline flex items-center gap-1"
                           >
                             {provider.website.replace(/^https?:\/\//, '')}
@@ -543,11 +543,11 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                   </div>
                 )}
               </CardContent>
-              
+
               {provider?.provider_id && (
                 <CardFooter>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => router.push(`/dashboard/loans/providers/${provider.provider_id}`)}
                   >
@@ -557,28 +557,28 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                 </CardFooter>
               )}
             </Card>
-            
+
             {/* Product Status */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Status</CardTitle>
               </CardHeader>
-              
+
               <CardContent className="space-y-3">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Current Status</p>
-                  <Badge 
+                  <Badge
                     className={`capitalize ${product?.is_active ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
                   >
                     {product?.is_active ? "Active" : "Inactive"}
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Created On</p>
                   <p className="text-sm">{formatDateDisplay(product?.created_at)}</p>
                 </div>
-                
+
                 {product?.updated_at && product?.updated_at !== product?.created_at && (
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
@@ -587,15 +587,15 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Actions */}
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
-              
+
               <CardContent className="space-y-3">
-                <Button 
+                <Button
                   variant={product?.is_active ? "destructive" : "default"}
                   className="w-full"
                   onClick={() => handleStatusChange(!product?.is_active)}
@@ -612,9 +612,9 @@ export default function LoanProductDetailPage({ params }: LoanProductDetailPageP
                     </>
                   )}
                 </Button>
-                
-                <Button 
-                  variant="outline" 
+
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => router.push(`/dashboard/loans/products/${id}/edit`)}
                 >

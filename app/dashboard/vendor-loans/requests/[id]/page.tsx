@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { use } from "react";
 import { format } from "date-fns";
-import { 
-  ArrowLeft, DollarSign, CalendarDays, FileText, Tag, ClipboardCheck, 
+import {
+  ArrowLeft, Banknote, CalendarDays, FileText, Tag, ClipboardCheck,
   CreditCard, Check, X, Percent, Clock, Calendar, ShoppingBag,
   User, Building, Phone, Mail, ExternalLink, BarChart, History,
   CreditCard as CreditCardIcon, CheckCircle, AlertCircle, ChevronRight,
-  Receipt, Calculator, Eye, Wallet, BadgeDollarSign, TrendingUp,
-  CircleDollarSign, Settings, Store, Globe, Info, ListChecks
+  Receipt, Calculator, Eye, Wallet, TrendingUp, Settings, Store, Globe, Info, ListChecks
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,11 +33,11 @@ import { useVendorStore } from "@/features/vendors/store";
 const formatCurrency = (value: number | string | undefined): string => {
   if (value === undefined) return '$0.00';
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   if (isNaN(numValue)) {
     return '$0.00';
   }
-  
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -49,25 +48,25 @@ const formatCurrency = (value: number | string | undefined): string => {
 
 const formatDate = (date: string | Date | undefined, format: 'short' | 'medium' | 'long' = 'medium'): string => {
   if (!date) return 'N/A';
-  
+
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
+
   if (isNaN(dateObj.getTime())) {
     return 'Invalid Date';
   }
-  
+
   const options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: format === 'short' ? 'short' : 'long',
     day: 'numeric',
   };
-  
+
   if (format === 'long') {
     options.hour = 'numeric';
     options.minute = 'numeric';
     options.hour12 = true;
   }
-  
+
   return new Intl.DateTimeFormat('en-US', options).format(dateObj);
 };
 
@@ -84,36 +83,36 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
   const router = useRouter();
   const session = useSession();
   const tenantId = session?.data?.user?.tenant_id || '';
-  
-  const { 
-    request, 
-    loading: requestLoading, 
-    storeError: requestError, 
+
+  const {
+    request,
+    loading: requestLoading,
+    storeError: requestError,
     fetchRequest,
-    updateRequestStatus 
+    updateRequestStatus
   } = useLoanRequestStore();
-  
+
   const {
     product,
     loading: productLoading,
     fetchProduct
   } = useLoanProductStore();
-  
+
   const {
     provider,
     loading: providerLoading,
     fetchProvider
   } = useLoanProviderStore();
-  
+
   const {
     vendor,
     loading: vendorLoading,
     fetchVendor
   } = useVendorStore();
-  
+
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  
+
   // Mock payment schedule and transaction data
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -128,7 +127,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
   // Use a stable function reference with useCallback
   const fetchLoanRequestData = useCallback(async () => {
     if (!id) return;
-    
+
     try {
       setLoading(true);
       await fetchRequest(id, tenantHeaders);
@@ -156,7 +155,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         .catch(error => console.error("Failed to fetch product data:", error));
     }
   }, [productId, fetchProduct, tenantHeaders]);
-  
+
   // Separate effect for vendor fetching with minimal dependencies
   useEffect(() => {
     if (vendorId) {
@@ -164,7 +163,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         .catch(error => console.error("Failed to fetch vendor data:", error));
     }
   }, [vendorId, fetchVendor, tenantHeaders]);
-  
+
   // Separate effect for mock data generation with minimal dependencies
   useEffect(() => {
     if (requestId) {
@@ -200,21 +199,21 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
   const generateMockPaymentSchedule = (amount: number, termMonths: number, interestRate: number) => {
     const monthlyInterestRate = interestRate / 100 / 12;
     const monthlyPayment = calculateMonthlyPayment(amount, interestRate, termMonths);
-    
+
     const schedule = [];
     let remainingBalance = amount;
     const today = new Date();
-    
+
     for (let i = 1; i <= termMonths; i++) {
       const dueDate = new Date(today);
       dueDate.setMonth(dueDate.getMonth() + i);
-      
+
       const interestPayment = remainingBalance * monthlyInterestRate;
       const principalPayment = monthlyPayment - interestPayment;
       remainingBalance -= principalPayment;
-      
+
       const paymentStatus = i === 1 ? 'pending' : (i > 1 ? 'upcoming' : 'paid');
-      
+
       schedule.push({
         payment_number: i,
         due_date: dueDate.toISOString(),
@@ -225,10 +224,10 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         status: paymentStatus
       });
     }
-    
+
     setPaymentSchedule(schedule);
   };
-  
+
   // Generate mock transactions for this loan
   const generateMockTransactions = () => {
     const mockTransactions = [
@@ -257,10 +256,10 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         status: 'pending'
       }
     ];
-    
+
     setTransactions(mockTransactions);
   };
-  
+
   // Generate mock vendor loans history
   const generateMockVendorLoans = () => {
     const mockLoans = [
@@ -289,10 +288,10 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         product_name: product?.name || 'Unknown Product'
       }
     ];
-    
+
     setVendorLoans(mockLoans);
   };
-  
+
   // Generate mock revenue data
   const generateMockRevenueData = () => {
     const mockRevenue = {
@@ -308,29 +307,29 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
         { month: 'Jun', amount: 14200 }
       ]
     };
-    
+
     setRevenueData(mockRevenue);
   };
-  
+
   // Calculate monthly payment for a loan
   const calculateMonthlyPayment = (principal: string | number, interestRate: string | number, termMonths: number) => {
     const p = parseFloat(principal.toString());
     const r = parseFloat(interestRate.toString()) / 100 / 12; // Monthly interest rate
     const n = termMonths;
-    
+
     // Monthly payment formula: P * (r * (1 + r)^n) / ((1 + r)^n - 1)
     if (r === 0) return p / n; // If interest rate is 0, just divide principal by term
-    
+
     const monthlyPayment = p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
     return monthlyPayment;
   };
-  
+
   const handleStatusChange = async (status: string) => {
     try {
       setUpdating(true);
       await updateRequestStatus(id, status, tenantHeaders);
       await fetchRequest(id, tenantHeaders);
-      
+
       toast.success(`Loan request status updated to ${status}`);
     } catch (error) {
       console.error("Failed to update status:", error);
@@ -359,21 +358,21 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
 
   const renderStatusActions = () => {
     if (!request) return null;
-    
+
     const status = request.status.toLowerCase();
-    
+
     switch (status) {
       case 'pending':
         return (
           <div className="flex space-x-2 mt-4">
-            <Button 
-              variant="default" 
-              disabled={updating} 
+            <Button
+              variant="default"
+              disabled={updating}
               onClick={() => handleStatusChange('approved')}
             >
               Approve
             </Button>
-            <Button 
+            <Button
               variant="outline"
               disabled={updating}
               onClick={() => handleStatusChange('rejected')}
@@ -385,9 +384,9 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
       case 'approved':
         return (
           <div className="flex space-x-2 mt-4">
-            <Button 
-              variant="default" 
-              disabled={updating} 
+            <Button
+              variant="default"
+              disabled={updating}
               onClick={() => handleStatusChange('disbursed')}
             >
               Mark as Disbursed
@@ -397,9 +396,9 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
       case 'disbursed':
         return (
           <div className="flex space-x-2 mt-4">
-            <Button 
-              variant="default" 
-              disabled={updating} 
+            <Button
+              variant="default"
+              disabled={updating}
               onClick={() => handleStatusChange('paid')}
             >
               Mark as Paid
@@ -413,7 +412,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
 
   if (loading || requestLoading) {
     return (
-    <Spinner />
+      <Spinner />
     );
   }
 
@@ -431,7 +430,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
               <ArrowLeft className="h-4 w-4" />
               <span className="sr-only">Back</span>
             </Button>
-            
+
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Loan Request</h1>
               <p className="text-muted-foreground">
@@ -464,7 +463,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
     if (!dateString) return "Not set";
     return format(new Date(dateString), "MMMM d, yyyy");
   };
-  
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -479,14 +478,14 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>
           </Button>
-          
+
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarFallback style={{ backgroundColor: "#6366f1" }} className="text-white">
-                <DollarSign className="h-6 w-6" />
+                <Banknote className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
-            
+
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
                 {formatCurrency(request?.loan_amount || 0)} Loan Request
@@ -501,7 +500,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {renderStatusActions()}
         </div>
@@ -530,7 +529,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   <FileText className="h-4 w-4" /> Documents
                 </TabsTrigger>
               </TabsList>
-              
+
               {/* Overview Tab */}
               <TabsContent value="overview" className="space-y-6 mt-6">
                 {/* Request Details Card */}
@@ -544,17 +543,17 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       {getStatusBadge(request?.status || 'Unknown')}
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
-                            <DollarSign className="h-4 w-4" /> Loan Amount
+                            <Banknote className="h-4 w-4" /> Loan Amount
                           </p>
                           <p className="text-xl font-bold">{formatCurrency(request?.loan_amount || 0)}</p>
                         </div>
-                        
+
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                             <Clock className="h-4 w-4" /> Term Length
@@ -563,7 +562,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                             {request?.term_length} {request?.term_length === 1 ? 'month' : 'months'}
                           </p>
                         </div>
-                        
+
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                             <Percent className="h-4 w-4" /> Interest Rate
@@ -571,7 +570,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           <p className="text-sm">{product?.interest_rate || 'N/A'}%</p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-4">
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
@@ -579,7 +578,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           </p>
                           <p className="text-sm">{formatDateDisplay(request?.created_at)}</p>
                         </div>
-                        
+
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                             <Calendar className="h-4 w-4" /> Expected Disbursement
@@ -588,22 +587,22 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                             {request?.status === 'approved' ? formatDateDisplay(new Date().toISOString()) : 'Pending approval'}
                           </p>
                         </div>
-                        
+
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
                             <CreditCard className="h-4 w-4" /> Monthly Payment (Est.)
                           </p>
                           <p className="text-sm">
-                            {product && request ? 
-                              formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) : 
+                            {product && request ?
+                              formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) :
                               'N/A'}
                           </p>
                         </div>
                       </div>
                     </div>
-                    
+
                     <Separator className="my-6" />
-                    
+
                     <div className="space-y-4">
                       <div className="space-y-1">
                         <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
@@ -613,7 +612,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           {request?.purpose || 'No purpose specified'}
                         </div>
                       </div>
-                      
+
                       {request?.notes && (
                         <div className="space-y-1">
                           <p className="text-sm font-medium flex items-center gap-1 text-muted-foreground">
@@ -626,19 +625,19 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       )}
                     </div>
                   </CardContent>
-                  
+
                   {request?.status === 'pending' && (
                     <CardFooter className="flex justify-end gap-2 border-t p-4">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         disabled={updating}
                         onClick={() => handleStatusChange('rejected')}
                       >
                         <X className="h-4 w-4 mr-2" />
                         Reject Request
                       </Button>
-                      <Button 
-                        variant="default" 
+                      <Button
+                        variant="default"
                         disabled={updating}
                         onClick={() => handleStatusChange('approved')}
                       >
@@ -648,17 +647,17 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     </CardFooter>
                   )}
                 </Card>
-                
+
                 {/* Loan Summary Card */}
                 <Card className="overflow-hidden border-2 border-primary/10">
                   <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-primary/10">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-primary" />
+                      <Banknote className="h-5 w-5 text-primary" />
                       <CardTitle>Loan Summary</CardTitle>
                     </div>
                     <CardDescription>Overview of loan terms and repayment</CardDescription>
                   </CardHeader>
-                  
+
                   <CardContent className="p-6">
                     <div className="space-y-6">
                       {/* Loan Summary Stats */}
@@ -685,7 +684,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                               </div>
                             </CardContent>
                           </Card>
-                          
+
                           <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
                             <CardContent className="p-4">
                               <div className="flex flex-col gap-2">
@@ -698,15 +697,15 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                                   </div>
                                 </div>
                                 <p className="text-3xl font-bold text-primary">
-                                  {product && request ? 
-                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length)) : 
+                                  {product && request ?
+                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length)) :
                                     'N/A'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Total amount to be repaid</p>
                               </div>
                             </CardContent>
                           </Card>
-                          
+
                           <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
                             <CardContent className="p-4">
                               <div className="flex flex-col gap-2">
@@ -719,8 +718,8 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                                   </div>
                                 </div>
                                 <p className="text-3xl font-bold text-primary">
-                                  {product && request ? 
-                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length) - request.loan_amount) : 
+                                  {product && request ?
+                                    formatCurrency((calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length) * request.term_length) - request.loan_amount) :
                                     'N/A'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Total interest payable</p>
@@ -729,7 +728,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           </Card>
                         </div>
                       </div>
-                      
+
                       {/* Payment Schedule - Simplified */}
                       <div>
                         <Card className="border border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-primary/5">
@@ -743,16 +742,16 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                                 <div>
                                   <p className="text-sm font-medium text-muted-foreground">Monthly Payment</p>
                                   <p className="text-2xl font-bold text-primary">
-                                    {product && request ? 
-                                      formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) : 
+                                    {product && request ?
+                                      formatCurrency(calculateMonthlyPayment(request.loan_amount, product.interest_rate, request.term_length)) :
                                       'N/A'}
                                   </p>
                                 </div>
                               </div>
-                              
+
                               {/* Divider */}
                               <div className="h-12 w-px bg-muted mx-4 hidden md:block"></div>
-                              
+
                               {/* Right Side - Term */}
                               <div className="flex items-center gap-3">
                                 <div className="bg-primary/10 p-2 rounded-full">
@@ -769,7 +768,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           </CardContent>
                         </Card>
                       </div>
-                      
+
                       {/* Progress Bar */}
                       {request?.status === 'disbursed' || request?.status === 'paid' ? (
                         <div className="space-y-3 pt-2">
@@ -782,9 +781,9 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                               {request?.status === 'paid' ? '100%' : '33%'} Complete
                             </Badge>
                           </div>
-                          <Progress 
-                            value={request?.status === 'paid' ? 100 : 33} 
-                            className="h-2.5 rounded-full" 
+                          <Progress
+                            value={request?.status === 'paid' ? 100 : 33}
+                            className="h-2.5 rounded-full"
                             indicatorClassName={request?.status === 'paid' ? 'bg-green-500' : 'bg-blue-500'}
                           />
                         </div>
@@ -793,7 +792,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               {/* Payment Plan Tab */}
               <TabsContent value="payment-plan" className="mt-6">
                 <Card>
@@ -801,7 +800,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     <CardTitle>Payment Schedule</CardTitle>
                     <CardDescription>Detailed payment plan for this loan</CardDescription>
                   </CardHeader>
-                  
+
                   <CardContent>
                     {paymentSchedule.length > 0 ? (
                       <div className="overflow-x-auto">
@@ -848,7 +847,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               {/* Transactions Tab */}
               <TabsContent value="transactions" className="mt-6">
                 <Card>
@@ -856,7 +855,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     <CardTitle>Transaction History</CardTitle>
                     <CardDescription>All transactions related to this loan</CardDescription>
                   </CardHeader>
-                  
+
                   <CardContent>
                     {transactions.length > 0 ? (
                       <div className="overflow-x-auto">
@@ -899,7 +898,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               {/* Loan History Tab */}
               <TabsContent value="history" className="mt-6">
                 <Card>
@@ -907,7 +906,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     <CardTitle>Vendor Loan History</CardTitle>
                     <CardDescription>Previous and current loans for this vendor</CardDescription>
                   </CardHeader>
-                  
+
                   <CardContent>
                     {vendorLoans.length > 0 ? (
                       <div className="overflow-x-auto">
@@ -941,8 +940,8 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                                 </TableCell>
                                 <TableCell>
                                   {loan.id !== id && (
-                                    <Button 
-                                      variant="ghost" 
+                                    <Button
+                                      variant="ghost"
                                       size="sm"
                                       onClick={() => router.push(`/dashboard/loans/requests/${loan.id}`)}
                                     >
@@ -964,7 +963,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               {/* Documents Tab */}
               <TabsContent value="documents" className="mt-6">
                 <Card>
@@ -972,7 +971,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     <CardTitle>Loan Documents</CardTitle>
                     <CardDescription>Important documents related to this loan</CardDescription>
                   </CardHeader>
-                  
+
                   <CardContent>
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 gap-4">
@@ -994,7 +993,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                             View
                           </Button>
                         </div>
-                        
+
                         {/* Agreement Document */}
                         {(request?.status === 'approved' || request?.status === 'disbursed' || request?.status === 'paid') && (
                           <div className="border rounded-lg p-4 flex items-center justify-between">
@@ -1015,7 +1014,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                             </Button>
                           </div>
                         )}
-                        
+
                         {/* Payment Schedule Document */}
                         {(request?.status === 'approved' || request?.status === 'disbursed' || request?.status === 'paid') && (
                           <div className="border rounded-lg p-4 flex items-center justify-between">
@@ -1043,7 +1042,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
               </TabsContent>
             </Tabs>
           </div>
-          
+
           {/* Sidebar - 2 columns */}
           <div className="md:col-span-2 space-y-6">
             {/* Vendor Information */}
@@ -1052,7 +1051,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                 <CardTitle>Vendor Information</CardTitle>
                 <CardDescription>Borrower details</CardDescription>
               </CardHeader>
-              
+
               <CardContent>
                 {vendorLoading ? (
                   <div className="flex justify-center py-4">
@@ -1073,9 +1072,9 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                         </p>
                       </div>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     <div className="space-y-3">
                       {vendor.email && (
                         <div className="flex items-center gap-2">
@@ -1085,7 +1084,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           </a>
                         </div>
                       )}
-                      
+
                       {vendor.phone && (
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-muted-foreground" />
@@ -1094,14 +1093,14 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                           </a>
                         </div>
                       )}
-                      
+
                       {vendor.website && (
                         <div className="flex items-center gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground" />
-                          <a 
-                            href={vendor.website.startsWith('http') ? vendor.website : `https://${vendor.website}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                          <a
+                            href={vendor.website.startsWith('http') ? vendor.website : `https://${vendor.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-sm hover:underline flex items-center gap-1"
                           >
                             {vendor.website.replace(/^https?:\/\//, '')}
@@ -1122,10 +1121,10 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   </div>
                 )}
               </CardContent>
-              
+
               <CardFooter>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => router.push(`/dashboard/vendors/${request?.vendor_id || vendor?.id}`)}
                 >
@@ -1134,7 +1133,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                 </Button>
               </CardFooter>
             </Card>
-            
+
             {/* Loan Product */}
             {product && (
               <Card>
@@ -1142,12 +1141,12 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   <CardTitle>Loan Product</CardTitle>
                   <CardDescription>Product information</CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback style={{ backgroundColor: "#6366f1" }} className="text-white">
-                        <DollarSign className="h-6 w-6" />
+                        <Banknote className="h-6 w-6" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -1159,15 +1158,15 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Interest Rate</p>
                       <p className="text-sm font-medium">{product.interest_rate}%</p>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">Amount Range</p>
                       <p className="text-sm font-medium">
@@ -1176,10 +1175,10 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     </div>
                   </div>
                 </CardContent>
-                
+
                 <CardFooter>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => router.push(`/dashboard/loans/products/${product.product_id || product.id}`)}
                   >
@@ -1189,7 +1188,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                 </CardFooter>
               </Card>
             )}
-            
+
             {/* Revenue Summary */}
             {revenueData && (
               <Card>
@@ -1197,20 +1196,20 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   <CardTitle>Financial Summary</CardTitle>
                   <CardDescription>Vendor's revenue overview</CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Monthly Average</p>
                       <p className="text-lg font-bold">{formatCurrency(revenueData.monthly_average)}</p>
                     </div>
-                    
+
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Annual Revenue</p>
                       <p className="text-lg font-bold">{formatCurrency(revenueData.annual_revenue)}</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <p className="text-sm">Growth Rate</p>
@@ -1221,14 +1220,14 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                     </div>
                     <Progress value={revenueData.growth_rate} className="h-1" />
                   </div>
-                  
+
                   <div className="text-xs text-right text-muted-foreground">
                     Last 6 months activity
                   </div>
                 </CardContent>
               </Card>
             )}
-            
+
             {/* Approval Actions */}
             {request?.status === 'pending' && (
               <Card>
@@ -1236,11 +1235,11 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   <CardTitle>Approval Actions</CardTitle>
                   <CardDescription>Process this loan request</CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="flex flex-col gap-3">
-                    <Button 
-                      variant="default" 
+                    <Button
+                      variant="default"
                       disabled={updating}
                       onClick={() => handleStatusChange('approved')}
                       className="w-full"
@@ -1248,9 +1247,9 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       <Check className="h-4 w-4 mr-2" />
                       Approve Request
                     </Button>
-                    
-                    <Button 
-                      variant="outline" 
+
+                    <Button
+                      variant="outline"
                       disabled={updating}
                       onClick={() => handleStatusChange('rejected')}
                       className="w-full"
@@ -1262,7 +1261,7 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                 </CardContent>
               </Card>
             )}
-            
+
             {/* Next Steps */}
             {(request?.status === 'approved' || request?.status === 'disbursed') && (
               <Card>
@@ -1270,11 +1269,11 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                   <CardTitle>Next Steps</CardTitle>
                   <CardDescription>Loan processing actions</CardDescription>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   {request?.status === 'approved' && (
-                    <Button 
-                      variant="default" 
+                    <Button
+                      variant="default"
                       disabled={updating}
                       onClick={() => handleStatusChange('disbursed')}
                       className="w-full"
@@ -1283,15 +1282,15 @@ export default function LoanRequestDetailPage({ params }: LoanRequestDetailPageP
                       Mark as Disbursed
                     </Button>
                   )}
-                  
+
                   {request?.status === 'disbursed' && (
-                    <Button 
-                      variant="default" 
+                    <Button
+                      variant="default"
                       disabled={updating}
                       onClick={() => handleStatusChange('paid')}
                       className="w-full"
                     >
-                      <BadgeDollarSign className="h-4 w-4 mr-2" />
+                      <Banknote className="h-4 w-4 mr-2" />
                       Mark as Paid
                     </Button>
                   )}
