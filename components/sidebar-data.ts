@@ -141,7 +141,7 @@ export const navigationData: NavigationData = {
     // },
     {
       title: "Support Tickets",
-      url: "https://chatwoot-uat.cheetah.co.tz/app/accounts/1/dashboard",
+      url: "https://support.afrizon.africa/app/accounts/1/dashboard",
       target: "_blank",
       icon: IconHelp,
       requiredPermission: "support",
