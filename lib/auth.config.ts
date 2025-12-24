@@ -34,13 +34,13 @@ const authConfig = {
             console.error('NextAuth: No credentials provided');
             return null;
           }
-          
+
           // Use the API client to authenticate
           const userData = await api.auth.login(credentials.email, credentials.password);
-          
+
           // Extract roles using the updated function
           const roles = extractUserRoles(userData);
-          
+
           // Create the CustomUser object required by NextAuth
           const user: CustomUser = {
             id: userData.user_id,
@@ -52,7 +52,7 @@ const authConfig = {
             accessToken: userData.access_token,
             tenant_id: userData.tenant_id || '4c56d0c3-55d9-495b-ae26-0d922d430a42',
           };
-          
+
           return user;
         } catch (error) {
           console.error('NextAuth: Authentication error:', error);
@@ -88,7 +88,7 @@ const authConfig = {
       if (typeof window !== 'undefined' && token.accessToken) {
         // Store token in localStorage for our API client to use
         localStorage.setItem('token', token.accessToken);
-        
+
         // If we have a refresh token in the user object, store that too
         if (token.user?.token) {
           localStorage.setItem('refresh_token', token.user.token);
@@ -100,6 +100,7 @@ const authConfig = {
       return session as CustomSession;
     },
   },
+  trustHost: true,
 };
 
 export default authConfig;
