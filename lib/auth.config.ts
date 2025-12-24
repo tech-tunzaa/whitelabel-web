@@ -2,7 +2,6 @@ import { NextAuthConfig } from "next-auth";
 import CredentialProvider from "next-auth/providers/credentials";
 import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
-import { api } from "./core";
 import { extractUserRoles } from "./core/auth";
 import type { CustomUser } from "./core";
 
@@ -35,8 +34,26 @@ const authConfig = {
             return null;
           }
 
-          // Use the API client to authenticate
-          const userData = await api.auth.login(credentials.email, credentials.password);
+          // Use fetch instead of axios to avoid Edge Runtime issues
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://multi-tenant-api.tunzaa.co.tz/v1';
+          const response = await fetch(`${baseUrl}/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              identifier: credentials.email,
+              password: credentials.password,
+              is_phone: false
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('NextAuth: Authentication failed', await response.text());
+            return null;
+          }
+
+          const userData = await response.json();
 
           // Extract roles using the updated function
           const roles = extractUserRoles(userData);
@@ -101,6 +118,6 @@ const authConfig = {
     },
   },
   trustHost: true,
-};
+} satisfies NextAuthConfig;
 
 export default authConfig;
