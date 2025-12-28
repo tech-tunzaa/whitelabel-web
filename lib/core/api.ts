@@ -144,6 +144,42 @@ const createApiClient = () => {
     headers: { 'Content-Type': 'application/json' },
   });
 
+  // --- Monitoring Interceptor ---
+  const addMonitoringInterceptors = (client: AxiosInstance) => {
+    client.interceptors.request.use((config) => {
+      // @ts-ignore
+      config.metadata = { startTime: new Date() };
+      return config;
+    });
+
+    client.interceptors.response.use(
+      (response) => {
+        // @ts-ignore
+        const startTime = response.config.metadata?.startTime;
+        if (startTime) {
+          const duration = new Date().getTime() - startTime.getTime();
+          if (duration > 5000) {
+            console.warn(`[Slow Request] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
+          }
+        }
+        return response;
+      },
+      (error) => {
+        // @ts-ignore
+        const startTime = error.config?.metadata?.startTime;
+        if (startTime) {
+          const duration = new Date().getTime() - startTime.getTime();
+          console.error(`[Request Failed] ${error.config?.method?.toUpperCase()} ${error.config?.url} failed after ${duration}ms`);
+        }
+        return Promise.reject(error);
+      }
+    );
+  };
+
+  addMonitoringInterceptors(apiClient);
+  addMonitoringInterceptors(fileUploadClient);
+  addMonitoringInterceptors(authClient);
+
   // --- Interceptor logic as a reusable function ---
   function addAuthInterceptors(client: AxiosInstance) {
     // Add auth token to requests
