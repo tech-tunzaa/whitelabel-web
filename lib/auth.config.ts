@@ -100,6 +100,7 @@ const authConfig = {
       return session as CustomSession;
     },
   },
+  trustHost: true,
 };
 
 export default authConfig;
